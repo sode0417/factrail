@@ -1,0 +1,75 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["factrail", "public"]
+}
+
+model Fact {
+  id         String   @id @default(uuid())
+  externalId String   @map("external_id")
+  source     String
+  sourceUrl  String?  @map("source_url")
+  occurredAt DateTime @map("occurred_at")
+
+  title   String
+  summary String?
+  content String? @db.Text
+  raw     Json
+
+  type     String
+  metadata Json?
+
+  slackMessageId String? @unique @map("slack_message_id")
+  f2aEventId     String? @unique @map("f2a_event_id")
+
+  createdAt   DateTime  @default(now()) @map("created_at")
+  processedAt DateTime? @map("processed_at")
+
+  @@unique([source, externalId])
+  @@index([occurredAt])
+  @@index([type])
+  @@index([source])
+  @@index([f2aEventId])
+  @@map("facts")
+  @@schema("factrail")
+}
+
+model Integration {
+  id          String  @id @default(uuid())
+  provider    String
+  accountId   String  @map("account_id")
+  accountName String? @map("account_name")
+
+  accessToken  String    @map("access_token") @db.Text
+  refreshToken String?   @map("refresh_token") @db.Text
+  expiresAt    DateTime? @map("expires_at")
+  scope        String[]
+
+  status     String    @default("active")
+  lastSyncAt DateTime? @map("last_sync_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([provider, accountId])
+  @@map("integrations")
+  @@schema("factrail")
+}
+
+model Event {
+  id          String   @id
+  userId      String   @map("user_id")
+  content     String
+  eventTypeId String?  @map("event_type_id")
+  payload     Json?
+  occurredAt  DateTime @map("occurred_at")
+  createdAt   DateTime @map("created_at")
+  updatedAt   DateTime @map("updated_at")
+
+  @@map("events")
+  @@schema("public")
+}
