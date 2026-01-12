@@ -1,5 +1,11 @@
 {
-  "dependencies": {
-    "@prisma/client": "^7.2.0"
+  "name": "factrail",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Fact Trail - Log infrastructure for personal activities",
+  "scripts": {
+    "dev:api": "cd apps/api && npm run start:dev",
+    "build:api": "cd apps/api && npm run build",
+    "start:api": "cd apps/api && npm run start"
   }
 }
