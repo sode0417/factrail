@@ -7,6 +7,8 @@ import { FactsModule } from './facts/facts.module';
 import { HealthModule } from './health/health.module';
 import { CryptoModule } from './common/crypto';
 import { IntegrationsModule } from './integrations/integrations.module';
+import { SettingsModule } from './settings/settings.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -17,6 +19,8 @@ import { IntegrationsModule } from './integrations/integrations.module';
     FactsModule,
     HealthModule,
     IntegrationsModule,
+    SettingsModule,
+    WebhooksModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],

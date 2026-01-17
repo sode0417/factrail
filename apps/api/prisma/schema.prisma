@@ -61,6 +61,20 @@ model Integration {
   @@schema("factrail")
 }
 
+model Settings {
+  id          String @id @default(uuid())
+  provider    String // "github", "slack", "google" など
+  settingType String @map("setting_type") // "webhook_secret", "api_key" など
+  value       String @db.Text // 暗号化された値
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([provider, settingType])
+  @@map("settings")
+  @@schema("factrail")
+}
+
 model Event {
   id          String   @id
   userId      String   @map("user_id")
