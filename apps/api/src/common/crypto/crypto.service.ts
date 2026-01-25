@@ -18,15 +18,15 @@ export class CryptoService implements OnModuleInit {
     this.encryptionKey = this.configService.get<string>('ENCRYPTION_KEY');
     if (!this.encryptionKey) {
       throw new Error(
-        'ENCRYPTION_KEY environment variable is required. ' +
-          'Generate a secure key using: openssl rand -hex 32',
+        'ENCRYPTION_KEY 環境変数が設定されていません。' +
+          '次のコマンドでキーを生成してください: openssl rand -hex 32',
       );
     }
 
     if (this.encryptionKey.length < 32) {
       throw new Error(
-        'ENCRYPTION_KEY must be at least 32 characters long. ' +
-          'Generate a secure key using: openssl rand -hex 32',
+        'ENCRYPTION_KEY は32文字以上である必要があります。' +
+          '次のコマンドでキーを生成してください: openssl rand -hex 32',
       );
     }
   }
@@ -91,7 +91,7 @@ export class CryptoService implements OnModuleInit {
       return decrypted.toString('utf8');
     } catch (error) {
       throw new Error(
-        `Failed to decrypt data: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `データの復号化に失敗しました: ${error instanceof Error ? error.message : '不明なエラー'}`,
       );
     }
   }

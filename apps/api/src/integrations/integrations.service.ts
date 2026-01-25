@@ -75,7 +75,7 @@ export class IntegrationsService {
     });
 
     if (!integration) {
-      throw new NotFoundException(`Integration with ID ${id} not found`);
+      throw new NotFoundException(`連携が見つかりません: ID ${id}`);
     }
 
     return this.decryptIntegration(integration);
@@ -110,7 +110,7 @@ export class IntegrationsService {
     });
 
     if (!existing) {
-      throw new NotFoundException(`Integration with ID ${id} not found`);
+      throw new NotFoundException(`連携が見つかりません: ID ${id}`);
     }
 
     const updateData: Record<string, unknown> = {};
@@ -206,7 +206,7 @@ export class IntegrationsService {
     });
 
     if (!existing) {
-      throw new NotFoundException(`Integration with ID ${id} not found`);
+      throw new NotFoundException(`連携が見つかりません: ID ${id}`);
     }
 
     await this.prisma.integration.delete({

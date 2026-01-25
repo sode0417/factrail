@@ -73,7 +73,7 @@ export class SettingsService {
 
     if (!setting) {
       throw new NotFoundException(
-        `Setting not found: ${provider}/${settingType}`,
+        `設定が見つかりません: ${provider}/${settingType}`,
       );
     }
 
@@ -109,7 +109,7 @@ export class SettingsService {
 
     if (!setting) {
       throw new NotFoundException(
-        `Setting not found: ${provider}/${settingType}`,
+        `設定が見つかりません: ${provider}/${settingType}`,
       );
     }
 

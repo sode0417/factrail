@@ -7,6 +7,9 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 
+/**
+ * エラーレスポンスの型定義
+ */
 interface ErrorResponse {
   error: {
     code: string;
@@ -15,6 +18,10 @@ interface ErrorResponse {
   };
 }
 
+/**
+ * グローバル例外フィルター
+ * すべての例外をキャッチして統一されたエラーレスポンスを返す
+ */
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
@@ -25,7 +32,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     let errorResponse: ErrorResponse = {
       error: {
         code: 'INTERNAL_ERROR',
-        message: 'An unexpected error occurred',
+        message: '予期しないエラーが発生しました',
       },
     };
 
@@ -45,15 +52,15 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         errorResponse = {
           error: {
             code: this.getErrorCode(status),
-            message: (res.message as string) || 'An error occurred',
+            message: (res.message as string) || 'エラーが発生しました',
             details: res.errors || res.details,
           },
         };
       }
     }
 
-    // Log error for debugging
-    console.error('Error:', exception);
+    // デバッグ用のエラーログ
+    console.error('エラー:', exception);
 
     response.status(status).json(errorResponse);
   }
