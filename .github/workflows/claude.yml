@@ -6,7 +6,7 @@ on:
   pull_request_review_comment:
     types: [created]
   issues:
-    types: [assigned]
+    types: [opened, assigned]
   pull_request_review:
     types: [submitted]
 
@@ -16,7 +16,8 @@ jobs:
       (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && github.event.action == 'assigned' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      (github.event_name == 'issues' && github.event.action == 'opened' && contains(join(github.event.issue.labels.*.name, ','), 'claude:auto')) ||
+      (github.event_name == 'issues' && github.event.action == 'assigned' && contains(join(github.event.issue.labels.*.name, ','), 'claude:auto'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -40,8 +41,38 @@ jobs:
           additional_permissions: |
             actions: read
 
-          # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
-          # prompt: 'Update the pull request description to include a summary of changes.'
+          # Custom prompt based on event type
+          prompt: |
+            ${{ github.event_name == 'issues' && github.event.action == 'opened' && '
+            このissueの内容を確認し、以下を日本語で提案してください：
+
+            1. **実装方針の提案**
+               - このタスクの技術的なアプローチ
+               - 影響範囲の確認
+               - 考慮すべきポイント
+
+            2. **詳細タスクリストの作成**
+               - 実装に必要な具体的なステップ
+               - 各ステップの説明
+               - 推定の難易度
+
+            3. **確認事項**
+               - 不明点や確認が必要な事項があれば質問
+
+            タスクリストが承認されたら、あなたにassignされます。その時点で実装を開始してください。
+            ' || '' }}
+
+            ${{ github.event_name == 'issues' && github.event.action == 'assigned' && '
+            タスクリストが承認されました。実装を開始してください。
+
+            実装完了後、以下の内容を含むPRを作成してください：
+            - PRタイトル：issueと同じタイトル
+            - PR本文：日本語で以下を記載
+              1. 実装内容の説明
+              2. 動作確認のエビデンス（テスト結果、スクリーンショット等）
+              3. レビュアーが動作確認を行うための手順書
+              4. 確認用チェックリスト
+            ' || '' }}
 
           # Optional: Add claude_args to customize behavior and configuration
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
