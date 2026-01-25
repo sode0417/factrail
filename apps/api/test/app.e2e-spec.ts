@@ -15,7 +15,7 @@ describe('AppController (e2e)', () => {
     await app.init();
   });
 
-  it('/ (GET)', () => {
+  it('ルートパス / (GET) で "Hello World!" を返すこと', () => {
     return request(app.getHttpServer())
       .get('/')
       .expect(200)

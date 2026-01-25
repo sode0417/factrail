@@ -64,7 +64,7 @@ export class WebhooksService {
     signature: string | undefined,
   ): Promise<void> {
     if (!signature) {
-      throw new UnauthorizedException('Missing X-Hub-Signature-256 header');
+      throw new UnauthorizedException('X-Hub-Signature-256 ヘッダーがありません');
     }
 
     const secret = await this.settingsService.getDecryptedValue(
@@ -74,7 +74,7 @@ export class WebhooksService {
 
     if (!secret) {
       throw new UnauthorizedException(
-        'GitHub webhook secret not configured. Please configure it in Settings.',
+        'GitHub Webhook シークレットが設定されていません。設定で構成してください。',
       );
     }
 
@@ -89,7 +89,7 @@ export class WebhooksService {
       signatureBuffer.length !== expectedBuffer.length ||
       !timingSafeEqual(signatureBuffer, expectedBuffer)
     ) {
-      throw new UnauthorizedException('Invalid webhook signature');
+      throw new UnauthorizedException('Webhook署名が不正です');
     }
   }
 
@@ -101,7 +101,7 @@ export class WebhooksService {
     payload: GitHubWebhookPayload,
   ): Promise<{ factId: string } | { factIds: string[] } | null> {
     this.logger.log(
-      `Processing GitHub event: ${eventType} for ${payload.repository?.full_name}`,
+      `GitHubイベントを処理中: ${eventType} (リポジトリ: ${payload.repository?.full_name})`,
     );
 
     switch (eventType) {
@@ -112,10 +112,10 @@ export class WebhooksService {
       case 'push':
         return this.processPushEvent(payload);
       case 'ping':
-        this.logger.log('Received ping event from GitHub');
+        this.logger.log('GitHubからpingイベントを受信しました');
         return null;
       default:
-        this.logger.warn(`Unhandled GitHub event type: ${eventType}`);
+        this.logger.warn(`未対応のGitHubイベントタイプ: ${eventType}`);
         return null;
     }
   }
@@ -129,7 +129,7 @@ export class WebhooksService {
     const { action, issue, repository } = payload;
 
     if (!issue) {
-      throw new Error('Issue payload is missing');
+      throw new Error('Issueペイロードがありません');
     }
 
     const externalId = `${repository.full_name}#${issue.number}`;
@@ -168,7 +168,7 @@ export class WebhooksService {
     const { action, pull_request, repository } = payload;
 
     if (!pull_request) {
-      throw new Error('Pull request payload is missing');
+      throw new Error('Pull Requestペイロードがありません');
     }
 
     const externalId = `${repository.full_name}#${pull_request.number}`;
