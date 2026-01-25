@@ -2,11 +2,11 @@
 
 ## プロジェクト概要
 
-Factrailは個人の外部・内部活動で発生する**すべての「事実（Fact）」を一元的に収集・正規化・保持する**ログ基盤（インフラ層）です。
+Factrailは個人の外部・内部活動で発生する**すべての「記録（Fact）」を一元的に収集・正規化・保持する**ログ基盤（インフラ層）です。
 
 ### コアコンセプト
 
-- **Fact（事実）**: 外部・内部で発生した観測可能な出来事
+- **Fact（記録）**: 外部・内部で発生した観測可能な出来事
 - **Trail（軌跡）**: 再解釈・再構成・再利用可能な時系列ログ
 - Factrail自身は「解釈」や「意思決定」を行わず、それらはF2AやAIクライアントの責務
 
@@ -30,7 +30,7 @@ factrail/
 - **DB**: PostgreSQL (multiSchema: factrail, public)
 - **Queue**: Bull (Redis)
 - **主要機能**:
-  - Facts管理（事実の収集・正規化・保存）
+  - Facts管理（記録の収集・正規化・保存）
   - Integrations管理（OAuth/Webhook）
   - Settings管理（暗号化された設定値）
   - Webhooks受信（GitHub等）
@@ -48,7 +48,7 @@ factrail/
 
 ## データモデル
 
-### Fact（事実）
+### Fact（記録）
 ```typescript
 {
   id: string           // UUID
@@ -215,7 +215,7 @@ npm run test:cov
 
 ## 設計原則
 
-- **Write Once, Read Many**: 一度記録したFactは不変
+- **Write Once, Read Many**: 一度作成した記録は不変
 - **疎結合**: F2Aとは独立して動作可能
 - **段階的詳細化**: title → summary → content → raw の順で情報を持つ
 - **プライバシー**: トークンは必ず暗号化
@@ -237,7 +237,7 @@ npm run test:cov
 - APIレスポンスタイム < 200ms
 
 ### 価値指標
-- 1日あたり50+ Factsが自動記録される
+- 1日あたり50+件の記録が自動で蓄積される
 - Slack DMを毎日確認する習慣ができる
 - F2Aでのイベント取り込みが自動化される
 
