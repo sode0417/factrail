@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Box,
@@ -19,31 +19,11 @@ import { FiCheckCircle, FiXCircle } from 'react-icons/fi';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://factrail-production.up.railway.app';
 
-export default function SlackCallbackPage() {
+function SlackCallbackContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [errorMessage, setErrorMessage] = useState<string>('');
-
-  useEffect(() => {
-    const code = searchParams.get('code');
-    const error = searchParams.get('error');
-
-    if (error) {
-      setStatus('error');
-      setErrorMessage(`認証がキャンセルされました: ${error}`);
-      return;
-    }
-
-    if (!code) {
-      setStatus('error');
-      setErrorMessage('認証コードが見つかりません');
-      return;
-    }
-
-    // バックエンドにコードを送信
-    handleCallback(code);
-  }, [searchParams]);
 
   const handleCallback = async (code: string) => {
     try {
@@ -72,75 +52,113 @@ export default function SlackCallbackPage() {
     }
   };
 
+  useEffect(() => {
+    const code = searchParams.get('code');
+    const error = searchParams.get('error');
+
+    if (error) {
+      setStatus('error');
+      setErrorMessage(`認証がキャンセルされました: ${error}`);
+      return;
+    }
+
+    if (!code) {
+      setStatus('error');
+      setErrorMessage('認証コードが見つかりません');
+      return;
+    }
+
+    // バックエンドにコードを送信
+    handleCallback(code);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleRetry = () => {
     router.push('/setup/slack');
   };
 
   return (
+    <VStack spacing={6} align="stretch" maxW="600px">
+      {status === 'loading' && (
+        <Box textAlign="center" py={12}>
+          <Spinner size="xl" color="brand.500" mb={4} />
+          <Text fontSize="lg" color="gray.400">
+            Slackとの連携を処理しています...
+          </Text>
+        </Box>
+      )}
+
+      {status === 'success' && (
+        <Alert
+          status="success"
+          variant="subtle"
+          flexDirection="column"
+          alignItems="center"
+          justifyContent="center"
+          textAlign="center"
+          bg="gray.800"
+          borderColor="green.500"
+          borderWidth="1px"
+          borderRadius="lg"
+          py={8}
+        >
+          <Icon as={FiCheckCircle} boxSize={12} color="green.500" mb={4} />
+          <AlertTitle fontSize="2xl" mb={2}>
+            連携成功！
+          </AlertTitle>
+          <AlertDescription fontSize="md" color="gray.400">
+            Slackワークスペースとの連携が完了しました。
+            <br />
+            3秒後に設定ページに戻ります...
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {status === 'error' && (
+        <Alert
+          status="error"
+          variant="subtle"
+          flexDirection="column"
+          alignItems="center"
+          justifyContent="center"
+          textAlign="center"
+          bg="gray.800"
+          borderColor="red.500"
+          borderWidth="1px"
+          borderRadius="lg"
+          py={8}
+        >
+          <Icon as={FiXCircle} boxSize={12} color="red.500" mb={4} />
+          <AlertTitle fontSize="2xl" mb={2}>
+            連携エラー
+          </AlertTitle>
+          <AlertDescription fontSize="md" color="gray.400" mb={4}>
+            {errorMessage}
+          </AlertDescription>
+          <Button colorScheme="brand" onClick={handleRetry}>
+            設定ページに戻る
+          </Button>
+        </Alert>
+      )}
+    </VStack>
+  );
+}
+
+export default function SlackCallbackPage() {
+  return (
     <MainLayout title="Slack連携" subtitle="認証を処理中">
-      <VStack spacing={6} align="stretch" maxW="600px">
-        {status === 'loading' && (
+      <Suspense
+        fallback={
           <Box textAlign="center" py={12}>
             <Spinner size="xl" color="brand.500" mb={4} />
             <Text fontSize="lg" color="gray.400">
-              Slackとの連携を処理しています...
+              読み込み中...
             </Text>
           </Box>
-        )}
-
-        {status === 'success' && (
-          <Alert
-            status="success"
-            variant="subtle"
-            flexDirection="column"
-            alignItems="center"
-            justifyContent="center"
-            textAlign="center"
-            bg="gray.800"
-            borderColor="green.500"
-            borderWidth="1px"
-            borderRadius="lg"
-            py={8}
-          >
-            <Icon as={FiCheckCircle} boxSize={12} color="green.500" mb={4} />
-            <AlertTitle fontSize="2xl" mb={2}>
-              連携成功！
-            </AlertTitle>
-            <AlertDescription fontSize="md" color="gray.400">
-              Slackワークスペースとの連携が完了しました。
-              <br />
-              3秒後に設定ページに戻ります...
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {status === 'error' && (
-          <Alert
-            status="error"
-            variant="subtle"
-            flexDirection="column"
-            alignItems="center"
-            justifyContent="center"
-            textAlign="center"
-            bg="gray.800"
-            borderColor="red.500"
-            borderWidth="1px"
-            borderRadius="lg"
-            py={8}
-          >
-            <Icon as={FiXCircle} boxSize={12} color="red.500" mb={4} />
-            <AlertTitle fontSize="2xl" mb={2}>
-              連携エラー
-            </AlertTitle>
-            <AlertDescription fontSize="md" color="gray.400" mb={4}>
-              {errorMessage}
-            </AlertDescription>
-            <Button colorScheme="brand" onClick={handleRetry}>
-              設定ページに戻る
-            </Button>
-          </Alert>
-        )}
-      </VStack>
+        }
+      >
+        <SlackCallbackContent />
+      </Suspense>
     </MainLayout>
   );
 }
