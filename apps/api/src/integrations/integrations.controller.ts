@@ -11,7 +11,8 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { IntegrationsService, DecryptedIntegration } from './integrations.service';
-import { CreateIntegrationDto, UpdateIntegrationDto } from './dto';
+import { SlackOAuthService } from './slack-oauth.service';
+import { CreateIntegrationDto, UpdateIntegrationDto, SlackOAuthCallbackDto } from './dto';
 
 /**
  * 機密トークンデータを除外したレスポンス型
@@ -33,7 +34,10 @@ interface IntegrationResponse {
 
 @Controller('integrations')
 export class IntegrationsController {
-  constructor(private readonly integrationsService: IntegrationsService) {}
+  constructor(
+    private readonly integrationsService: IntegrationsService,
+    private readonly slackOAuthService: SlackOAuthService,
+  ) {}
 
   /**
    * 新しいIntegrationを作成する
@@ -93,6 +97,16 @@ export class IntegrationsController {
   async deactivate(@Param('id') id: string): Promise<IntegrationResponse> {
     const integration = await this.integrationsService.deactivate(id);
     return this.toResponse(integration);
+  }
+
+  /**
+   * Slack OAuth callbackを処理する
+   */
+  @Post('slack/callback')
+  @HttpCode(HttpStatus.OK)
+  async slackCallback(@Body() dto: SlackOAuthCallbackDto): Promise<{ success: boolean }> {
+    await this.slackOAuthService.handleCallback(dto.code);
+    return { success: true };
   }
 
   /**

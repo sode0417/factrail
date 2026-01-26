@@ -24,14 +24,46 @@ import {
   useClipboard,
   IconButton,
   Tooltip,
+  useToast,
+  Spinner,
 } from '@chakra-ui/react';
 import { MainLayout } from '@/components/layout';
-import { FiMessageSquare, FiCopy, FiCheck, FiExternalLink } from 'react-icons/fi';
-import { useState } from 'react';
+import { FiMessageSquare, FiCopy, FiCheck, FiExternalLink, FiSave } from 'react-icons/fi';
+import { useState, useEffect, useCallback } from 'react';
+import { prepareOAuthState } from '@/utils/oauth';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://factrail-production.up.railway.app';
+
+interface SettingResponse {
+  id: string;
+  provider: string;
+  settingType: string;
+  hasValue: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface IntegrationResponse {
+  id: string;
+  provider: string;
+  accountId: string;
+  accountName: string | null;
+  status: string;
+  hasAccessToken: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export default function SlackSetupPage() {
   const [clientId, setClientId] = useState('');
   const [clientSecret, setClientSecret] = useState('');
+  const [isClientIdConfigured, setIsClientIdConfigured] = useState(false);
+  const [isClientSecretConfigured, setIsClientSecretConfigured] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const [connectedAccountName, setConnectedAccountName] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const toast = useToast();
   
   const redirectUri = typeof window !== 'undefined'
     ? `${window.location.origin}/setup/slack/callback`
@@ -39,15 +71,174 @@ export default function SlackSetupPage() {
   
   const { hasCopied, onCopy } = useClipboard(redirectUri);
 
-  const handleOAuthConnect = () => {
+  // 設定状態を取得
+  const fetchSettings = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_URL}/settings?provider=slack`);
+      if (response.ok) {
+        const data: SettingResponse[] = await response.json();
+        const clientIdSetting = data.find(s => s.settingType === 'client_id');
+        const clientSecretSetting = data.find(s => s.settingType === 'client_secret');
+        setIsClientIdConfigured(!!clientIdSetting?.hasValue);
+        setIsClientSecretConfigured(!!clientSecretSetting?.hasValue);
+      }
+    } catch (error) {
+      console.error('Failed to fetch settings:', error);
+    }
+  }, []);
+
+  // 連携状態を取得
+  const fetchIntegrations = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_URL}/integrations?provider=slack`);
+      if (response.ok) {
+        const data: IntegrationResponse[] = await response.json();
+        if (data.length > 0 && data[0].status === 'active') {
+          setIsConnected(true);
+          setConnectedAccountName(data[0].accountName || 'Unknown Workspace');
+        } else {
+          setIsConnected(false);
+          setConnectedAccountName('');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch integrations:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      await Promise.all([fetchSettings(), fetchIntegrations()]);
+      setIsLoading(false);
+    };
+    fetchData();
+  }, [fetchSettings, fetchIntegrations]);
+
+  const saveClientId = async () => {
     if (!clientId) {
-      alert('Client IDを入力してください');
+      toast({
+        title: 'Client IDを入力してください',
+        status: 'warning',
+        duration: 3000,
+      });
       return;
     }
-    
+
+    setIsSaving(true);
+    try {
+      const response = await fetch(`${API_URL}/settings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          provider: 'slack',
+          settingType: 'client_id',
+          value: clientId,
+        }),
+      });
+
+      if (response.ok) {
+        toast({
+          title: 'Client IDを保存しました',
+          status: 'success',
+          duration: 3000,
+        });
+        setIsClientIdConfigured(true);
+        setClientId('');
+      } else {
+        throw new Error('Failed to save');
+      }
+    } catch (error) {
+      console.error('Failed to save client ID:', error);
+      toast({
+        title: '保存に失敗しました',
+        status: 'error',
+        duration: 3000,
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const saveClientSecret = async () => {
+    if (!clientSecret) {
+      toast({
+        title: 'Client Secretを入力してください',
+        status: 'warning',
+        duration: 3000,
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const response = await fetch(`${API_URL}/settings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          provider: 'slack',
+          settingType: 'client_secret',
+          value: clientSecret,
+        }),
+      });
+
+      if (response.ok) {
+        toast({
+          title: 'Client Secretを保存しました',
+          status: 'success',
+          duration: 3000,
+        });
+        setIsClientSecretConfigured(true);
+        setClientSecret('');
+      } else {
+        throw new Error('Failed to save');
+      }
+    } catch (error) {
+      console.error('Failed to save client secret:', error);
+      toast({
+        title: '保存に失敗しました',
+        status: 'error',
+        duration: 3000,
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleOAuthConnect = async () => {
+    if (!isClientIdConfigured && !clientId) {
+      toast({
+        title: 'Client IDを入力してください',
+        status: 'warning',
+        duration: 3000,
+      });
+      return;
+    }
+
+    if (!isClientSecretConfigured) {
+      toast({
+        title: 'Client Secretを先に保存してください',
+        status: 'warning',
+        duration: 3000,
+      });
+      return;
+    }
+
+    // 入力されたClient IDまたは設定済みの場合は入力を求める
+    const useClientId = clientId || prompt('Client IDを入力してください（設定画面で保存したClient ID）');
+    if (!useClientId) {
+      return;
+    }
+
+    // CSRF保護のためのstateパラメータを生成
+    const state = prepareOAuthState('slack');
+
     const scopes = 'chat:write,users:read';
-    const authUrl = `https://slack.com/oauth/v2/authorize?client_id=${clientId}&scope=${scopes}&redirect_uri=${encodeURIComponent(redirectUri)}`;
-    window.open(authUrl, '_blank');
+    const authUrl = `https://slack.com/oauth/v2/authorize?client_id=${useClientId}&scope=${scopes}&state=${encodeURIComponent(state)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+    window.location.href = authUrl;
   };
 
   return (
@@ -66,13 +257,24 @@ export default function SlackSetupPage() {
                     Slack OAuth
                   </Text>
                   <Text fontSize="sm" color="gray.400">
-                    DMへの自動投稿を有効化
+                    {isConnected && connectedAccountName
+                      ? `連携中: ${connectedAccountName}`
+                      : 'DMへの自動投稿を有効化'}
                   </Text>
                 </Box>
               </HStack>
-              <Badge colorScheme="yellow" fontSize="sm" px={3} py={1}>
-                未接続
-              </Badge>
+              {isLoading ? (
+                <Spinner size="sm" />
+              ) : (
+                <Badge
+                  colorScheme={isConnected ? 'green' : isClientIdConfigured && isClientSecretConfigured ? 'blue' : 'yellow'}
+                  fontSize="sm"
+                  px={3}
+                  py={1}
+                >
+                  {isConnected ? '接続済み' : isClientIdConfigured && isClientSecretConfigured ? '設定済み' : '未設定'}
+                </Badge>
+              )}
             </HStack>
           </CardBody>
         </Card>
@@ -199,67 +401,74 @@ export default function SlackSetupPage() {
                 <VStack spacing={4} pl={9}>
                   <FormControl>
                     <FormLabel fontSize="sm">Client ID</FormLabel>
-                    <Input
-                      value={clientId}
-                      onChange={(e) => setClientId(e.target.value)}
-                      placeholder="Basic Information → Client ID"
-                      bg="gray.900"
-                      borderColor="gray.700"
-                    />
+                    <HStack>
+                      <Input
+                        value={isClientIdConfigured && !clientId ? '●●●●●●●●●●●●●●●●●●●●' : clientId}
+                        onChange={(e) => setClientId(e.target.value)}
+                        placeholder="Basic Information → Client ID"
+                        bg="gray.900"
+                        borderColor="gray.700"
+                        isReadOnly={isClientIdConfigured && !clientId}
+                      />
+                      {clientId && (
+                        <Tooltip label="保存">
+                          <IconButton
+                            aria-label="Save Client ID"
+                            icon={isSaving ? <Spinner size="sm" /> : <FiSave />}
+                            onClick={saveClientId}
+                            colorScheme="green"
+                            isLoading={isSaving}
+                          />
+                        </Tooltip>
+                      )}
+                      {isClientIdConfigured && !clientId && (
+                        <Button onClick={() => setClientId('')} colorScheme="brand" minW="100px">
+                          再設定
+                        </Button>
+                      )}
+                    </HStack>
                     <FormHelperText color="gray.500">
-                      Slack App の Basic Information から取得
+                      {isClientIdConfigured && !clientId
+                        ? 'Client IDは設定済みです。変更する場合は再設定ボタンをクリックしてください'
+                        : 'Slack App の Basic Information から取得して保存してください'}
                     </FormHelperText>
                   </FormControl>
                   <FormControl>
                     <FormLabel fontSize="sm">Client Secret</FormLabel>
-                    <Input
-                      type="password"
-                      value={clientSecret}
-                      onChange={(e) => setClientSecret(e.target.value)}
-                      placeholder="Basic Information → Client Secret"
-                      bg="gray.900"
-                      borderColor="gray.700"
-                    />
+                    <HStack>
+                      <Input
+                        type="password"
+                        value={isClientSecretConfigured && !clientSecret ? '●●●●●●●●●●●●●●●●●●●●' : clientSecret}
+                        onChange={(e) => setClientSecret(e.target.value)}
+                        placeholder="Basic Information → Client Secret"
+                        bg="gray.900"
+                        borderColor="gray.700"
+                        isReadOnly={isClientSecretConfigured && !clientSecret}
+                      />
+                      {clientSecret && (
+                        <Tooltip label="保存">
+                          <IconButton
+                            aria-label="Save Client Secret"
+                            icon={isSaving ? <Spinner size="sm" /> : <FiSave />}
+                            onClick={saveClientSecret}
+                            colorScheme="green"
+                            isLoading={isSaving}
+                          />
+                        </Tooltip>
+                      )}
+                      {isClientSecretConfigured && !clientSecret && (
+                        <Button onClick={() => setClientSecret('')} colorScheme="brand" minW="100px">
+                          再設定
+                        </Button>
+                      )}
+                    </HStack>
                     <FormHelperText color="gray.500">
-                      サーバーの環境変数にも設定してください
+                      {isClientSecretConfigured && !clientSecret
+                        ? 'Client Secretは設定済みです。変更する場合は再設定ボタンをクリックしてください'
+                        : 'Slack App の Basic Information から取得して保存してください'}
                     </FormHelperText>
                   </FormControl>
                 </VStack>
-              </Box>
-
-              <Divider borderColor="gray.700" />
-
-              {/* Step 4 */}
-              <Box>
-                <HStack mb={3}>
-                  <Box
-                    w={6}
-                    h={6}
-                    borderRadius="full"
-                    bg="brand.500"
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="center"
-                  >
-                    <Text fontSize="sm" fontWeight="bold">
-                      4
-                    </Text>
-                  </Box>
-                  <Text fontWeight="semibold">環境変数を設定</Text>
-                </HStack>
-                <Alert status="info" bg="blue.900" borderRadius="lg">
-                  <AlertIcon />
-                  <Box>
-                    <AlertTitle fontSize="sm">Railway環境変数</AlertTitle>
-                    <AlertDescription fontSize="sm">
-                      <VStack align="start" spacing={1} mt={1}>
-                        <Code colorScheme="blue">SLACK_CLIENT_ID</Code>
-                        <Code colorScheme="blue">SLACK_CLIENT_SECRET</Code>
-                        <Code colorScheme="blue">SLACK_REDIRECT_URI</Code>
-                      </VStack>
-                    </AlertDescription>
-                  </Box>
-                </Alert>
               </Box>
 
               <Divider borderColor="gray.700" />
@@ -277,7 +486,7 @@ export default function SlackSetupPage() {
                     justifyContent="center"
                   >
                     <Text fontSize="sm" fontWeight="bold">
-                      5
+                      4
                     </Text>
                   </Box>
                   <Text fontWeight="semibold">ワークスペースに接続</Text>
@@ -288,13 +497,13 @@ export default function SlackSetupPage() {
                     size="lg"
                     leftIcon={<FiMessageSquare />}
                     onClick={handleOAuthConnect}
-                    isDisabled={!clientId}
+                    isDisabled={!isClientIdConfigured || !isClientSecretConfigured}
                   >
                     Slackワークスペースに接続
                   </Button>
-                  {!clientId && (
+                  {(!isClientIdConfigured || !isClientSecretConfigured) && (
                     <Text fontSize="sm" color="gray.500" mt={2}>
-                      Client IDを入力すると接続できます
+                      Client IDとClient Secretを保存すると接続できます
                     </Text>
                   )}
                 </Box>
