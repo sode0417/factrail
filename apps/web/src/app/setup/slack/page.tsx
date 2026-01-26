@@ -232,8 +232,12 @@ export default function SlackSetupPage() {
       return;
     }
 
+    // CSRF保護のためのstateパラメータを生成
+    const state = crypto.randomUUID();
+    sessionStorage.setItem('slack_oauth_state', state);
+
     const scopes = 'chat:write,users:read';
-    const authUrl = `https://slack.com/oauth/v2/authorize?client_id=${useClientId}&scope=${scopes}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+    const authUrl = `https://slack.com/oauth/v2/authorize?client_id=${useClientId}&scope=${scopes}&state=${encodeURIComponent(state)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
     window.location.href = authUrl;
   };
 

@@ -55,6 +55,7 @@ function SlackCallbackContent() {
   useEffect(() => {
     const code = searchParams.get('code');
     const error = searchParams.get('error');
+    const receivedState = searchParams.get('state');
 
     if (error) {
       setStatus('error');
@@ -67,6 +68,18 @@ function SlackCallbackContent() {
       setErrorMessage('認証コードが見つかりません');
       return;
     }
+
+    // CSRF保護: stateパラメータを検証
+    const storedState = sessionStorage.getItem('slack_oauth_state');
+    if (!receivedState || !storedState || receivedState !== storedState) {
+      setStatus('error');
+      setErrorMessage('セキュリティ検証に失敗しました。もう一度お試しください。');
+      sessionStorage.removeItem('slack_oauth_state');
+      return;
+    }
+
+    // 検証成功後、stateを削除
+    sessionStorage.removeItem('slack_oauth_state');
 
     // バックエンドにコードを送信
     handleCallback(code);
