@@ -16,6 +16,7 @@ import {
 } from '@chakra-ui/react';
 import { MainLayout } from '@/components/layout';
 import { FiCheckCircle, FiXCircle } from 'react-icons/fi';
+import { validateOAuthState } from '@/utils/oauth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://factrail-production.up.railway.app';
 
@@ -70,16 +71,11 @@ function SlackCallbackContent() {
     }
 
     // CSRF保護: stateパラメータを検証
-    const storedState = sessionStorage.getItem('slack_oauth_state');
-    if (!receivedState || !storedState || receivedState !== storedState) {
+    if (!validateOAuthState('slack', receivedState)) {
       setStatus('error');
       setErrorMessage('セキュリティ検証に失敗しました。もう一度お試しください。');
-      sessionStorage.removeItem('slack_oauth_state');
       return;
     }
-
-    // 検証成功後、stateを削除
-    sessionStorage.removeItem('slack_oauth_state');
 
     // バックエンドにコードを送信
     handleCallback(code);

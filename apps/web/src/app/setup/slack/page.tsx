@@ -30,6 +30,7 @@ import {
 import { MainLayout } from '@/components/layout';
 import { FiMessageSquare, FiCopy, FiCheck, FiExternalLink, FiSave } from 'react-icons/fi';
 import { useState, useEffect, useCallback } from 'react';
+import { prepareOAuthState } from '@/utils/oauth';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://factrail-production.up.railway.app';
 
@@ -233,8 +234,7 @@ export default function SlackSetupPage() {
     }
 
     // CSRF保護のためのstateパラメータを生成
-    const state = crypto.randomUUID();
-    sessionStorage.setItem('slack_oauth_state', state);
+    const state = prepareOAuthState('slack');
 
     const scopes = 'chat:write,users:read';
     const authUrl = `https://slack.com/oauth/v2/authorize?client_id=${useClientId}&scope=${scopes}&state=${encodeURIComponent(state)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
