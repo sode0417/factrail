@@ -473,7 +473,7 @@ export default function SlackSetupPage() {
                         </Tooltip>
                       )}
                       {isClientIdConfigured && !clientId && (
-                        <Button onClick={() => setClientId('')} colorScheme="brand" minW="100px">
+                        <Button onClick={() => setIsClientIdConfigured(false)} colorScheme="brand" minW="100px">
                           再設定
                         </Button>
                       )}
@@ -508,7 +508,7 @@ export default function SlackSetupPage() {
                         </Tooltip>
                       )}
                       {isClientSecretConfigured && !clientSecret && (
-                        <Button onClick={() => setClientSecret('')} colorScheme="brand" minW="100px">
+                        <Button onClick={() => setIsClientSecretConfigured(false)} colorScheme="brand" minW="100px">
                           再設定
                         </Button>
                       )}
@@ -542,7 +542,7 @@ export default function SlackSetupPage() {
                         </Tooltip>
                       )}
                       {isChannelIdConfigured && !targetChannelId && (
-                        <Button onClick={() => setTargetChannelId('')} colorScheme="brand" minW="100px">
+                        <Button onClick={() => setIsChannelIdConfigured(false)} colorScheme="brand" minW="100px">
                           再設定
                         </Button>
                       )}
