@@ -1,4 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
 import { PrismaService } from '../prisma.service';
 import { CreateFactDto, QueryFactsDto } from './dto';
 import { Prisma } from '@prisma/client';
@@ -10,7 +12,10 @@ import { randomUUID } from 'crypto';
  */
 @Injectable()
 export class FactsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @InjectQueue('slack-dispatch') private readonly slackQueue: Queue,
+  ) {}
 
   /**
    * 記録を検索する（カーソルベースページネーション）
@@ -98,7 +103,7 @@ export class FactsService {
   }
 
   /**
-   * 新しい記録を作成する
+   * 新しい記録を作成し、Slack投稿キューに追加する
    * @param dto 記録作成用のDTO
    * @returns 作成された記録
    */
@@ -120,6 +125,19 @@ export class FactsService {
         metadata: dto.metadata || Prisma.JsonNull,
       },
     });
+
+    // Slack投稿キューに追加（非同期）
+    await this.slackQueue.add(
+      'send-dm',
+      { factId: fact.id },
+      {
+        attempts: 5, // 最大5回リトライ
+        backoff: {
+          type: 'exponential',
+          delay: 1000, // 初回1秒、以降指数的に増加
+        },
+      },
+    );
 
     return { data: fact };
   }

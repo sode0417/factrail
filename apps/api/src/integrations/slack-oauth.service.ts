@@ -89,5 +89,15 @@ export class SlackOAuthService {
     });
 
     this.logger.log('Slack連携情報をIntegrationsに保存しました');
+
+    // 認証したユーザーのIDを送信先として自動設定
+    if (data.authed_user?.id) {
+      await this.settingsService.upsert({
+        provider: 'slack',
+        settingType: 'target_channel_id',
+        value: data.authed_user.id,
+      });
+      this.logger.log(`Slack送信先ID（User）を保存しました: ${data.authed_user.id}`);
+    }
   }
 }

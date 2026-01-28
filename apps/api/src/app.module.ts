@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { BullModule } from '@nestjs/bull';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaService } from './prisma.service';
@@ -9,13 +10,23 @@ import { CryptoModule } from './common/crypto';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { SettingsModule } from './settings/settings.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
+import { DispatchersModule } from './dispatchers/dispatchers.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    // Redis + Bull Queue のグローバル設定
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        redis: configService.get('REDIS_URL') || 'redis://localhost:6379',
+      }),
+      inject: [ConfigService],
+    }),
     CryptoModule,
+    DispatchersModule,
     FactsModule,
     HealthModule,
     IntegrationsModule,
