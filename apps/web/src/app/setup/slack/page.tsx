@@ -57,8 +57,10 @@ interface IntegrationResponse {
 export default function SlackSetupPage() {
   const [clientId, setClientId] = useState('');
   const [clientSecret, setClientSecret] = useState('');
+  const [targetChannelId, setTargetChannelId] = useState('');
   const [isClientIdConfigured, setIsClientIdConfigured] = useState(false);
   const [isClientSecretConfigured, setIsClientSecretConfigured] = useState(false);
+  const [isChannelIdConfigured, setIsChannelIdConfigured] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [connectedAccountName, setConnectedAccountName] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
@@ -79,8 +81,10 @@ export default function SlackSetupPage() {
         const data: SettingResponse[] = await response.json();
         const clientIdSetting = data.find(s => s.settingType === 'client_id');
         const clientSecretSetting = data.find(s => s.settingType === 'client_secret');
+        const channelIdSetting = data.find(s => s.settingType === 'target_channel_id');
         setIsClientIdConfigured(!!clientIdSetting?.hasValue);
         setIsClientSecretConfigured(!!clientSecretSetting?.hasValue);
+        setIsChannelIdConfigured(!!channelIdSetting?.hasValue);
       }
     } catch (error) {
       console.error('Failed to fetch settings:', error);
@@ -208,6 +212,53 @@ export default function SlackSetupPage() {
     }
   };
 
+  const saveTargetChannelId = async () => {
+    if (!targetChannelId) {
+      toast({
+        title: '送信先IDを入力してください',
+        status: 'warning',
+        duration: 3000,
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const response = await fetch(`${API_URL}/settings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          provider: 'slack',
+          settingType: 'target_channel_id',
+          value: targetChannelId,
+        }),
+      });
+
+      if (response.ok) {
+        toast({
+          title: '送信先IDを保存しました',
+          status: 'success',
+          duration: 3000,
+        });
+        setIsChannelIdConfigured(true);
+        setTargetChannelId('');
+      } else {
+        throw new Error('Failed to save');
+      }
+    } catch (error) {
+      console.error('Failed to save target channel ID:', error);
+      toast({
+        title: '保存に失敗しました',
+        status: 'error',
+        duration: 3000,
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleOAuthConnect = async () => {
     if (!isClientIdConfigured && !clientId) {
       toast({
@@ -242,7 +293,7 @@ export default function SlackSetupPage() {
   };
 
   return (
-    <MainLayout title="Slack連携" subtitle="Slack DMへの自動投稿を設定">
+    <MainLayout title="Slack連携" subtitle="Slack DM/チャンネルへの自動投稿を設定">
       <VStack spacing={6} align="stretch" maxW="800px">
         {/* Status Card */}
         <Card bg="gray.800" borderColor="gray.700" borderWidth="1px">
@@ -259,7 +310,7 @@ export default function SlackSetupPage() {
                   <Text fontSize="sm" color="gray.400">
                     {isConnected && connectedAccountName
                       ? `連携中: ${connectedAccountName}`
-                      : 'DMへの自動投稿を有効化'}
+                      : 'DM/チャンネルへの自動投稿を有効化'}
                   </Text>
                 </Box>
               </HStack>
@@ -466,6 +517,40 @@ export default function SlackSetupPage() {
                       {isClientSecretConfigured && !clientSecret
                         ? 'Client Secretは設定済みです。変更する場合は再設定ボタンをクリックしてください'
                         : 'Slack App の Basic Information から取得して保存してください'}
+                    </FormHelperText>
+                  </FormControl>
+                  <FormControl>
+                    <FormLabel fontSize="sm">送信先ID（User/Channel）</FormLabel>
+                    <HStack>
+                      <Input
+                        value={isChannelIdConfigured && !targetChannelId ? '●●●●●●●●●●●●●●●●●●●●' : targetChannelId}
+                        onChange={(e) => setTargetChannelId(e.target.value)}
+                        placeholder="例: U1234567890（DM）または C1234567890（チャンネル）"
+                        bg="gray.900"
+                        borderColor="gray.700"
+                        isReadOnly={isChannelIdConfigured && !targetChannelId}
+                      />
+                      {targetChannelId && (
+                        <Tooltip label="保存">
+                          <IconButton
+                            aria-label="Save Target Channel ID"
+                            icon={isSaving ? <Spinner size="sm" /> : <FiSave />}
+                            onClick={saveTargetChannelId}
+                            colorScheme="green"
+                            isLoading={isSaving}
+                          />
+                        </Tooltip>
+                      )}
+                      {isChannelIdConfigured && !targetChannelId && (
+                        <Button onClick={() => setTargetChannelId('')} colorScheme="brand" minW="100px">
+                          再設定
+                        </Button>
+                      )}
+                    </HStack>
+                    <FormHelperText color="gray.500">
+                      {isChannelIdConfigured && !targetChannelId
+                        ? '送信先IDは設定済みです（OAuth時に自動設定）。変更する場合は再設定ボタンをクリックしてください'
+                        : 'OAuth接続時に自動設定されます（DM）。チャンネルに投稿する場合は、チャンネルを右クリック→「リンクをコピー」から末尾のChannel IDを取得してください'}
                     </FormHelperText>
                   </FormControl>
                 </VStack>
