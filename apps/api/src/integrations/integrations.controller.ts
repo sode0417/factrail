@@ -52,12 +52,14 @@ export class IntegrationsController {
    * 全てのIntegrationを取得する
    */
   @Get()
-  async findAll(@Query('provider') provider?: string): Promise<IntegrationResponse[]> {
+  async findAll(@Query('provider') provider?: string): Promise<{ data: IntegrationResponse[] }> {
     const integrations = provider
       ? await this.integrationsService.findByProvider(provider)
       : await this.integrationsService.findAll();
 
-    return integrations.map((integration) => this.toResponse(integration));
+    return {
+      data: integrations.map((integration) => this.toResponse(integration)),
+    };
   }
 
   /**
@@ -85,9 +87,10 @@ export class IntegrationsController {
    * Integrationを削除する
    */
   @Delete(':id')
-  @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('id') id: string): Promise<void> {
+  @HttpCode(HttpStatus.OK)
+  async remove(@Param('id') id: string): Promise<{ success: boolean }> {
     await this.integrationsService.remove(id);
+    return { success: true };
   }
 
   /**
