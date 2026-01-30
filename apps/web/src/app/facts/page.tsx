@@ -19,8 +19,9 @@ import {
 } from '@chakra-ui/react';
 import { MainLayout } from '@/components/layout';
 import { FiSearch, FiExternalLink, FiRefreshCw } from 'react-icons/fi';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import { formatRelativeTime } from '@/lib/formatRelativeTime';
 
 interface Fact {
   id: string;
@@ -67,20 +68,30 @@ function formatDate(dateString: string): string {
   });
 }
 
+// ポーリング間隔（ミリ秒）
+const POLLING_INTERVAL = 30000; // 30秒
+
 export default function FactsPage() {
   const [facts, setFacts] = useState<Fact[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [sourceFilter, setSourceFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://factrail-production.up.railway.app';
 
-  const fetchFacts = async () => {
-    setLoading(true);
+  const fetchFacts = async (isBackgroundRefresh = false) => {
+    if (isBackgroundRefresh) {
+      setIsRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+
     try {
       const params = new URLSearchParams();
       if (sourceFilter) params.append('source', sourceFilter);
-      
+
       const response = await axios.get<FactsResponse>(
         `${apiUrl}/api/facts?${params.toString()}`
       );
@@ -88,13 +99,33 @@ export default function FactsPage() {
     } catch (error) {
       console.error('Failed to fetch facts:', error);
     } finally {
-      setLoading(false);
+      if (isBackgroundRefresh) {
+        setIsRefreshing(false);
+      } else {
+        setLoading(false);
+      }
     }
   };
 
+  // 初回ロードとフィルター変更時のデータ取得
   useEffect(() => {
     fetchFacts();
   }, [sourceFilter]);
+
+  // ポーリングの設定
+  useEffect(() => {
+    // ポーリング開始
+    pollingIntervalRef.current = setInterval(() => {
+      fetchFacts(true);
+    }, POLLING_INTERVAL);
+
+    // クリーンアップ: コンポーネントアンマウント時にポーリング停止
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, [sourceFilter]); // sourceFilterが変更されたらポーリングも再設定
 
   const filteredFacts = facts.filter((fact) => {
     if (!searchQuery) return true;
@@ -139,10 +170,10 @@ export default function FactsPage() {
             </Select>
 
             <Button
-              leftIcon={<FiRefreshCw />}
+              leftIcon={<FiRefreshCw className={isRefreshing ? 'animate-spin' : ''} />}
               variant="outline"
               colorScheme="gray"
-              onClick={fetchFacts}
+              onClick={() => fetchFacts(false)}
               isLoading={loading}
             >
               更新
@@ -205,7 +236,10 @@ export default function FactsPage() {
                           {fact.type}
                         </Badge>
                         <Text fontSize="xs" color="gray.500">
-                          {formatDate(fact.occurredAt)}
+                          {formatRelativeTime(fact.occurredAt)}
+                        </Text>
+                        <Text fontSize="xs" color="gray.600" title={formatDate(fact.occurredAt)}>
+                          ({formatDate(fact.occurredAt)})
                         </Text>
                       </HStack>
                     </Box>
