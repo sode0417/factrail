@@ -24,7 +24,7 @@ export default defineConfig({
   reporter: [
     ['html'],
     ['list'],
-    ...(process.env.CI ? [['github' as const]] : []),
+    ...(process.env.CI ? ['github'] : []),
   ],
 
   // すべてのテストで共通の設定
