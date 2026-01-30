@@ -112,6 +112,24 @@ CREATE TRIGGER update_integrations_updated_at
   BEFORE UPDATE ON factrail.integrations
   FOR EACH ROW
   EXECUTE FUNCTION factrail.update_updated_at();
+
+-- Settings テーブル
+CREATE TABLE factrail.settings (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  provider TEXT NOT NULL,
+  setting_type TEXT NOT NULL,
+  value TEXT NOT NULL, -- 暗号化済み
+
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+
+  UNIQUE(provider, setting_type)
+);
+
+CREATE TRIGGER update_settings_updated_at
+  BEFORE UPDATE ON factrail.settings
+  FOR EACH ROW
+  EXECUTE FUNCTION factrail.update_updated_at();
 ```
 
 ### 1.4 F2A連携用ビュー（オプション）
@@ -247,6 +265,21 @@ model Integration {
   @@schema("factrail")
 }
 
+// Settings モデル
+model Setting {
+  id           String   @id @default(uuid())
+  provider     String
+  settingType  String   @map("setting_type")
+  value        String   @db.Text // 暗号化済み
+
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@unique([provider, settingType])
+  @@map("settings")
+  @@schema("factrail")
+}
+
 // F2A Events参照用（読み取り専用）
 model Event {
   id            String   @id
@@ -257,7 +290,7 @@ model Event {
   occurredAt    DateTime @map("occurred_at")
   createdAt     DateTime @map("created_at")
   updatedAt     DateTime @map("updated_at")
-  
+
   @@map("events")
   @@schema("public")
 }
@@ -344,13 +377,14 @@ factrail/
 ├── apps/
 │   ├── api/                 # NestJS Backend
 │   │   ├── src/
-│   │   │   ├── facts/       
+│   │   │   ├── facts/
 │   │   │   ├── integrations/
-│   │   │   ├── collectors/  
-│   │   │   │   ├── github/
-│   │   │   │   └── slack/
-│   │   │   ├── dispatchers/ 
-│   │   │   ├── common/      
+│   │   │   ├── settings/
+│   │   │   ├── webhooks/
+│   │   │   │   └── github/
+│   │   │   ├── dispatchers/
+│   │   │   │   └── slack/   # Slack DM/チャンネル投稿
+│   │   │   ├── common/
 │   │   │   │   ├── crypto/
 │   │   │   │   ├── prisma/
 │   │   │   │   └── supabase/

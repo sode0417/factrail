@@ -21,7 +21,7 @@ Factrailは、GitHub、Slack、Googleなど外部サービスで発生するイ�
 - **ORM**: Prisma
 - **Database**: PostgreSQL (Supabase)
 - **Queue**: Bull (Redis)
-- **主要機能**: Facts管理、Integrations管理、Webhook受信
+- **主要機能**: Facts管理、Integrations管理、Webhook受信、Slack DM/チャンネル自動投稿
 
 ### Frontend (apps/web)
 - **Framework**: Next.js 16 (App Router)
@@ -120,9 +120,14 @@ npm run dev
 
 ## 📖 ドキュメント
 
+### 概要・仕様
 - [プロジェクト概要](docs/Factrail.md)
 - [API仕様書](docs/factrail-API.md)
 - [セットアップ手順](docs/factrail-setup.md)
+
+### 開発者向け
+- [プロジェクトコンテキスト（最新の実装状況）](.claude/context.md)
+- [クイックリファレンス（コマンド・トラブルシューティング）](.claude/quickref.md)
 - [開発ガイドライン](.claude/instructions.md)
 
 ---
@@ -294,8 +299,8 @@ npm run test:cov
 - [x] プロジェクトセットアップ
 - [x] Facts/Integrations CRUD
 - [x] GitHub Webhook受信
-- [ ] Slack連携
-- [ ] F2A連携API
+- [x] Slack連携（OAuth認証、DM/チャンネル自動投稿）
+- [x] F2A連携API（Facts取得、変換API）
 
 ### Phase 2: 機能拡張
 - [ ] Google Calendar連携

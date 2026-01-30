@@ -1,0 +1,56 @@
+name: Auto Label Issues
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  auto-label:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Add labels based on issue content
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issueBody = context.payload.issue.body;
+            const labels = [];
+
+            // タスクの種類に基づくラベル
+            if (issueBody.includes('### タスクの種類')) {
+              if (issueBody.match(/### タスクの種類\s*機能追加/)) {
+                labels.push('enhancement');
+              } else if (issueBody.match(/### タスクの種類\s*バグ修正/)) {
+                labels.push('bug');
+              } else if (issueBody.match(/### タスクの種類\s*リファクタリング/)) {
+                labels.push('refactoring');
+              } else if (issueBody.match(/### タスクの種類\s*ドキュメント/)) {
+                labels.push('documentation');
+              }
+            }
+
+            // 対象アプリに基づくラベル
+            if (issueBody.includes('### 対象アプリ')) {
+              if (issueBody.match(/### 対象アプリ\s*API \(NestJS\)/)) {
+                labels.push('api');
+              } else if (issueBody.match(/### 対象アプリ\s*Web \(Next\.js\)/)) {
+                labels.push('web');
+              } else if (issueBody.match(/### 対象アプリ\s*両方/)) {
+                labels.push('api');
+                labels.push('web');
+              }
+            }
+
+            // ラベルを追加
+            if (labels.length > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                labels: labels
+              });
+              console.log(`Added labels: ${labels.join(', ')}`);
+            } else {
+              console.log('No labels to add');
+            }
