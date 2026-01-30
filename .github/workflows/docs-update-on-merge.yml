@@ -1,0 +1,175 @@
+name: ドキュメント自動更新
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  docs-update:
+    # マージされたPRのみ実行（無限ループ防止含む）
+    if: |
+      github.event.pull_request.merged == true &&
+      !startsWith(github.event.pull_request.head.ref, 'claude/docs-update-pr-') &&
+      !contains(github.event.pull_request.labels.*.name, 'auto-docs') &&
+      !contains(github.event.pull_request.title, '[skip-docs-update]')
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write       # ブランチ作成・プッシュに必要
+      pull-requests: write  # PR作成に必要
+      issues: write         # Issue参照に必要
+      id-token: write       # Claude Code Actionに必要
+      actions: read         # CI結果参照に必要（オプション）
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 全履歴が必要（差分確認のため）
+          ref: ${{ github.event.pull_request.base.ref }}  # マージ先ブランチ
+
+      - name: Run Claude Code for Documentation Update
+        id: claude-docs
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+          # Claudeに渡す詳細な指示
+          prompt: |
+            マージされたPR #${{ github.event.pull_request.number }} の内容を分析し、
+            プロジェクトドキュメントの更新が必要か判断してください。
+
+            ## マージされたPR情報
+            - PR番号: #${{ github.event.pull_request.number }}
+            - タイトル: ${{ github.event.pull_request.title }}
+            - マージ元ブランチ: ${{ github.event.pull_request.head.ref }}
+            - マージ先ブランチ: ${{ github.event.pull_request.base.ref }}
+            - PR URL: ${{ github.event.pull_request.html_url }}
+
+            ## 実行手順
+
+            1. 以下のコマンドでマージされた変更内容を確認してください：
+               ```bash
+               # コミット履歴確認
+               git fetch origin ${{ github.event.pull_request.head.ref }}
+               git log ${{ github.event.pull_request.base.ref }}..origin/${{ github.event.pull_request.head.ref }} --oneline
+
+               # 差分確認
+               git diff ${{ github.event.pull_request.base.ref }}...origin/${{ github.event.pull_request.head.ref }}
+
+               # PRの詳細情報取得
+               gh pr view ${{ github.event.pull_request.number }} --json title,body,files
+               ```
+
+            2. 以下の観点でドキュメント更新の必要性を判断してください：
+
+               【必ず更新が必要なケース】
+               - 新しいAPIエンドポイントの追加（apps/api/src/**/*.controller.ts）
+               - データモデルの変更（apps/api/prisma/schema.prisma）
+               - 新しい環境変数の追加（.env.example、apps/api/.env.example）
+               - 技術スタックの変更（package.json内の新しい依存関係）
+               - セットアップ手順の変更
+               - 新機能の追加（MVPロードマップの進捗反映）
+               - 外部連携の追加（GitHub、Slack以外のサービス）
+
+               【更新不要なケース】
+               - バグ修正のみ（機能追加なし）
+               - 内部リファクタリング（外部仕様変更なし）
+               - テストコードのみの変更
+               - ドキュメント更新のみ（docs/**、README.md）
+               - コメント・ログメッセージの変更のみ
+               - 軽微なUI調整（機能変更なし）
+
+            3. ドキュメント更新が必要な場合、以下の手順を実行してください：
+
+               a) 新しいブランチを作成：
+                  ```bash
+                  git checkout -b claude/docs-update-pr-${{ github.event.pull_request.number }}
+                  ```
+
+               b) 以下のドキュメントを必要に応じて更新：
+                  - README.md: 技術スタック、セットアップ手順、ロードマップ
+                  - docs/Factrail.md: データスキーマ、ドメインモデル、設計思想
+                  - docs/factrail-API.md: APIエンドポイント仕様
+                  - docs/factrail-setup.md: 環境構築手順、環境変数
+
+               c) 変更をコミット（日本語で記述）：
+                  ```bash
+                  git add README.md docs/
+                  git commit -m "$(cat <<'EOF'
+                  docs: PR#${{ github.event.pull_request.number }}のマージに伴うドキュメント更新
+
+                  元のPR: ${{ github.event.pull_request.html_url }}
+
+                  ## 更新内容
+                  [ここに更新内容を具体的に記載してください]
+
+                  Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
+                  EOF
+                  )"
+                  ```
+
+               d) PRを作成（日本語、既存のPRテンプレート形式に従う）：
+                  ```bash
+                  git push -u origin claude/docs-update-pr-${{ github.event.pull_request.number }}
+
+                  gh pr create \
+                    --title "docs: PR#${{ github.event.pull_request.number }}のマージに伴うドキュメント更新" \
+                    --body "$(cat <<'EOF'
+                  ## 📝 実装内容
+
+                  ### 変更の概要
+                  PR#${{ github.event.pull_request.number }}のマージに伴い、以下のドキュメントを更新しました。
+
+                  ### 主な変更点
+
+                  [ここに具体的な変更点をリスト化してください]
+
+                  ---
+
+                  ## 🔗 関連PR
+
+                  元のPR: #${{ github.event.pull_request.number }}
+
+                  ---
+
+                  ## ✅ 動作確認エビデンス
+
+                  ### 更新したドキュメント
+
+                  - [ ] README.md
+                  - [ ] docs/Factrail.md
+                  - [ ] docs/factrail-API.md
+                  - [ ] docs/factrail-setup.md
+
+                  ---
+
+                  ## ✓ 確認チェックリスト
+
+                  ### ドキュメント
+                  - [ ] 技術スタックの情報が最新
+                  - [ ] APIエンドポイントの仕様が正確
+                  - [ ] セットアップ手順が実行可能
+                  - [ ] データモデルが正しく反映されている
+
+                  ---
+
+                  Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
+                  EOF
+                  )" \
+                    --label "documentation,auto-docs" \
+                    --base ${{ github.event.pull_request.base.ref }}
+                  ```
+
+            4. ドキュメント更新が不要と判断した場合：
+               - 判断理由を詳細にログ出力してください（日本語）
+               - PRは作成せず、ワークフローを正常終了してください
+
+            ## 重要な注意事項
+
+            - ドキュメントは日本語で記述すること（プロジェクト規約）
+            - コミットメッセージも日本語で記述すること
+            - 技術用語はユビキタス言語（.claude/instructions.md参照）に従うこと
+            - 既存のドキュメント構造・フォーマットを維持すること
+            - 不明な点があれば、元のPRの内容やコードを確認すること
