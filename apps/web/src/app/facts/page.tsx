@@ -21,6 +21,7 @@ import { MainLayout } from '@/components/layout';
 import { FiSearch, FiExternalLink, FiRefreshCw } from 'react-icons/fi';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { formatRelativeTime } from '@/lib/formatRelativeTime';
 
 interface Fact {
   id: string;
@@ -67,20 +68,29 @@ function formatDate(dateString: string): string {
   });
 }
 
+// ポーリング間隔（30秒）
+const POLLING_INTERVAL = 30000;
+
 export default function FactsPage() {
   const [facts, setFacts] = useState<Fact[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isBackgroundUpdate, setIsBackgroundUpdate] = useState(false);
   const [sourceFilter, setSourceFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://factrail-production.up.railway.app';
 
-  const fetchFacts = async () => {
-    setLoading(true);
+  const fetchFacts = async (isBackground = false) => {
+    if (!isBackground) {
+      setLoading(true);
+    } else {
+      setIsBackgroundUpdate(true);
+    }
+
     try {
       const params = new URLSearchParams();
       if (sourceFilter) params.append('source', sourceFilter);
-      
+
       const response = await axios.get<FactsResponse>(
         `${apiUrl}/api/facts?${params.toString()}`
       );
@@ -89,11 +99,25 @@ export default function FactsPage() {
       console.error('Failed to fetch facts:', error);
     } finally {
       setLoading(false);
+      setIsBackgroundUpdate(false);
     }
   };
 
+  // 初回ロードとフィルター変更時のフェッチ
   useEffect(() => {
     fetchFacts();
+  }, [sourceFilter]);
+
+  // 30秒ごとのポーリング
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      fetchFacts(true);
+    }, POLLING_INTERVAL);
+
+    // クリーンアップ
+    return () => {
+      clearInterval(intervalId);
+    };
   }, [sourceFilter]);
 
   const filteredFacts = facts.filter((fact) => {
@@ -139,10 +163,10 @@ export default function FactsPage() {
             </Select>
 
             <Button
-              leftIcon={<FiRefreshCw />}
+              leftIcon={<FiRefreshCw className={isBackgroundUpdate ? 'animate-spin' : ''} />}
               variant="outline"
               colorScheme="gray"
-              onClick={fetchFacts}
+              onClick={() => fetchFacts(false)}
               isLoading={loading}
             >
               更新
@@ -205,7 +229,7 @@ export default function FactsPage() {
                           {fact.type}
                         </Badge>
                         <Text fontSize="xs" color="gray.500">
-                          {formatDate(fact.occurredAt)}
+                          {formatRelativeTime(fact.occurredAt)} ({formatDate(fact.occurredAt)})
                         </Text>
                       </HStack>
                     </Box>
