@@ -1,4 +1,6 @@
 import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { SettingsService } from '../settings/settings.service';
 import { PrismaService } from '../prisma.service';
@@ -54,6 +56,7 @@ export class WebhooksService {
   constructor(
     private readonly settingsService: SettingsService,
     private readonly prisma: PrismaService,
+    @InjectQueue('slack-dispatch') private readonly slackQueue: Queue,
   ) {}
 
   /**
@@ -246,6 +249,7 @@ export class WebhooksService {
 
   /**
    * Fact を作成または更新（同じ externalId があれば更新）
+   * Fact作成後、Slack投稿キューにジョブを追加
    */
   private async upsertFact(data: {
     externalId: string;
@@ -259,7 +263,7 @@ export class WebhooksService {
     metadata: Record<string, unknown>;
     raw: unknown;
   }) {
-    return this.prisma.fact.upsert({
+    const fact = await this.prisma.fact.upsert({
       where: {
         source_externalId: {
           source: data.source,
@@ -277,7 +281,6 @@ export class WebhooksService {
         type: data.type,
         metadata: data.metadata as Prisma.InputJsonValue,
         raw: data.raw as Prisma.InputJsonValue,
-        processedAt: new Date(),
       },
       update: {
         sourceUrl: data.sourceUrl,
@@ -288,9 +291,26 @@ export class WebhooksService {
         type: data.type,
         metadata: data.metadata as Prisma.InputJsonValue,
         raw: data.raw as Prisma.InputJsonValue,
-        processedAt: new Date(),
       },
     });
+
+    // Slack投稿されていない場合、キューにジョブを追加
+    if (!fact.slackMessageId) {
+      await this.slackQueue.add(
+        'send-dm',
+        { factId: fact.id },
+        {
+          attempts: 5,
+          backoff: {
+            type: 'exponential',
+            delay: 1000,
+          },
+        },
+      );
+      this.logger.log(`Slack投稿キューにジョブを追加: Fact ID=${fact.id}`);
+    }
+
+    return fact;
   }
 
   /**
