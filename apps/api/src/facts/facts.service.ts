@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { PrismaService } from '../prisma.service';
-import { CreateFactDto, QueryFactsDto } from './dto';
+import { CreateFactDto, QueryFactsDto, FactsStatsResponseDto } from './dto';
 import { Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
 
@@ -140,5 +140,27 @@ export class FactsService {
     );
 
     return { data: fact };
+  }
+
+  /**
+   * 記録の統計情報を取得する
+   * @returns 今日（直近24時間）の記録数
+   */
+  async getStats(): Promise<FactsStatsResponseDto> {
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    // 今日（直近24時間）の記録数を取得
+    const todayCount = await this.prisma.fact.count({
+      where: {
+        occurredAt: {
+          gte: oneDayAgo,
+        },
+      },
+    });
+
+    return {
+      todayCount,
+    };
   }
 }
