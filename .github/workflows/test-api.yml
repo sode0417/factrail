@@ -48,7 +48,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/factrail_test
       REDIS_URL: redis://localhost:6379
-      ENCRYPTION_KEY: test-encryption-key-32-chars!!
+      ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
       NODE_ENV: test
 
     steps:
@@ -67,6 +67,10 @@ jobs:
 
       - name: Generate Prisma Client
         run: npx prisma generate
+
+      - name: Create database schemas
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d factrail_test -c "CREATE SCHEMA IF NOT EXISTS factrail;"
 
       - name: Push database schema
         run: npx prisma db push --accept-data-loss
