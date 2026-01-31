@@ -21,7 +21,7 @@ import { MainLayout } from '@/components/layout';
 import { FiGithub, FiMessageSquare, FiActivity } from 'react-icons/fi';
 import { IconType } from 'react-icons';
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import apiClient from '@/lib/axios';
 import { formatRelativeTime } from '@/lib/formatRelativeTime';
 
 interface StatCardProps {
@@ -103,12 +103,10 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<FactsStatsResponse>({ todayCount: 0 });
   const [loading, setLoading] = useState(true);
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://factrail-production.up.railway.app';
-
   const fetchFacts = async () => {
     try {
-      const response = await axios.get<FactsResponse>(
-        `${apiUrl}/api/facts?limit=5`
+      const response = await apiClient.get<FactsResponse>(
+        `/api/facts?limit=5`
       );
       setFacts(response.data.data);
     } catch (error) {
@@ -120,8 +118,8 @@ export default function DashboardPage() {
 
   const fetchStats = async () => {
     try {
-      const response = await axios.get<FactsStatsResponse>(
-        `${apiUrl}/api/facts/stats`
+      const response = await apiClient.get<FactsStatsResponse>(
+        `/api/facts/stats`
       );
       setStats(response.data);
     } catch (error) {

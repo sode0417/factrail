@@ -20,7 +20,7 @@ import {
 import { MainLayout } from '@/components/layout';
 import { FiSearch, FiExternalLink, FiRefreshCw } from 'react-icons/fi';
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import apiClient from '@/lib/axios';
 import { formatRelativeTime } from '@/lib/formatRelativeTime';
 
 interface Fact {
@@ -78,8 +78,6 @@ export default function FactsPage() {
   const [sourceFilter, setSourceFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://factrail-production.up.railway.app';
-
   const fetchFacts = async (isBackground = false) => {
     if (!isBackground) {
       setLoading(true);
@@ -91,8 +89,8 @@ export default function FactsPage() {
       const params = new URLSearchParams();
       if (sourceFilter) params.append('source', sourceFilter);
 
-      const response = await axios.get<FactsResponse>(
-        `${apiUrl}/api/facts?${params.toString()}`
+      const response = await apiClient.get<FactsResponse>(
+        `/api/facts?${params.toString()}`
       );
       setFacts(response.data.data);
     } catch (error) {
