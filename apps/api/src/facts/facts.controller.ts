@@ -9,6 +9,7 @@ import {
   HttpStatus,
   ParseUUIDPipe,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { FactsService } from './facts.service';
 import { CreateFactDto, QueryFactsDto } from './dto';
@@ -28,8 +29,8 @@ export class FactsController {
    * @returns 今日（直近24時間）の記録数
    */
   @Get('stats')
-  getStats() {
-    return this.factsService.getStats();
+  getStats(@Request() req) {
+    return this.factsService.getStats(req.user.id);
   }
 
   /**
@@ -38,8 +39,8 @@ export class FactsController {
    * @returns ページングされた記録のリスト
    */
   @Get()
-  findAll(@Query() query: QueryFactsDto) {
-    return this.factsService.findAll(query);
+  findAll(@Request() req, @Query() query: QueryFactsDto) {
+    return this.factsService.findAll(req.user.id, query);
   }
 
   /**
@@ -48,8 +49,8 @@ export class FactsController {
    * @returns 記録データ
    */
   @Get(':id')
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.factsService.findOne(id);
+  findOne(@Request() req, @Param('id', ParseUUIDPipe) id: string) {
+    return this.factsService.findOne(req.user.id, id);
   }
 
   /**
@@ -59,7 +60,7 @@ export class FactsController {
    */
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(@Body() createFactDto: CreateFactDto) {
-    return this.factsService.create(createFactDto);
+  create(@Request() req, @Body() createFactDto: CreateFactDto) {
+    return this.factsService.create(req.user.id, createFactDto);
   }
 }

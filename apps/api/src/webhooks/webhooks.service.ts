@@ -4,6 +4,7 @@ import { Queue } from 'bull';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { SettingsService } from '../settings/settings.service';
 import { PrismaService } from '../prisma.service';
+import { IntegrationsService } from '../integrations/integrations.service';
 import { Prisma } from '@prisma/client';
 
 /**
@@ -56,6 +57,7 @@ export class WebhooksService {
   constructor(
     private readonly settingsService: SettingsService,
     private readonly prisma: PrismaService,
+    private readonly integrationsService: IntegrationsService,
     @InjectQueue('slack-dispatch') private readonly slackQueue: Queue,
   ) {}
 
@@ -124,15 +126,47 @@ export class WebhooksService {
   }
 
   /**
+   * GitHubリポジトリに紐付くユーザーIDを取得する
+   * リポジトリ名からユーザーを特定できない場合、最初に見つかったGitHub連携ユーザーを返す
+   */
+  private async findUserIdForGitHubEvent(
+    repository: string,
+  ): Promise<string | null> {
+    // GitHubのIntegrationからユーザーを検索
+    // 複数のユーザーがGitHub連携している可能性があるため、最初に見つかったユーザーを使用
+    const integrations = await this.prisma.integration.findMany({
+      where: { provider: 'github' },
+      include: { user: true },
+      take: 1,
+    });
+
+    if (integrations.length === 0) {
+      this.logger.warn(
+        `GitHub連携が見つかりません。Factを作成できません: ${repository}`,
+      );
+      return null;
+    }
+
+    return integrations[0].userId;
+  }
+
+  /**
    * Issue イベントを処理
    */
   private async processIssueEvent(
     payload: GitHubWebhookPayload,
-  ): Promise<{ factId: string }> {
+  ): Promise<{ factId: string } | null> {
     const { action, issue, repository } = payload;
 
     if (!issue) {
       throw new Error('Issueペイロードがありません');
+    }
+
+    // GitHubイベントに対応するユーザーIDを取得
+    const userId = await this.findUserIdForGitHubEvent(repository.full_name);
+    if (!userId) {
+      this.logger.warn('ユーザーが見つからないため、Factを作成できません');
+      return null;
     }
 
     const externalId = `${repository.full_name}#${issue.number}`;
@@ -140,7 +174,7 @@ export class WebhooksService {
     const title = `[${repository.full_name}] Issue #${issue.number}: ${issue.title}`;
     const summary = this.truncate(issue.body || '', 200);
 
-    const fact = await this.upsertFact({
+    const fact = await this.upsertFact(userId, {
       externalId,
       source: 'github',
       sourceUrl: issue.html_url,
@@ -167,11 +201,18 @@ export class WebhooksService {
    */
   private async processPullRequestEvent(
     payload: GitHubWebhookPayload,
-  ): Promise<{ factId: string }> {
+  ): Promise<{ factId: string } | null> {
     const { action, pull_request, repository } = payload;
 
     if (!pull_request) {
       throw new Error('Pull Requestペイロードがありません');
+    }
+
+    // GitHubイベントに対応するユーザーIDを取得
+    const userId = await this.findUserIdForGitHubEvent(repository.full_name);
+    if (!userId) {
+      this.logger.warn('ユーザーが見つからないため、Factを作成できません');
+      return null;
     }
 
     const externalId = `${repository.full_name}#${pull_request.number}`;
@@ -179,7 +220,7 @@ export class WebhooksService {
     const title = `[${repository.full_name}] PR #${pull_request.number}: ${pull_request.title}`;
     const summary = this.truncate(pull_request.body || '', 200);
 
-    const fact = await this.upsertFact({
+    const fact = await this.upsertFact(userId, {
       externalId,
       source: 'github',
       sourceUrl: pull_request.html_url,
@@ -214,6 +255,13 @@ export class WebhooksService {
       return { factIds: [] };
     }
 
+    // GitHubイベントに対応するユーザーIDを取得
+    const userId = await this.findUserIdForGitHubEvent(repository.full_name);
+    if (!userId) {
+      this.logger.warn('ユーザーが見つからないため、Factを作成できません');
+      return { factIds: [] };
+    }
+
     const branch = ref?.replace('refs/heads/', '') || 'unknown';
     const factIds: string[] = [];
 
@@ -222,7 +270,7 @@ export class WebhooksService {
       const title = `[${repository.full_name}] ${commit.message.split('\n')[0]}`;
       const summary = this.truncate(commit.message, 200);
 
-      const fact = await this.upsertFact({
+      const fact = await this.upsertFact(userId, {
         externalId,
         source: 'github',
         sourceUrl: commit.url,
@@ -251,18 +299,21 @@ export class WebhooksService {
    * Fact を作成または更新（同じ externalId があれば更新）
    * Fact作成後、Slack投稿キューにジョブを追加
    */
-  private async upsertFact(data: {
-    externalId: string;
-    source: string;
-    sourceUrl: string;
-    occurredAt: Date;
-    title: string;
-    summary: string | null;
-    content: string | null | undefined;
-    type: string;
-    metadata: Record<string, unknown>;
-    raw: unknown;
-  }) {
+  private async upsertFact(
+    userId: string,
+    data: {
+      externalId: string;
+      source: string;
+      sourceUrl: string;
+      occurredAt: Date;
+      title: string;
+      summary: string | null;
+      content: string | null | undefined;
+      type: string;
+      metadata: Record<string, unknown>;
+      raw: unknown;
+    },
+  ) {
     const fact = await this.prisma.fact.upsert({
       where: {
         source_externalId: {
@@ -271,6 +322,7 @@ export class WebhooksService {
         },
       },
       create: {
+        userId, // ユーザーIDを追加
         externalId: data.externalId,
         source: data.source,
         sourceUrl: data.sourceUrl,

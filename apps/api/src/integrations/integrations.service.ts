@@ -22,7 +22,7 @@ export class IntegrationsService {
   /**
    * トークンを暗号化して新しいIntegrationを作成する
    */
-  async create(dto: CreateIntegrationDto): Promise<DecryptedIntegration> {
+  async create(userId: string, dto: CreateIntegrationDto): Promise<DecryptedIntegration> {
     const encryptedAccessToken = this.cryptoService.encrypt(dto.accessToken);
     const encryptedRefreshToken = dto.refreshToken
       ? this.cryptoService.encrypt(dto.refreshToken)
@@ -30,6 +30,7 @@ export class IntegrationsService {
 
     const integration = await this.prisma.integration.create({
       data: {
+        userId, // ユーザーIDを追加
         provider: dto.provider,
         accountId: dto.accountId,
         accountName: dto.accountName,
@@ -46,8 +47,9 @@ export class IntegrationsService {
   /**
    * 全てのIntegrationを取得する（トークンは復号化済み）
    */
-  async findAll(): Promise<DecryptedIntegration[]> {
+  async findAll(userId: string): Promise<DecryptedIntegration[]> {
     const integrations = await this.prisma.integration.findMany({
+      where: { userId }, // ユーザーIDでフィルタ
       orderBy: { createdAt: 'desc' },
     });
 
@@ -57,9 +59,12 @@ export class IntegrationsService {
   /**
    * プロバイダーでIntegrationを検索する（トークンは復号化済み）
    */
-  async findByProvider(provider: string): Promise<DecryptedIntegration[]> {
+  async findByProvider(userId: string, provider: string): Promise<DecryptedIntegration[]> {
     const integrations = await this.prisma.integration.findMany({
-      where: { provider },
+      where: {
+        userId, // ユーザーIDでフィルタ
+        provider,
+      },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -69,9 +74,12 @@ export class IntegrationsService {
   /**
    * IDで単一のIntegrationを取得する（トークンは復号化済み）
    */
-  async findOne(id: string): Promise<DecryptedIntegration> {
-    const integration = await this.prisma.integration.findUnique({
-      where: { id },
+  async findOne(userId: string, id: string): Promise<DecryptedIntegration> {
+    const integration = await this.prisma.integration.findFirst({
+      where: {
+        id,
+        userId, // ユーザーIDでフィルタ
+      },
     });
 
     if (!integration) {
@@ -104,9 +112,12 @@ export class IntegrationsService {
   /**
    * Integrationを更新する（トークンが指定された場合は暗号化する）
    */
-  async update(id: string, dto: UpdateIntegrationDto): Promise<DecryptedIntegration> {
-    const existing = await this.prisma.integration.findUnique({
-      where: { id },
+  async update(userId: string, id: string, dto: UpdateIntegrationDto): Promise<DecryptedIntegration> {
+    const existing = await this.prisma.integration.findFirst({
+      where: {
+        id,
+        userId, // ユーザーIDでフィルタ
+      },
     });
 
     if (!existing) {
@@ -152,7 +163,7 @@ export class IntegrationsService {
   /**
    * Integrationを作成または更新する（upsert、トークンは暗号化）
    */
-  async upsert(dto: CreateIntegrationDto): Promise<DecryptedIntegration> {
+  async upsert(userId: string, dto: CreateIntegrationDto): Promise<DecryptedIntegration> {
     const encryptedAccessToken = this.cryptoService.encrypt(dto.accessToken);
     const encryptedRefreshToken = dto.refreshToken
       ? this.cryptoService.encrypt(dto.refreshToken)
@@ -166,6 +177,7 @@ export class IntegrationsService {
         },
       },
       create: {
+        userId, // ユーザーIDを追加
         provider: dto.provider,
         accountId: dto.accountId,
         accountName: dto.accountName,
@@ -200,9 +212,12 @@ export class IntegrationsService {
   /**
    * Integrationを削除する
    */
-  async remove(id: string): Promise<void> {
-    const existing = await this.prisma.integration.findUnique({
-      where: { id },
+  async remove(userId: string, id: string): Promise<void> {
+    const existing = await this.prisma.integration.findFirst({
+      where: {
+        id,
+        userId, // ユーザーIDでフィルタ
+      },
     });
 
     if (!existing) {
@@ -217,8 +232,8 @@ export class IntegrationsService {
   /**
    * Integrationを無効化する
    */
-  async deactivate(id: string): Promise<DecryptedIntegration> {
-    return this.update(id, { status: 'inactive' });
+  async deactivate(userId: string, id: string): Promise<DecryptedIntegration> {
+    return this.update(userId, id, { status: 'inactive' });
   }
 
   /**

@@ -9,10 +9,13 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  UseGuards,
+  Request,
 } from '@nestjs/common';
 import { IntegrationsService, DecryptedIntegration } from './integrations.service';
 import { SlackOAuthService } from './slack-oauth.service';
 import { CreateIntegrationDto, UpdateIntegrationDto, SlackOAuthCallbackDto } from './dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 /**
  * 機密トークンデータを除外したレスポンス型
@@ -33,6 +36,7 @@ interface IntegrationResponse {
 }
 
 @Controller('integrations')
+@UseGuards(JwtAuthGuard) // 全エンドポイントに認証を要求
 export class IntegrationsController {
   constructor(
     private readonly integrationsService: IntegrationsService,
@@ -43,8 +47,8 @@ export class IntegrationsController {
    * 新しいIntegrationを作成する
    */
   @Post()
-  async create(@Body() dto: CreateIntegrationDto): Promise<IntegrationResponse> {
-    const integration = await this.integrationsService.create(dto);
+  async create(@Request() req, @Body() dto: CreateIntegrationDto): Promise<IntegrationResponse> {
+    const integration = await this.integrationsService.create(req.user.id, dto);
     return this.toResponse(integration);
   }
 
@@ -52,10 +56,10 @@ export class IntegrationsController {
    * 全てのIntegrationを取得する
    */
   @Get()
-  async findAll(@Query('provider') provider?: string): Promise<{ data: IntegrationResponse[] }> {
+  async findAll(@Request() req, @Query('provider') provider?: string): Promise<{ data: IntegrationResponse[] }> {
     const integrations = provider
-      ? await this.integrationsService.findByProvider(provider)
-      : await this.integrationsService.findAll();
+      ? await this.integrationsService.findByProvider(req.user.id, provider)
+      : await this.integrationsService.findAll(req.user.id);
 
     return {
       data: integrations.map((integration) => this.toResponse(integration)),
@@ -66,8 +70,8 @@ export class IntegrationsController {
    * IDで単一のIntegrationを取得する
    */
   @Get(':id')
-  async findOne(@Param('id') id: string): Promise<IntegrationResponse> {
-    const integration = await this.integrationsService.findOne(id);
+  async findOne(@Request() req, @Param('id') id: string): Promise<IntegrationResponse> {
+    const integration = await this.integrationsService.findOne(req.user.id, id);
     return this.toResponse(integration);
   }
 
@@ -76,10 +80,11 @@ export class IntegrationsController {
    */
   @Put(':id')
   async update(
+    @Request() req,
     @Param('id') id: string,
     @Body() dto: UpdateIntegrationDto,
   ): Promise<IntegrationResponse> {
-    const integration = await this.integrationsService.update(id, dto);
+    const integration = await this.integrationsService.update(req.user.id, id, dto);
     return this.toResponse(integration);
   }
 
@@ -88,8 +93,8 @@ export class IntegrationsController {
    */
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
-  async remove(@Param('id') id: string): Promise<{ success: boolean }> {
-    await this.integrationsService.remove(id);
+  async remove(@Request() req, @Param('id') id: string): Promise<{ success: boolean }> {
+    await this.integrationsService.remove(req.user.id, id);
     return { success: true };
   }
 
@@ -97,13 +102,14 @@ export class IntegrationsController {
    * Integrationを無効化する
    */
   @Post(':id/deactivate')
-  async deactivate(@Param('id') id: string): Promise<IntegrationResponse> {
-    const integration = await this.integrationsService.deactivate(id);
+  async deactivate(@Request() req, @Param('id') id: string): Promise<IntegrationResponse> {
+    const integration = await this.integrationsService.deactivate(req.user.id, id);
     return this.toResponse(integration);
   }
 
   /**
    * Slack OAuth callbackを処理する
+   * 注意: このエンドポイントは認証不要（OAuth callbackのため）
    */
   @Post('slack/callback')
   @HttpCode(HttpStatus.OK)
