@@ -1,0 +1,170 @@
+name: CI Summary
+
+on:
+  workflow_run:
+    workflows:
+      - "API CI"
+      - "Web CI"
+      - "API Tests"
+      - "Web E2E Tests"
+    types:
+      - completed
+
+jobs:
+  check-all-workflows:
+    # PRの場合のみ実行
+    if: github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+
+    outputs:
+      all_completed: ${{ steps.check.outputs.all_completed }}
+      has_failures: ${{ steps.check.outputs.has_failures }}
+      pr_number: ${{ steps.check.outputs.pr_number }}
+      failures: ${{ steps.check.outputs.failures }}
+
+    steps:
+      - name: Wait for parallel workflows
+        run: sleep 30
+
+      - name: Check all workflow statuses
+        id: check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branch = context.payload.workflow_run.head_branch;
+            const prNumber = context.payload.workflow_run.pull_requests[0]?.number;
+
+            if (!prNumber) {
+              console.log('Not a PR, skipping');
+              core.setOutput('all_completed', 'false');
+              return;
+            }
+
+            // 監視対象のワークフロー
+            const targetWorkflows = ['API CI', 'Web CI', 'API Tests', 'Web E2E Tests'];
+
+            // このブランチの最新ワークフロー実行を取得
+            const { data: runs } = await github.rest.actions.listWorkflowRunsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              branch: branch,
+              event: 'pull_request',
+              per_page: 100
+            });
+
+            // 各ワークフローの最新実行を取得
+            const latestRuns = {};
+            for (const run of runs.workflow_runs) {
+              if (targetWorkflows.includes(run.name)) {
+                if (!latestRuns[run.name] || run.created_at > latestRuns[run.name].created_at) {
+                  latestRuns[run.name] = run;
+                }
+              }
+            }
+
+            console.log('Latest runs:', JSON.stringify(latestRuns, null, 2));
+
+            // すべてのワークフローが完了しているか確認
+            const allCompleted = targetWorkflows.every(name =>
+              latestRuns[name] &&
+              (latestRuns[name].status === 'completed')
+            );
+
+            if (!allCompleted) {
+              console.log('Not all workflows completed yet');
+              core.setOutput('all_completed', 'false');
+              return;
+            }
+
+            // 失敗しているワークフローを収集
+            const failures = targetWorkflows
+              .filter(name => latestRuns[name]?.conclusion === 'failure')
+              .map(name => ({
+                name: name,
+                url: latestRuns[name].html_url,
+                conclusion: latestRuns[name].conclusion
+              }));
+
+            const hasFailures = failures.length > 0;
+
+            console.log('All completed:', allCompleted);
+            console.log('Has failures:', hasFailures);
+            console.log('Failures:', failures);
+
+            core.setOutput('all_completed', allCompleted.toString());
+            core.setOutput('has_failures', hasFailures.toString());
+            core.setOutput('pr_number', prNumber.toString());
+            core.setOutput('failures', JSON.stringify(failures));
+
+  trigger-autofix:
+    needs: check-all-workflows
+    if: |
+      needs.check-all-workflows.outputs.all_completed == 'true' &&
+      needs.check-all-workflows.outputs.has_failures == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+
+    steps:
+      - name: Get PR details
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = ${{ needs.check-all-workflows.outputs.pr_number }};
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber
+            });
+            return {
+              number: pr.data.number,
+              ref: pr.data.head.ref,
+              sha: pr.data.head.sha
+            };
+
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ fromJson(steps.pr.outputs.result).ref }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run Claude Code to fix all failures
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            Multiple CI workflows have failed for PR #${{ needs.check-all-workflows.outputs.pr_number }}.
+
+            Failed workflows:
+            ${{ needs.check-all-workflows.outputs.failures }}
+
+            Please:
+            1. Check the logs for ALL failed workflows
+            2. Analyze and understand all the failures
+            3. Fix all issues (tests, lint errors, type errors, build failures, etc.)
+            4. Run the relevant commands locally to verify all fixes
+            5. Commit the changes with a descriptive message that mentions all fixed issues
+          additional_permissions: |
+            actions: read
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const failures = ${{ needs.check-all-workflows.outputs.failures }};
+            const failureList = failures.map(f => `- [${f.name}](${f.url})`).join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ needs.check-all-workflows.outputs.pr_number }},
+              body: `🤖 Attempted to automatically fix CI failures.\n\nFailed workflows:\n${failureList}\n\nPlease review the changes.`
+            });
