@@ -7,6 +7,7 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { FactsService } from './facts.service';
 import { CreateFactDto, QueryFactsDto } from './dto';
@@ -35,7 +36,7 @@ export class FactsController {
    * @returns 記録データ
    */
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.factsService.findOne(id);
   }
 

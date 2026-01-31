@@ -59,6 +59,12 @@ export class CreateFactDto {
   externalId?: string;
 
   /**
+   * 元データのJSON（raw data）
+   */
+  @IsObject()
+  raw: Prisma.InputJsonValue;
+
+  /**
    * ソースへのURL（オプション）
    */
   @IsOptional()

@@ -101,10 +101,11 @@ describe('Facts API (E2E)', () => {
         .expect(201);
 
       // 作成された記録の確認
-      expect(response.body).toHaveProperty('id');
-      expect(response.body.title).toBe(createDto.title);
-      expect(response.body.source).toBe(createDto.source);
-      expect(response.body.externalId).toBe(createDto.externalId);
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toHaveProperty('id');
+      expect(response.body.data.title).toBe(createDto.title);
+      expect(response.body.data.source).toBe(createDto.source);
+      expect(response.body.data.externalId).toBe(createDto.externalId);
     });
 
     it('必須フィールドが欠けている場合に400エラーを返すこと', async () => {
@@ -156,7 +157,7 @@ describe('Facts API (E2E)', () => {
         .send(createDto)
         .expect(201);
 
-      createdFactId = response.body.id;
+      createdFactId = response.body.data.id;
     });
 
     it('存在する記録を取得できること', async () => {
@@ -164,8 +165,8 @@ describe('Facts API (E2E)', () => {
         .get(`/api/facts/${createdFactId}`)
         .expect(200);
 
-      expect(response.body.id).toBe(createdFactId);
-      expect(response.body.title).toBe('ID取得テスト用');
+      expect(response.body.data.id).toBe(createdFactId);
+      expect(response.body.data.title).toBe('ID取得テスト用');
     });
 
     it('存在しないIDで404エラーを返すこと', async () => {

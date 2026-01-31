@@ -15,10 +15,10 @@ describe('AppController (e2e)', () => {
     await app.init();
   });
 
-  it('ルートパス / (GET) で "Hello World!" を返すこと', () => {
+  it('ルートパス / (GET) でAPIステータスを返すこと', () => {
     return request(app.getHttpServer())
       .get('/')
       .expect(200)
-      .expect('Hello World!');
+      .expect('Factrail API is running');
   });
 });

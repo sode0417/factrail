@@ -60,12 +60,10 @@ export default defineConfig({
   ],
 
   // 開発サーバーの設定（テスト実行時に自動起動）
-  webServer: process.env.CI
-    ? undefined
-    : {
-        command: 'npm run dev',
-        url: 'http://localhost:3000',
-        timeout: 120 * 1000,
-        reuseExistingServer: !process.env.CI,
-      },
+  webServer: {
+    command: process.env.CI ? 'npm run start' : 'npm run dev',
+    url: 'http://localhost:3000',
+    timeout: 120 * 1000,
+    reuseExistingServer: !process.env.CI,
+  },
 });
