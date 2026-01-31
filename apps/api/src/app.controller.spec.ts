@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AppController } from './app.controller';
-import { AppService } from './app.service';
 
 describe('AppController', () => {
   let appController: AppController;
@@ -8,15 +7,14 @@ describe('AppController', () => {
   beforeEach(async () => {
     const app: TestingModule = await Test.createTestingModule({
       controllers: [AppController],
-      providers: [AppService],
     }).compile();
 
     appController = app.get<AppController>(AppController);
   });
 
   describe('ルート', () => {
-    it('"Hello World!" を返すこと', () => {
-      expect(appController.getHello()).toBe('Hello World!');
+    it('"Factrail API is running" を返すこと', () => {
+      expect(appController.getHello()).toBe('Factrail API is running');
     });
   });
 });

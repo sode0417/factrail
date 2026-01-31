@@ -103,7 +103,7 @@ describe('CryptoService', () => {
       tamperedBuffer[tamperedBuffer.length - 1] ^= 0xff;
       const tampered = tamperedBuffer.toString('base64');
 
-      expect(() => service.decrypt(tampered)).toThrow('Failed to decrypt data');
+      expect(() => service.decrypt(tampered)).toThrow('データの復号化に失敗しました');
     });
 
     it('無効なbase64でエラーをスローすること', () => {
@@ -155,7 +155,7 @@ describe('CryptoService', () => {
       const serviceWithNoKey = module.get<CryptoService>(CryptoService);
 
       expect(() => serviceWithNoKey.onModuleInit()).toThrow(
-        'ENCRYPTION_KEY environment variable is required',
+        'ENCRYPTION_KEY 環境変数が設定されていません',
       );
     });
 
@@ -177,7 +177,7 @@ describe('CryptoService', () => {
       const serviceWithShortKey = module.get<CryptoService>(CryptoService);
 
       expect(() => serviceWithShortKey.onModuleInit()).toThrow(
-        'ENCRYPTION_KEY must be at least 32 characters',
+        'ENCRYPTION_KEY は32文字以上である必要があります',
       );
     });
   });

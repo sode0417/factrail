@@ -78,6 +78,75 @@ jobs:
       - name: Run E2E tests
         run: npm run test:e2e
 
+      - name: Run tests with coverage
+        run: npm run test:cov
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: apps/api/coverage/
+          retention-days: 30
+
+      - name: Generate coverage summary
+        id: coverage
+        run: |
+          COVERAGE_JSON=$(cat coverage/coverage-summary.json)
+          STATEMENTS=$(echo $COVERAGE_JSON | jq -r '.total.statements.pct')
+          BRANCHES=$(echo $COVERAGE_JSON | jq -r '.total.branches.pct')
+          FUNCTIONS=$(echo $COVERAGE_JSON | jq -r '.total.functions.pct')
+          LINES=$(echo $COVERAGE_JSON | jq -r '.total.lines.pct')
+          echo "statements=$STATEMENTS" >> $GITHUB_OUTPUT
+          echo "branches=$BRANCHES" >> $GITHUB_OUTPUT
+          echo "functions=$FUNCTIONS" >> $GITHUB_OUTPUT
+          echo "lines=$LINES" >> $GITHUB_OUTPUT
+
+      - name: Comment coverage on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const statements = '${{ steps.coverage.outputs.statements }}';
+            const branches = '${{ steps.coverage.outputs.branches }}';
+            const functions = '${{ steps.coverage.outputs.functions }}';
+            const lines = '${{ steps.coverage.outputs.lines }}';
+
+            const threshold = 80;
+            const meetsThreshold = parseFloat(lines) >= threshold;
+            const statusIcon = meetsThreshold ? '✅' : '⚠️';
+            const statusText = meetsThreshold
+              ? `Coverage meets ${threshold}% threshold`
+              : `Coverage is below ${threshold}% threshold`;
+
+            const comment = `## 📊 Test Coverage Report
+
+            | Metric | Coverage |
+            |--------|----------|
+            | Statements | ${statements}% |
+            | Branches | ${branches}% |
+            | Functions | ${functions}% |
+            | Lines | ${lines}% |
+
+            ${statusIcon} ${statusText}
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Check coverage threshold
+        run: |
+          LINES=$(jq -r '.total.lines.pct' coverage/coverage-summary.json)
+          THRESHOLD=80
+          if (( $(echo "$LINES < $THRESHOLD" | bc -l) )); then
+            echo "❌ Coverage ($LINES%) is below ${THRESHOLD}% threshold"
+            exit 1
+          fi
+          echo "✅ Coverage ($LINES%) meets ${THRESHOLD}% threshold"
+
       - name: Upload test results
         if: failure()
         uses: actions/upload-artifact@v4
