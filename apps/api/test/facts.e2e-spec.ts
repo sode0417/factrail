@@ -11,6 +11,8 @@ import { PrismaService } from '../src/prisma.service';
 describe('Facts API (E2E)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
+  let accessToken: string;
+  let testUserId: string;
 
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -31,6 +33,29 @@ describe('Facts API (E2E)', () => {
     await app.init();
 
     prisma = app.get<PrismaService>(PrismaService);
+
+    // テスト用ユーザーを作成してログイン
+    const testUser = {
+      email: 'test-facts-e2e@example.com',
+      password: 'Test1234!',
+      name: 'E2E Test User',
+    };
+
+    // ユーザー登録
+    await request(app.getHttpServer())
+      .post('/auth/register')
+      .send(testUser);
+
+    // ログインしてトークン取得
+    const loginResponse = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({
+        email: testUser.email,
+        password: testUser.password,
+      });
+
+    accessToken = loginResponse.body.accessToken;
+    testUserId = loginResponse.body.user.id;
   });
 
   afterEach(async () => {
@@ -40,6 +65,14 @@ describe('Facts API (E2E)', () => {
         source: 'e2e-test',
       },
     });
+
+    // テストユーザーの削除
+    if (testUserId) {
+      await prisma.user.delete({
+        where: { id: testUserId },
+      });
+    }
+
     await app.close();
   });
 
@@ -47,6 +80,7 @@ describe('Facts API (E2E)', () => {
     it('ステータス200を返すこと', async () => {
       const response = await request(app.getHttpServer())
         .get('/api/facts')
+        .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
       // レスポンス形式の確認
@@ -58,6 +92,7 @@ describe('Facts API (E2E)', () => {
     it('metaオブジェクトにhasMoreとnextCursorが含まれること', async () => {
       const response = await request(app.getHttpServer())
         .get('/api/facts')
+        .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
       expect(response.body.meta).toHaveProperty('hasMore');
@@ -71,6 +106,7 @@ describe('Facts API (E2E)', () => {
     it('クエリパラメータ（limit）が機能すること', async () => {
       const response = await request(app.getHttpServer())
         .get('/api/facts?limit=10')
+        .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
       // limitを超えないことを確認
@@ -80,6 +116,7 @@ describe('Facts API (E2E)', () => {
     it('不正なlimitパラメータで400エラーを返すこと', async () => {
       await request(app.getHttpServer())
         .get('/api/facts?limit=invalid')
+        .set('Authorization', `Bearer ${accessToken}`)
         .expect(400);
     });
   });
@@ -97,6 +134,7 @@ describe('Facts API (E2E)', () => {
 
       const response = await request(app.getHttpServer())
         .post('/api/facts')
+        .set('Authorization', `Bearer ${accessToken}`)
         .send(createDto)
         .expect(201);
 
@@ -117,6 +155,7 @@ describe('Facts API (E2E)', () => {
 
       await request(app.getHttpServer())
         .post('/api/facts')
+        .set('Authorization', `Bearer ${accessToken}`)
         .send(invalidDto)
         .expect(400);
     });
@@ -133,6 +172,7 @@ describe('Facts API (E2E)', () => {
 
       await request(app.getHttpServer())
         .post('/api/facts')
+        .set('Authorization', `Bearer ${accessToken}`)
         .send(invalidDto)
         .expect(400);
     });
@@ -154,6 +194,7 @@ describe('Facts API (E2E)', () => {
 
       const response = await request(app.getHttpServer())
         .post('/api/facts')
+        .set('Authorization', `Bearer ${accessToken}`)
         .send(createDto)
         .expect(201);
 
@@ -163,6 +204,7 @@ describe('Facts API (E2E)', () => {
     it('存在する記録を取得できること', async () => {
       const response = await request(app.getHttpServer())
         .get(`/api/facts/${createdFactId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
       expect(response.body.data.id).toBe(createdFactId);
@@ -174,12 +216,14 @@ describe('Facts API (E2E)', () => {
 
       await request(app.getHttpServer())
         .get(`/api/facts/${nonExistentId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
         .expect(404);
     });
 
     it('UUIDでないIDで400エラーを返すこと', async () => {
       await request(app.getHttpServer())
         .get('/api/facts/invalid-id')
+        .set('Authorization', `Bearer ${accessToken}`)
         .expect(400);
     });
   });

@@ -4,6 +4,7 @@ import { BullModule } from '@nestjs/bull';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaService } from './prisma.service';
+import { AuthModule } from './auth/auth.module';
 import { FactsModule } from './facts/facts.module';
 import { HealthModule } from './health/health.module';
 import { CryptoModule } from './common/crypto';
@@ -25,6 +26,7 @@ import { DispatchersModule } from './dispatchers/dispatchers.module';
       }),
       inject: [ConfigService],
     }),
+    AuthModule,
     CryptoModule,
     DispatchersModule,
     FactsModule,
