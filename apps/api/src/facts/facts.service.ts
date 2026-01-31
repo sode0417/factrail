@@ -120,7 +120,7 @@ export class FactsService {
         title: dto.title,
         summary: dto.summary,
         content: dto.content,
-        raw: (dto.metadata as Prisma.InputJsonValue) || Prisma.JsonNull,
+        raw: (dto.raw as Prisma.InputJsonValue) || Prisma.JsonNull,
         type: dto.type,
         metadata: dto.metadata || Prisma.JsonNull,
       },
