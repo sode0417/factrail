@@ -21,9 +21,19 @@ import { DispatchersModule } from './dispatchers/dispatchers.module';
     // Redis + Bull Queue のグローバル設定
     BullModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        redis: configService.get('REDIS_URL') || 'redis://localhost:6379',
-      }),
+      useFactory: async (configService: ConfigService) => {
+        const redisUrl = configService.get('REDIS_URL') || 'redis://localhost:6379';
+
+        return {
+          redis: {
+            url: redisUrl,
+            maxRetriesPerRequest: null,
+            enableReadyCheck: false,
+            // TLS設定（RailwayのRedisはTLSを使用）
+            tls: redisUrl.startsWith('rediss://') ? {} : undefined,
+          },
+        };
+      },
       inject: [ConfigService],
     }),
     AuthModule,

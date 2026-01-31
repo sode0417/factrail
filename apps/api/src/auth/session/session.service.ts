@@ -21,12 +21,28 @@ export class SessionService implements OnModuleInit {
   constructor(private configService: ConfigService) {}
 
   onModuleInit() {
-    this.redisClient = new Redis({
-      host: this.configService.get('REDIS_HOST', 'localhost'),
-      port: this.configService.get('REDIS_PORT', 6379),
-      password: this.configService.get('REDIS_PASSWORD'),
-      db: this.configService.get('REDIS_SESSION_DB', 1), // 専用DB使用
-    });
+    const redisUrl = this.configService.get('REDIS_URL');
+
+    if (redisUrl) {
+      // REDIS_URLが設定されている場合はそれを使用（Railway等のクラウド環境）
+      this.redisClient = new Redis(redisUrl, {
+        db: this.configService.get('REDIS_SESSION_DB', 1), // 専用DB使用
+        maxRetriesPerRequest: null, // Bull互換性のため
+        enableReadyCheck: false,
+        // TLS設定（RailwayのRedisはTLSを使用）
+        tls: redisUrl.startsWith('rediss://') ? {} : undefined,
+      });
+    } else {
+      // 個別の環境変数を使用（ローカル開発環境）
+      this.redisClient = new Redis({
+        host: this.configService.get('REDIS_HOST', 'localhost'),
+        port: this.configService.get('REDIS_PORT', 6379),
+        password: this.configService.get('REDIS_PASSWORD'),
+        db: this.configService.get('REDIS_SESSION_DB', 1),
+        maxRetriesPerRequest: null,
+        enableReadyCheck: false,
+      });
+    }
   }
 
   /**
