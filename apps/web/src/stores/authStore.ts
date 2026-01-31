@@ -14,6 +14,7 @@ interface AuthState {
   refreshToken: string | null;
   sessionId: string | null;
   isAuthenticated: boolean;
+  _hasHydrated: boolean;
 
   login: (data: {
     user: User;
@@ -24,6 +25,7 @@ interface AuthState {
   logout: () => void;
   updateUser: (user: User) => void;
   updateAccessToken: (accessToken: string) => void;
+  setHasHydrated: (value: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -34,6 +36,7 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       sessionId: null,
       isAuthenticated: false,
+      _hasHydrated: false,
 
       login: ({ user, accessToken, refreshToken, sessionId }) =>
         set({
@@ -56,9 +59,14 @@ export const useAuthStore = create<AuthState>()(
       updateUser: (user) => set({ user }),
 
       updateAccessToken: (accessToken) => set({ accessToken }),
+
+      setHasHydrated: (value) => set({ _hasHydrated: value }),
     }),
     {
       name: 'factrail-auth',
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     },
   ),
 );
