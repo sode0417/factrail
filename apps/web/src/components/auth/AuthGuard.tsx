@@ -16,6 +16,13 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     const publicPaths = ['/login', '/auth/callback'];
     const isPublicPath = publicPaths.some((path) => pathname.startsWith(path));
 
+    // 認証済みユーザーがログインページにアクセスした場合、ダッシュボードへリダイレクト
+    if (isAuthenticated && pathname === '/login') {
+      router.push('/');
+      return;
+    }
+
+    // 未認証ユーザーが保護されたページにアクセスした場合、ログインページへリダイレクト
     if (!isAuthenticated && !isPublicPath) {
       router.push('/login');
     }

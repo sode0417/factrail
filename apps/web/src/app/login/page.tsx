@@ -26,7 +26,7 @@ import { useAuthStore } from '@/stores/authStore';
 export default function LoginPage() {
   const router = useRouter();
   const toast = useToast();
-  const { login } = useAuthStore();
+  const { login, isAuthenticated, _hasHydrated } = useAuthStore();
 
   const [isLogin, setIsLogin] = useState(true); // true: ログイン, false: 登録
   const [email, setEmail] = useState('');
@@ -36,6 +36,12 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://factrail-production.up.railway.app';
+
+  // 既に認証済みの場合はダッシュボードへリダイレクト
+  if (_hasHydrated && isAuthenticated) {
+    router.push('/');
+    return null;
+  }
 
   const handleGoogleLogin = () => {
     window.location.href = `${apiUrl}/auth/google`;
