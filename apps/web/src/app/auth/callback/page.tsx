@@ -6,6 +6,9 @@ import { useAuthStore } from '@/stores/authStore';
 import { Spinner, Text, VStack } from '@chakra-ui/react';
 import apiClient from '@/lib/axios';
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 function CallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
