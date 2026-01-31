@@ -8,15 +8,18 @@ import {
   HttpCode,
   HttpStatus,
   ParseUUIDPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { FactsService } from './facts.service';
 import { CreateFactDto, QueryFactsDto } from './dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 /**
  * 記録（Fact）のAPIエンドポイント
  * 外部・内部で発生した観測可能な出来事を管理する
  */
 @Controller('api/facts')
+@UseGuards(JwtAuthGuard) // 全エンドポイントに認証を要求
 export class FactsController {
   constructor(private readonly factsService: FactsService) {}
 

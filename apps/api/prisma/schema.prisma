@@ -75,6 +75,33 @@ model Settings {
   @@schema("factrail")
 }
 
+model User {
+  id       String @id @default(uuid())
+  email    String @unique
+  name     String?
+  avatar   String?
+
+  // パスワード認証（bcryptハッシュ）
+  password String? // OAuthのみの場合はnull
+
+  // OAuth連携情報
+  googleId String? @unique @map("google_id")
+  githubId String? @unique @map("github_id")
+
+  // アカウント状態
+  isEmailVerified Boolean @default(false) @map("is_email_verified")
+  status          String  @default("active") // active, suspended, deleted
+
+  // セッション管理
+  lastLoginAt DateTime? @map("last_login_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+  @@schema("factrail")
+}
+
 model Event {
   id          String   @id
   userId      String   @map("user_id")
