@@ -24,12 +24,13 @@ jobs:
       pull-requests: write
       issues: write
       id-token: write
+      actions: read # Required for reading CI results
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0  # Full history for better context
 
       - name: Run Claude Code Review
         id: claude-review
@@ -38,7 +39,27 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
-          prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
+          prompt: |
+            Review PR #${{ github.event.pull_request.number }} and provide:
+
+            1. Code quality feedback
+            2. Security considerations
+            3. Test coverage analysis
+            4. Performance implications
+            5. Suggestions for improvement
+
+            Focus on:
+            - API changes (apps/api)
+            - Web changes (apps/web)
+            - Database schema changes
+            - CI/CD modifications
+
+            If there are critical issues, clearly mark them as "🔴 CRITICAL".
+            If auto-fixable issues exist, suggest "@claude fix" command.
+
+          additional_permissions: |
+            actions: read
+
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
 
