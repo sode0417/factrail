@@ -32,7 +32,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [errors, setErrors] = useState<any>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [isLoading, setIsLoading] = useState(false);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -83,12 +83,12 @@ export default function LoginPage() {
         setIsLogin(true);
         setPassword('');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       const errorMessage =
-        error.response?.data?.message || 'エラーが発生しました';
+        (error as { response?: { data?: { message?: string | string[] } } }).response?.data?.message || 'エラーが発生しました';
 
       if (Array.isArray(errorMessage)) {
-        const fieldErrors: any = {};
+        const fieldErrors: { email?: string; password?: string } = {};
         errorMessage.forEach((msg: string) => {
           if (msg.includes('email')) fieldErrors.email = msg;
           if (msg.includes('password')) fieldErrors.password = msg;

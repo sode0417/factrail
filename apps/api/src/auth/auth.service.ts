@@ -88,11 +88,12 @@ export class AuthService {
    * OAuth認証でユーザー検証・作成
    */
   async validateOAuthUser(dto: OAuthUserDto) {
-    const providerIdField = dto.provider === 'google' ? 'googleId' : 'githubId';
-
     // 既存ユーザーを検索
     let user = await this.prisma.user.findUnique({
-      where: { [providerIdField]: dto.providerId },
+      where:
+        dto.provider === 'google'
+          ? { googleId: dto.providerId }
+          : { githubId: dto.providerId },
     });
 
     // 新規ユーザーの場合は作成
@@ -106,23 +107,40 @@ export class AuthService {
         // 既存アカウントにOAuth連携を追加
         user = await this.prisma.user.update({
           where: { id: existingUser.id },
-          data: {
-            [providerIdField]: dto.providerId,
-            isEmailVerified: true, // OAuth認証済みとみなす
-            lastLoginAt: new Date(),
-          },
+          data:
+            dto.provider === 'google'
+              ? {
+                  googleId: dto.providerId,
+                  isEmailVerified: true,
+                  lastLoginAt: new Date(),
+                }
+              : {
+                  githubId: dto.providerId,
+                  isEmailVerified: true,
+                  lastLoginAt: new Date(),
+                },
         });
       } else {
         // 新規ユーザー作成
         user = await this.prisma.user.create({
-          data: {
-            email: dto.email,
-            name: dto.name,
-            avatar: dto.avatar,
-            [providerIdField]: dto.providerId,
-            isEmailVerified: true,
-            lastLoginAt: new Date(),
-          },
+          data:
+            dto.provider === 'google'
+              ? {
+                  email: dto.email,
+                  name: dto.name,
+                  avatar: dto.avatar,
+                  googleId: dto.providerId,
+                  isEmailVerified: true,
+                  lastLoginAt: new Date(),
+                }
+              : {
+                  email: dto.email,
+                  name: dto.name,
+                  avatar: dto.avatar,
+                  githubId: dto.providerId,
+                  isEmailVerified: true,
+                  lastLoginAt: new Date(),
+                },
         });
       }
     } else {
