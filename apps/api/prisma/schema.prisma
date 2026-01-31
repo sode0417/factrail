@@ -27,6 +27,9 @@ model Fact {
   slackMessageId String? @unique @map("slack_message_id")
   f2aEventId     String? @unique @map("f2a_event_id")
 
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   createdAt   DateTime  @default(now()) @map("created_at")
   processedAt DateTime? @map("processed_at")
 
@@ -35,6 +38,7 @@ model Fact {
   @@index([type])
   @@index([source])
   @@index([f2aEventId])
+  @@index([userId])
   @@map("facts")
   @@schema("factrail")
 }
@@ -53,10 +57,14 @@ model Integration {
   status     String    @default("active")
   lastSyncAt DateTime? @map("last_sync_at")
 
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@unique([provider, accountId])
+  @@index([userId])
   @@map("integrations")
   @@schema("factrail")
 }
@@ -94,6 +102,10 @@ model User {
 
   // セッション管理
   lastLoginAt DateTime? @map("last_login_at")
+
+  // リレーション
+  facts        Fact[]
+  integrations Integration[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

@@ -19,14 +19,17 @@ export class FactsService {
 
   /**
    * 記録を検索する（カーソルベースページネーション）
+   * @param userId ユーザーID
    * @param query 検索条件（ソース、タイプ、日時範囲、ページング情報）
    * @returns ページングされた記録のリスト
    */
-  async findAll(query: QueryFactsDto) {
+  async findAll(userId: string, query: QueryFactsDto) {
     const { source, type, from, to, limit = 50, cursor } = query;
 
     // 検索条件を組み立て
-    const where: Prisma.FactWhereInput = {};
+    const where: Prisma.FactWhereInput = {
+      userId, // ユーザーIDでフィルタ
+    };
 
     if (source) {
       where.source = source;
@@ -86,13 +89,17 @@ export class FactsService {
 
   /**
    * IDで単一の記録を取得する
+   * @param userId ユーザーID
    * @param id 記録のID
    * @returns 記録データ
    * @throws NotFoundException 記録が見つからない場合
    */
-  async findOne(id: string) {
-    const fact = await this.prisma.fact.findUnique({
-      where: { id },
+  async findOne(userId: string, id: string) {
+    const fact = await this.prisma.fact.findFirst({
+      where: {
+        id,
+        userId, // ユーザーIDでフィルタ
+      },
     });
 
     if (!fact) {
@@ -104,15 +111,17 @@ export class FactsService {
 
   /**
    * 新しい記録を作成し、Slack投稿キューに追加する
+   * @param userId ユーザーID
    * @param dto 記録作成用のDTO
    * @returns 作成された記録
    */
-  async create(dto: CreateFactDto) {
+  async create(userId: string, dto: CreateFactDto) {
     // 外部IDが指定されていない場合は、手動作成用のUUIDを生成
     const externalId = dto.externalId || `manual-${randomUUID()}`;
 
     const fact = await this.prisma.fact.create({
       data: {
+        userId, // ユーザーIDを追加
         externalId,
         source: dto.source,
         sourceUrl: dto.sourceUrl,
@@ -144,15 +153,17 @@ export class FactsService {
 
   /**
    * 記録の統計情報を取得する
+   * @param userId ユーザーID
    * @returns 今日（直近24時間）の記録数
    */
-  async getStats(): Promise<FactsStatsResponseDto> {
+  async getStats(userId: string): Promise<FactsStatsResponseDto> {
     const now = new Date();
     const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
     // 今日（直近24時間）の記録数を取得
     const todayCount = await this.prisma.fact.count({
       where: {
+        userId, // ユーザーIDでフィルタ
         occurredAt: {
           gte: oneDayAgo,
         },
