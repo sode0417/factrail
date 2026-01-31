@@ -18,7 +18,7 @@ import {
   Spinner,
 } from '@chakra-ui/react';
 import { MainLayout } from '@/components/layout';
-import { FiDatabase, FiGithub, FiMessageSquare, FiActivity } from 'react-icons/fi';
+import { FiGithub, FiMessageSquare, FiActivity } from 'react-icons/fi';
 import { IconType } from 'react-icons';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
@@ -78,6 +78,10 @@ interface FactsResponse {
   };
 }
 
+interface FactsStatsResponse {
+  todayCount: number;
+}
+
 // ポーリング間隔（30秒）
 const POLLING_INTERVAL = 30000;
 
@@ -96,6 +100,7 @@ function getSourceColor(source: string): string {
 
 export default function DashboardPage() {
   const [facts, setFacts] = useState<Fact[]>([]);
+  const [stats, setStats] = useState<FactsStatsResponse>({ todayCount: 0 });
   const [loading, setLoading] = useState(true);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://factrail-production.up.railway.app';
@@ -113,15 +118,28 @@ export default function DashboardPage() {
     }
   };
 
+  const fetchStats = async () => {
+    try {
+      const response = await axios.get<FactsStatsResponse>(
+        `${apiUrl}/api/facts/stats`
+      );
+      setStats(response.data);
+    } catch (error) {
+      console.error('Failed to fetch stats:', error);
+    }
+  };
+
   // 初回ロード
   useEffect(() => {
     fetchFacts();
+    fetchStats();
   }, []);
 
   // 30秒ごとのポーリング
   useEffect(() => {
     const intervalId = setInterval(() => {
       fetchFacts();
+      fetchStats();
     }, POLLING_INTERVAL);
 
     // クリーンアップ
@@ -130,30 +148,16 @@ export default function DashboardPage() {
     };
   }, []);
 
-  // 統計情報を計算
-  const totalFacts = facts.length;
-  const now = new Date();
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-
-  const factsLast30Days = facts.filter(
-    (fact) => new Date(fact.occurredAt) >= thirtyDaysAgo
-  ).length;
-
-  const factsToday = facts.filter(
-    (fact) => new Date(fact.occurredAt) >= oneDayAgo
-  ).length;
-
   return (
     <MainLayout title="ダッシュボード" subtitle="Factrailの概要を確認">
       {/* Stats Grid */}
-      <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} spacing={6} mb={8}>
+      <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6} mb={8}>
         <StatCard
-          label="総Facts数"
-          value={loading ? '-' : totalFacts.toString()}
-          helpText={`過去30日間で+${factsLast30Days}`}
-          icon={FiDatabase}
-          color="brand"
+          label="今日のアクティビティ"
+          value={loading ? '-' : stats.todayCount.toString()}
+          helpText="直近24時間"
+          icon={FiActivity}
+          color="accent"
         />
         <StatCard
           label="GitHub連携"
@@ -168,13 +172,6 @@ export default function DashboardPage() {
           helpText="設定が必要です"
           icon={FiMessageSquare}
           color="green"
-        />
-        <StatCard
-          label="今日のアクティビティ"
-          value={loading ? '-' : factsToday.toString()}
-          helpText="直近24時間"
-          icon={FiActivity}
-          color="accent"
         />
       </SimpleGrid>
 

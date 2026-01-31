@@ -24,6 +24,15 @@ export class FactsController {
   constructor(private readonly factsService: FactsService) {}
 
   /**
+   * 記録の統計情報を取得する
+   * @returns 今日（直近24時間）の記録数
+   */
+  @Get('stats')
+  getStats() {
+    return this.factsService.getStats();
+  }
+
+  /**
    * 記録の一覧を取得する（カーソルベースページネーション）
    * @param query 検索条件（ソース、タイプ、日時範囲、ページング情報）
    * @returns ページングされた記録のリスト
