@@ -20,7 +20,7 @@ export class SlackDispatcherService {
    */
   async postFactToDM(fact: Fact): Promise<string> {
     // Slack Integration からアクセストークンを取得
-    const integrations = await this.integrationsService.findByProvider('slack');
+    const integrations = await this.integrationsService.findByProvider(fact.userId, 'slack');
 
     if (!integrations || integrations.length === 0) {
       throw new InternalServerErrorException('Slack連携が設定されていません');
