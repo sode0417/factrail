@@ -10,6 +10,12 @@ on:
     types:
       - completed
 
+# 同じブランチに対して1つのSummaryワークフローのみ実行
+# 新しいトリガーが来たら古い実行をキャンセル
+concurrency:
+  group: ci-summary-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: true
+
 jobs:
   check-all-workflows:
     # PRの場合のみ実行
@@ -26,7 +32,7 @@ jobs:
 
     steps:
       - name: Wait for parallel workflows
-        run: sleep 30
+        run: sleep 45
 
       - name: Check all workflow statuses
         id: check
@@ -136,10 +142,16 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Configure Git
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
       - name: Run Claude Code to fix all failures
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          auto_commit: true
           prompt: |
             Multiple CI workflows have failed for PR #${{ needs.check-all-workflows.outputs.pr_number }}.
 
@@ -152,8 +164,18 @@ jobs:
             3. Fix all issues (tests, lint errors, type errors, build failures, etc.)
             4. Run the relevant commands locally to verify all fixes
             5. Commit the changes with a descriptive message that mentions all fixed issues
+
+            IMPORTANT: Make sure to commit and push your changes so CI can re-run.
           additional_permissions: |
             actions: read
+
+      - name: Push changes
+        run: |
+          if git diff-index --quiet HEAD --; then
+            echo "No changes to push"
+          else
+            git push
+          fi
 
       - name: Comment on PR
         uses: actions/github-script@v7
