@@ -3,7 +3,7 @@ import { UnauthorizedException, Logger } from '@nestjs/common';
 import { getQueueToken } from '@nestjs/bull';
 import { WebhooksService } from './webhooks.service';
 import { SettingsService } from '../settings/settings.service';
-import { PrismaService } from '../mockPrismaService.service';
+import { PrismaService } from '../prisma.service';
 import { IntegrationsService } from '../integrations/integrations.service';
 import * as crypto from 'crypto';
 
