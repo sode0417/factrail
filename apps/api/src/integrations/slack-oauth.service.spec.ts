@@ -104,8 +104,8 @@ describe('SlackOAuthService', () => {
     it('OAuth callbackを正常に処理できること', async () => {
       await service.handleCallback(code);
 
-      expect(settingsService.getDecryptedValue).toHaveBeenCalledWith('slack', 'client_id');
-      expect(settingsService.getDecryptedValue).toHaveBeenCalledWith('slack', 'client_secret');
+      expect(mockSettingsService.getDecryptedValue).toHaveBeenCalledWith('slack', 'client_id');
+      expect(mockSettingsService.getDecryptedValue).toHaveBeenCalledWith('slack', 'client_secret');
       expect(global.fetch).toHaveBeenCalledWith(
         'https://slack.com/api/oauth.v2.access',
         expect.objectContaining({
@@ -115,7 +115,7 @@ describe('SlackOAuthService', () => {
           },
         }),
       );
-      expect(integrationsService.upsert).toHaveBeenCalledWith('user-123', {
+      expect(mockIntegrationsService.upsert).toHaveBeenCalledWith('user-123', {
         provider: 'slack',
         accountId: 'T123456',
         accountName: 'Test Team',
@@ -124,7 +124,7 @@ describe('SlackOAuthService', () => {
         expiresAt: null,
         scope: ['chat:write', 'users:read'],
       });
-      expect(settingsService.upsert).toHaveBeenCalledWith({
+      expect(mockSettingsService.upsert).toHaveBeenCalledWith({
         provider: 'slack',
         settingType: 'target_channel_id',
         value: 'U123456',
@@ -203,7 +203,7 @@ describe('SlackOAuthService', () => {
 
       await service.handleCallback(code);
 
-      expect(integrationsService.upsert).toHaveBeenCalledWith(
+      expect(mockIntegrationsService.upsert).toHaveBeenCalledWith(
         'user-123',
         expect.objectContaining({
           accountId: 'unknown',
@@ -223,7 +223,7 @@ describe('SlackOAuthService', () => {
 
       await service.handleCallback(code);
 
-      expect(integrationsService.upsert).toHaveBeenCalledWith(
+      expect(mockIntegrationsService.upsert).toHaveBeenCalledWith(
         'user-123',
         expect.objectContaining({
           scope: [],
@@ -242,7 +242,7 @@ describe('SlackOAuthService', () => {
 
       await service.handleCallback(code);
 
-      expect(settingsService.upsert).not.toHaveBeenCalledWith(
+      expect(mockSettingsService.upsert).not.toHaveBeenCalledWith(
         expect.objectContaining({
           settingType: 'target_channel_id',
         }),
@@ -260,7 +260,7 @@ describe('SlackOAuthService', () => {
 
       await service.handleCallback(code);
 
-      expect(integrationsService.upsert).toHaveBeenCalledWith(
+      expect(mockIntegrationsService.upsert).toHaveBeenCalledWith(
         'user-123',
         expect.objectContaining({
           scope: ['chat:write', 'users:read', 'channels:read'],

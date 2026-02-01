@@ -3,7 +3,7 @@ import { UnauthorizedException, Logger } from '@nestjs/common';
 import { getQueueToken } from '@nestjs/bull';
 import { WebhooksService } from './webhooks.service';
 import { SettingsService } from '../settings/settings.service';
-import { PrismaService } from '../prisma.service';
+import { PrismaService } from '../mockPrismaService.service';
 import { IntegrationsService } from '../integrations/integrations.service';
 import * as crypto from 'crypto';
 
@@ -174,7 +174,7 @@ describe('WebhooksService', () => {
         const result = await service.processGitHubEvent('issues', issuePayload);
 
         expect(result).toEqual({ factId: 'fact-1' });
-        expect(prisma.fact.upsert).toHaveBeenCalledWith(
+        expect(mockPrismaService.fact.upsert).toHaveBeenCalledWith(
           expect.objectContaining({
             where: {
               source_externalId: {
@@ -245,7 +245,7 @@ describe('WebhooksService', () => {
         const result = await service.processGitHubEvent('pull_request', prPayload);
 
         expect(result).toEqual({ factId: 'fact-1' });
-        expect(prisma.fact.upsert).toHaveBeenCalledWith(
+        expect(mockPrismaService.fact.upsert).toHaveBeenCalledWith(
           expect.objectContaining({
             where: {
               source_externalId: {
@@ -318,7 +318,7 @@ describe('WebhooksService', () => {
         const result = await service.processGitHubEvent('push', pushPayload);
 
         expect(result).toEqual({ factIds: ['fact-1', 'fact-2'] });
-        expect(prisma.fact.upsert).toHaveBeenCalledTimes(2);
+        expect(mockPrismaService.fact.upsert).toHaveBeenCalledTimes(2);
       });
 
       it('コミットが空の場合は空の配列を返すこと', async () => {
