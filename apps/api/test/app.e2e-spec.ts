@@ -16,9 +16,6 @@ describe('AppController (e2e)', () => {
   });
 
   it('ルートパス / (GET) でAPIステータスを返すこと', () => {
-    return request(app.getHttpServer())
-      .get('/')
-      .expect(200)
-      .expect('Factrail API is running');
+    return request(app.getHttpServer()).get('/').expect(200).expect('Factrail API is running');
   });
 });

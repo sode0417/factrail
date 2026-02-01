@@ -7,11 +7,13 @@
 jest.setTimeout(30000);
 
 // データベース接続（テスト用）
-process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/factrail_test';
+process.env.DATABASE_URL =
+  process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/factrail_test';
 process.env.NODE_ENV = 'test';
 
 // セキュリティ関連
-process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+process.env.ENCRYPTION_KEY =
+  process.env.ENCRYPTION_KEY || '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
 // 認証関連の環境変数（テスト用ダミー値）
 process.env.JWT_SECRET = 'test-jwt-secret-key-for-e2e-testing-purposes-minimum-32-chars';

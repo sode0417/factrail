@@ -112,7 +112,11 @@ export class IntegrationsService {
   /**
    * Integrationを更新する（トークンが指定された場合は暗号化する）
    */
-  async update(userId: string, id: string, dto: UpdateIntegrationDto): Promise<DecryptedIntegration> {
+  async update(
+    userId: string,
+    id: string,
+    dto: UpdateIntegrationDto,
+  ): Promise<DecryptedIntegration> {
     const existing = await this.prisma.integration.findFirst({
       where: {
         id,

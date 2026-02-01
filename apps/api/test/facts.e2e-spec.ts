@@ -42,17 +42,13 @@ describe('Facts API (E2E)', () => {
     };
 
     // ユーザー登録
-    await request(app.getHttpServer())
-      .post('/auth/register')
-      .send(testUser);
+    await request(app.getHttpServer()).post('/auth/register').send(testUser);
 
     // ログインしてトークン取得
-    const loginResponse = await request(app.getHttpServer())
-      .post('/auth/login')
-      .send({
-        email: testUser.email,
-        password: testUser.password,
-      });
+    const loginResponse = await request(app.getHttpServer()).post('/auth/login').send({
+      email: testUser.email,
+      password: testUser.password,
+    });
 
     accessToken = loginResponse.body.accessToken;
     testUserId = loginResponse.body.user.id;

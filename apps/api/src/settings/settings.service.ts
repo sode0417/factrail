@@ -72,9 +72,7 @@ export class SettingsService {
     });
 
     if (!setting) {
-      throw new NotFoundException(
-        `設定が見つかりません: ${provider}/${settingType}`,
-      );
+      throw new NotFoundException(`設定が見つかりません: ${provider}/${settingType}`);
     }
 
     return this.toResponse(setting);
@@ -108,9 +106,7 @@ export class SettingsService {
     });
 
     if (!setting) {
-      throw new NotFoundException(
-        `設定が見つかりません: ${provider}/${settingType}`,
-      );
+      throw new NotFoundException(`設定が見つかりません: ${provider}/${settingType}`);
     }
 
     await this.prisma.settings.delete({
