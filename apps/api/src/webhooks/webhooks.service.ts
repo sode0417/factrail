@@ -121,23 +121,35 @@ export class WebhooksService {
 
   /**
    * GitHubリポジトリに紐付くユーザーIDを取得する
-   * リポジトリ名からユーザーを特定できない場合、最初に見つかったGitHub連携ユーザーを返す
+   * リポジトリ名からowner (username/org) を抽出し、Integration.accountIdとマッチングする
    */
   private async findUserIdForGitHubEvent(repository: string): Promise<string | null> {
-    // GitHubのIntegrationからユーザーを検索
-    // 複数のユーザーがGitHub連携している可能性があるため、最初に見つかったユーザーを使用
-    const integrations = await this.prisma.integration.findMany({
-      where: { provider: 'github' },
-      include: { user: true },
-      take: 1,
-    });
+    // リポジトリ名から所有者を抽出 (例: "sode0417/factrail" -> "sode0417")
+    const owner = repository.split('/')[0];
 
-    if (integrations.length === 0) {
-      this.logger.warn(`GitHub連携が見つかりません。Factを作成できません: ${repository}`);
+    if (!owner) {
+      this.logger.error(`無効なリポジトリ名形式です: ${repository}`);
       return null;
     }
 
-    return integrations[0].userId;
+    // GitHub accountId (username/org) でマッチング
+    const integration = await this.prisma.integration.findFirst({
+      where: {
+        provider: 'github',
+        accountId: owner,
+      },
+      include: { user: true },
+    });
+
+    if (!integration) {
+      this.logger.warn(
+        `GitHub連携が見つかりません。Factを作成できません: ${repository} (所有者: ${owner})\n` +
+          `ヒント: /auth/github にアクセスして、GitHubアカウント "${owner}" で認証を行ってください。`,
+      );
+      return null;
+    }
+
+    return integration.userId;
   }
 
   /**
