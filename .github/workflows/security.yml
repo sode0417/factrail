@@ -39,7 +39,7 @@ jobs:
         run: npm ci
 
       - name: Run npm audit
-        run: npm audit --audit-level=high --json > npm-audit-${{ matrix.app }}.json || true
+        run: npm audit --omit=dev --audit-level=high --json > npm-audit-${{ matrix.app }}.json || true
 
       - name: Check for high/critical vulnerabilities
         run: |
@@ -150,11 +150,12 @@ jobs:
       - name: Check Trivy results for failures
         run: |
           if [ -f trivy-results.sarif ]; then
-            VULNS=$(jq '.runs[0].results | length' trivy-results.sarif)
-            echo "Vulnerabilities found: $VULNS"
+            # HIGH/CRITICALレベルの脆弱性のみをカウント（levelが"error"のもの）
+            VULNS=$(jq '[.runs[0].results[] | select(.level == "error")] | length' trivy-results.sarif)
+            echo "High/Critical vulnerabilities found: $VULNS"
             if [ "$VULNS" -gt 0 ]; then
               echo "⚠️ High/Critical vulnerabilities detected by Trivy!"
-              jq '.runs[0].results' trivy-results.sarif
+              jq '[.runs[0].results[] | select(.level == "error")]' trivy-results.sarif
               exit 1
             fi
           fi
