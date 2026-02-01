@@ -156,10 +156,7 @@ describe('GlobalExceptionFilter', () => {
     });
 
     it('TOO_MANY_REQUESTS例外を処理すること', () => {
-      const exception = new HttpException(
-        'Too many requests',
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
+      const exception = new HttpException('Too many requests', HttpStatus.TOO_MANY_REQUESTS);
 
       filter.catch(exception, mockArgumentsHost);
 
@@ -173,10 +170,7 @@ describe('GlobalExceptionFilter', () => {
     });
 
     it('マップされていないステータスコードはINTERNAL_ERRORを使用すること', () => {
-      const exception = new HttpException(
-        'Service unavailable',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      const exception = new HttpException('Service unavailable', HttpStatus.SERVICE_UNAVAILABLE);
 
       filter.catch(exception, mockArgumentsHost);
 

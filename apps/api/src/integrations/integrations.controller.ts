@@ -56,7 +56,10 @@ export class IntegrationsController {
    * 全てのIntegrationを取得する
    */
   @Get()
-  async findAll(@Request() req, @Query('provider') provider?: string): Promise<{ data: IntegrationResponse[] }> {
+  async findAll(
+    @Request() req,
+    @Query('provider') provider?: string,
+  ): Promise<{ data: IntegrationResponse[] }> {
     const integrations = provider
       ? await this.integrationsService.findByProvider(req.user.id, provider)
       : await this.integrationsService.findAll(req.user.id);

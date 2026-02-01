@@ -455,10 +455,7 @@ describe('AuthService', () => {
       expect(result).toEqual({
         accessToken: 'new-access-token',
       });
-      expect(sessionService.updateSession).toHaveBeenCalledWith(
-        sessionId,
-        'new-access-token',
-      );
+      expect(sessionService.updateSession).toHaveBeenCalledWith(sessionId, 'new-access-token');
     });
 
     it('無効なリフレッシュトークンの場合はUnauthorizedExceptionをスローすること', async () => {
@@ -487,9 +484,7 @@ describe('AuthService', () => {
         session: expiredSession,
       });
 
-      await expect(service.refreshAccessToken(refreshToken)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(service.refreshAccessToken(refreshToken)).rejects.toThrow(UnauthorizedException);
       await expect(service.refreshAccessToken(refreshToken)).rejects.toThrow(
         'セッションの有効期限が切れています',
       );
@@ -512,9 +507,7 @@ describe('AuthService', () => {
       });
       mockPrismaService.user.findUnique.mockResolvedValue(null);
 
-      await expect(service.refreshAccessToken(refreshToken)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(service.refreshAccessToken(refreshToken)).rejects.toThrow(UnauthorizedException);
       await expect(service.refreshAccessToken(refreshToken)).rejects.toThrow(
         'ユーザーが見つかりません',
       );
@@ -539,9 +532,7 @@ describe('AuthService', () => {
         status: 'suspended',
       });
 
-      await expect(service.refreshAccessToken(refreshToken)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(service.refreshAccessToken(refreshToken)).rejects.toThrow(UnauthorizedException);
     });
   });
 

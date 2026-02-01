@@ -57,9 +57,7 @@ describe('SlackDispatcherProcessor', () => {
     }).compile();
 
     processor = module.get<SlackDispatcherProcessor>(SlackDispatcherProcessor);
-    slackDispatcherService = module.get<SlackDispatcherService>(
-      SlackDispatcherService,
-    );
+    slackDispatcherService = module.get<SlackDispatcherService>(SlackDispatcherService);
     prisma = module.get<PrismaService>(PrismaService);
 
     // Disable logging during tests
@@ -112,9 +110,7 @@ describe('SlackDispatcherProcessor', () => {
 
       mockPrismaService.fact.findUnique.mockResolvedValue(null);
 
-      await expect(processor.handleSendDM(job)).rejects.toThrow(
-        'Fact not found: fact-not-found',
-      );
+      await expect(processor.handleSendDM(job)).rejects.toThrow('Fact not found: fact-not-found');
       expect(slackDispatcherService.postFactToDM).not.toHaveBeenCalled();
       expect(prisma.fact.update).not.toHaveBeenCalled();
     });

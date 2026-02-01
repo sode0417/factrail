@@ -10,9 +10,6 @@ global.fetch = jest.fn();
 
 describe('SlackOAuthService', () => {
   let service: SlackOAuthService;
-  let settingsService: SettingsService;
-  let integrationsService: IntegrationsService;
-  let prisma: PrismaService;
 
   const mockSettingsService = {
     getDecryptedValue: jest.fn(),
@@ -49,9 +46,6 @@ describe('SlackOAuthService', () => {
     }).compile();
 
     service = module.get<SlackOAuthService>(SlackOAuthService);
-    settingsService = module.get<SettingsService>(SettingsService);
-    integrationsService = module.get<IntegrationsService>(IntegrationsService);
-    prisma = module.get<PrismaService>(PrismaService);
 
     // Disable logging during tests
     jest.spyOn(Logger.prototype, 'log').mockImplementation();
@@ -154,9 +148,7 @@ describe('SlackOAuthService', () => {
         .mockResolvedValueOnce(clientId)
         .mockResolvedValueOnce(null);
 
-      await expect(service.handleCallback(code)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.handleCallback(code)).rejects.toThrow(BadRequestException);
     });
 
     it('Slack APIがエラーを返す場合はエラーをスローすること', async () => {
@@ -187,9 +179,7 @@ describe('SlackOAuthService', () => {
         json: jest.fn().mockResolvedValue(responseWithoutToken),
       });
 
-      await expect(service.handleCallback(code)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.handleCallback(code)).rejects.toThrow(BadRequestException);
     });
 
     it('ユーザーが見つからない場合はエラーをスローすること', async () => {
@@ -199,9 +189,7 @@ describe('SlackOAuthService', () => {
         .mockResolvedValueOnce(clientSecret);
       mockPrismaService.user.findFirst.mockResolvedValue(null);
 
-      await expect(service.handleCallback(code)).rejects.toThrow(
-        'ユーザーが見つかりません',
-      );
+      await expect(service.handleCallback(code)).rejects.toThrow('ユーザーが見つかりません');
     });
 
     it('teamがない場合はデフォルト値を使用すること', async () => {

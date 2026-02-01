@@ -301,9 +301,7 @@ describe('IntegrationsService', () => {
     it('Integrationが見つからない場合にNotFoundExceptionをスローすること', async () => {
       mockPrismaService.integration.findFirst.mockResolvedValue(null);
 
-      await expect(service.findOne(userId, integrationId)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findOne(userId, integrationId)).rejects.toThrow(NotFoundException);
       await expect(service.findOne(userId, integrationId)).rejects.toThrow(
         `連携が見つかりません: ID ${integrationId}`,
       );
@@ -587,9 +585,7 @@ describe('IntegrationsService', () => {
     it('Integrationが見つからない場合にNotFoundExceptionをスローすること', async () => {
       mockPrismaService.integration.findFirst.mockResolvedValue(null);
 
-      await expect(service.remove(userId, integrationId)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.remove(userId, integrationId)).rejects.toThrow(NotFoundException);
     });
   });
 

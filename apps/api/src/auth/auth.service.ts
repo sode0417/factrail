@@ -91,9 +91,7 @@ export class AuthService {
     // 既存ユーザーを検索
     let user = await this.prisma.user.findUnique({
       where:
-        dto.provider === 'google'
-          ? { googleId: dto.providerId }
-          : { githubId: dto.providerId },
+        dto.provider === 'google' ? { googleId: dto.providerId } : { githubId: dto.providerId },
     });
 
     // 新規ユーザーの場合は作成
@@ -158,10 +156,7 @@ export class AuthService {
    * JWTアクセストークンを発行
    */
   generateAccessToken(user: { id: string; email: string }) {
-    return this.jwtService.sign(
-      { sub: user.id, email: user.email },
-      { expiresIn: '1h' },
-    );
+    return this.jwtService.sign({ sub: user.id, email: user.email }, { expiresIn: '1h' });
   }
 
   /**

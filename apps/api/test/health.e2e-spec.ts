@@ -25,9 +25,7 @@ describe('Health (E2E)', () => {
 
   describe('GET /health', () => {
     it('ステータス200を返すこと', async () => {
-      const response = await request(app.getHttpServer())
-        .get('/health')
-        .expect(200);
+      const response = await request(app.getHttpServer()).get('/health').expect(200);
 
       // レスポンス形式の確認
       expect(response.body).toHaveProperty('status');
@@ -36,28 +34,20 @@ describe('Health (E2E)', () => {
     });
 
     it('statusフィールドに "ok" または "degraded" が含まれること', async () => {
-      const response = await request(app.getHttpServer())
-        .get('/health')
-        .expect(200);
+      const response = await request(app.getHttpServer()).get('/health').expect(200);
 
       expect(['ok', 'degraded']).toContain(response.body.status);
     });
 
     it('servicesオブジェクトにdatabaseの状態が含まれること', async () => {
-      const response = await request(app.getHttpServer())
-        .get('/health')
-        .expect(200);
+      const response = await request(app.getHttpServer()).get('/health').expect(200);
 
       expect(response.body.services).toHaveProperty('database');
-      expect(['healthy', 'unhealthy']).toContain(
-        response.body.services.database,
-      );
+      expect(['healthy', 'unhealthy']).toContain(response.body.services.database);
     });
 
     it('timestampがISO 8601形式であること', async () => {
-      const response = await request(app.getHttpServer())
-        .get('/health')
-        .expect(200);
+      const response = await request(app.getHttpServer()).get('/health').expect(200);
 
       const timestamp = response.body.timestamp;
       expect(timestamp).toBeDefined();

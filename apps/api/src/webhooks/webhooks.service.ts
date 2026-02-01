@@ -64,18 +64,12 @@ export class WebhooksService {
   /**
    * GitHub Webhook 署名を検証する
    */
-  async verifyGitHubSignature(
-    payload: string,
-    signature: string | undefined,
-  ): Promise<void> {
+  async verifyGitHubSignature(payload: string, signature: string | undefined): Promise<void> {
     if (!signature) {
       throw new UnauthorizedException('X-Hub-Signature-256 ヘッダーがありません');
     }
 
-    const secret = await this.settingsService.getDecryptedValue(
-      'github',
-      'webhook_secret',
-    );
+    const secret = await this.settingsService.getDecryptedValue('github', 'webhook_secret');
 
     if (!secret) {
       throw new UnauthorizedException(
@@ -129,9 +123,7 @@ export class WebhooksService {
    * GitHubリポジトリに紐付くユーザーIDを取得する
    * リポジトリ名からユーザーを特定できない場合、最初に見つかったGitHub連携ユーザーを返す
    */
-  private async findUserIdForGitHubEvent(
-    repository: string,
-  ): Promise<string | null> {
+  private async findUserIdForGitHubEvent(repository: string): Promise<string | null> {
     // GitHubのIntegrationからユーザーを検索
     // 複数のユーザーがGitHub連携している可能性があるため、最初に見つかったユーザーを使用
     const integrations = await this.prisma.integration.findMany({
@@ -141,9 +133,7 @@ export class WebhooksService {
     });
 
     if (integrations.length === 0) {
-      this.logger.warn(
-        `GitHub連携が見つかりません。Factを作成できません: ${repository}`,
-      );
+      this.logger.warn(`GitHub連携が見つかりません。Factを作成できません: ${repository}`);
       return null;
     }
 
@@ -246,9 +236,7 @@ export class WebhooksService {
   /**
    * Push イベントを処理（複数コミット対応）
    */
-  private async processPushEvent(
-    payload: GitHubWebhookPayload,
-  ): Promise<{ factIds: string[] }> {
+  private async processPushEvent(payload: GitHubWebhookPayload): Promise<{ factIds: string[] }> {
     const { commits, repository, ref } = payload;
 
     if (!commits || commits.length === 0) {

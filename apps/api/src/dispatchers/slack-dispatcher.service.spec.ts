@@ -48,13 +48,11 @@ describe('SlackDispatcherService', () => {
   };
 
   beforeEach(async () => {
-    const { WebClient } = require('@slack/web-api');
     mockWebClient = {
       chat: {
         postMessage: jest.fn(),
       },
     };
-    WebClient.mockImplementation(() => mockWebClient);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -127,28 +125,20 @@ describe('SlackDispatcherService', () => {
     it('Slack連携が設定されていない場合はエラーをスローすること', async () => {
       mockIntegrationsService.findByProvider.mockResolvedValue([]);
 
-      await expect(service.postFactToDM(mockFact)).rejects.toThrow(
-        InternalServerErrorException,
-      );
-      await expect(service.postFactToDM(mockFact)).rejects.toThrow(
-        'Slack連携が設定されていません',
-      );
+      await expect(service.postFactToDM(mockFact)).rejects.toThrow(InternalServerErrorException);
+      await expect(service.postFactToDM(mockFact)).rejects.toThrow('Slack連携が設定されていません');
     });
 
     it('Slack連携がnullの場合はエラーをスローすること', async () => {
       mockIntegrationsService.findByProvider.mockResolvedValue(null);
 
-      await expect(service.postFactToDM(mockFact)).rejects.toThrow(
-        InternalServerErrorException,
-      );
+      await expect(service.postFactToDM(mockFact)).rejects.toThrow(InternalServerErrorException);
     });
 
     it('送信先IDが設定されていない場合はエラーをスローすること', async () => {
       mockSettingsService.getDecryptedValue.mockResolvedValue(null);
 
-      await expect(service.postFactToDM(mockFact)).rejects.toThrow(
-        InternalServerErrorException,
-      );
+      await expect(service.postFactToDM(mockFact)).rejects.toThrow(InternalServerErrorException);
       await expect(service.postFactToDM(mockFact)).rejects.toThrow(
         'Slack送信先ID（User/Channel）が設定されていません',
       );
@@ -221,9 +211,7 @@ describe('SlackDispatcherService', () => {
       const blocks = call.blocks;
 
       const urlBlock = blocks.find(
-        (block: any) =>
-          block.type === 'section' &&
-          block.text?.text?.includes(mockFact.sourceUrl),
+        (block: any) => block.type === 'section' && block.text?.text?.includes(mockFact.sourceUrl),
       );
       expect(urlBlock).toBeDefined();
     });
@@ -235,9 +223,7 @@ describe('SlackDispatcherService', () => {
       const call = mockWebClient.chat.postMessage.mock.calls[0][0];
       const blocks = call.blocks;
 
-      const urlBlock = blocks.find(
-        (block: any) => block.text?.text?.includes('詳細を見る'),
-      );
+      const urlBlock = blocks.find((block: any) => block.text?.text?.includes('詳細を見る'));
       expect(urlBlock).toBeUndefined();
     });
 

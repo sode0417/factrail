@@ -232,12 +232,10 @@ describe('SettingsService', () => {
     it('設定が見つからない場合はNotFoundExceptionをスローすること', async () => {
       mockPrismaService.settings.findUnique.mockResolvedValue(null);
 
-      await expect(
-        service.findOne('github', 'webhook_secret'),
-      ).rejects.toThrow(NotFoundException);
-      await expect(
-        service.findOne('github', 'webhook_secret'),
-      ).rejects.toThrow('設定が見つかりません: github/webhook_secret');
+      await expect(service.findOne('github', 'webhook_secret')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('github', 'webhook_secret')).rejects.toThrow(
+        '設定が見つかりません: github/webhook_secret',
+      );
     });
   });
 
@@ -299,12 +297,10 @@ describe('SettingsService', () => {
     it('設定が見つからない場合はNotFoundExceptionをスローすること', async () => {
       mockPrismaService.settings.findUnique.mockResolvedValue(null);
 
-      await expect(
-        service.remove('github', 'webhook_secret'),
-      ).rejects.toThrow(NotFoundException);
-      await expect(
-        service.remove('github', 'webhook_secret'),
-      ).rejects.toThrow('設定が見つかりません: github/webhook_secret');
+      await expect(service.remove('github', 'webhook_secret')).rejects.toThrow(NotFoundException);
+      await expect(service.remove('github', 'webhook_secret')).rejects.toThrow(
+        '設定が見つかりません: github/webhook_secret',
+      );
       expect(prisma.settings.delete).not.toHaveBeenCalled();
     });
   });

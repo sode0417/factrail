@@ -5,12 +5,10 @@ import { WebhooksService } from './webhooks.service';
 import { SettingsService } from '../settings/settings.service';
 import { PrismaService } from '../prisma.service';
 import { IntegrationsService } from '../integrations/integrations.service';
+import * as crypto from 'crypto';
 
 describe('WebhooksService', () => {
   let service: WebhooksService;
-  let settingsService: SettingsService;
-  let prisma: PrismaService;
-  let integrationsService: IntegrationsService;
   let slackQueue: any;
 
   const mockSettingsService = {
@@ -56,9 +54,6 @@ describe('WebhooksService', () => {
     }).compile();
 
     service = module.get<WebhooksService>(WebhooksService);
-    settingsService = module.get<SettingsService>(SettingsService);
-    prisma = module.get<PrismaService>(PrismaService);
-    integrationsService = module.get<IntegrationsService>(IntegrationsService);
     slackQueue = module.get(getQueueToken('slack-dispatch'));
 
     // Disable logging during tests
@@ -78,35 +73,32 @@ describe('WebhooksService', () => {
     it('署名が正しい場合は検証に成功すること', async () => {
       mockSettingsService.getDecryptedValue.mockResolvedValue(secret);
 
-      const crypto = require('crypto');
       const signature = `sha256=${crypto
         .createHmac('sha256', secret)
         .update(payload)
         .digest('hex')}`;
 
-      await expect(
-        service.verifyGitHubSignature(payload, signature),
-      ).resolves.toBeUndefined();
+      await expect(service.verifyGitHubSignature(payload, signature)).resolves.toBeUndefined();
     });
 
     it('署名ヘッダーがない場合はUnauthorizedExceptionをスローすること', async () => {
-      await expect(
-        service.verifyGitHubSignature(payload, undefined),
-      ).rejects.toThrow(UnauthorizedException);
-      await expect(
-        service.verifyGitHubSignature(payload, undefined),
-      ).rejects.toThrow('X-Hub-Signature-256 ヘッダーがありません');
+      await expect(service.verifyGitHubSignature(payload, undefined)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      await expect(service.verifyGitHubSignature(payload, undefined)).rejects.toThrow(
+        'X-Hub-Signature-256 ヘッダーがありません',
+      );
     });
 
     it('シークレットが設定されていない場合はUnauthorizedExceptionをスローすること', async () => {
       mockSettingsService.getDecryptedValue.mockResolvedValue(null);
 
-      await expect(
-        service.verifyGitHubSignature(payload, 'sha256=invalid'),
-      ).rejects.toThrow(UnauthorizedException);
-      await expect(
-        service.verifyGitHubSignature(payload, 'sha256=invalid'),
-      ).rejects.toThrow('GitHub Webhook シークレットが設定されていません');
+      await expect(service.verifyGitHubSignature(payload, 'sha256=invalid')).rejects.toThrow(
+        UnauthorizedException,
+      );
+      await expect(service.verifyGitHubSignature(payload, 'sha256=invalid')).rejects.toThrow(
+        'GitHub Webhook シークレットが設定されていません',
+      );
     });
 
     it('署名が不正な場合はUnauthorizedExceptionをスローすること', async () => {
@@ -114,12 +106,12 @@ describe('WebhooksService', () => {
 
       const invalidSignature = 'sha256=invalid';
 
-      await expect(
-        service.verifyGitHubSignature(payload, invalidSignature),
-      ).rejects.toThrow(UnauthorizedException);
-      await expect(
-        service.verifyGitHubSignature(payload, invalidSignature),
-      ).rejects.toThrow('Webhook署名が不正です');
+      await expect(service.verifyGitHubSignature(payload, invalidSignature)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      await expect(service.verifyGitHubSignature(payload, invalidSignature)).rejects.toThrow(
+        'Webhook署名が不正です',
+      );
     });
   });
 
@@ -212,9 +204,9 @@ describe('WebhooksService', () => {
           },
         };
 
-        await expect(
-          service.processGitHubEvent('issues', invalidPayload as any),
-        ).rejects.toThrow('Issueペイロードがありません');
+        await expect(service.processGitHubEvent('issues', invalidPayload as any)).rejects.toThrow(
+          'Issueペイロードがありません',
+        );
       });
 
       it('GitHub連携が見つからない場合はnullを返すこと', async () => {

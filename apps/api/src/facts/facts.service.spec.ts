@@ -147,7 +147,7 @@ describe('FactsService', () => {
         from: '2024-01-01',
         to: '2024-01-31',
       };
-      const result = await service.findAll(userId, query);
+      await service.findAll(userId, query);
 
       expect(prisma.fact.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -166,7 +166,7 @@ describe('FactsService', () => {
       mockPrismaService.fact.findMany.mockResolvedValue(mockFacts);
 
       const query: QueryFactsDto = { cursor: 'fact-0' };
-      const result = await service.findAll(userId, query);
+      await service.findAll(userId, query);
 
       expect(prisma.fact.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -240,9 +240,7 @@ describe('FactsService', () => {
     it('記録が見つからない場合にNotFoundExceptionをスローすること', async () => {
       mockPrismaService.fact.findFirst.mockResolvedValue(null);
 
-      await expect(service.findOne(userId, factId)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findOne(userId, factId)).rejects.toThrow(NotFoundException);
       await expect(service.findOne(userId, factId)).rejects.toThrow(
         `記録が見つかりません: ID "${factId}"`,
       );
@@ -251,9 +249,7 @@ describe('FactsService', () => {
     it('他のユーザーの記録は取得できないこと', async () => {
       mockPrismaService.fact.findFirst.mockResolvedValue(null);
 
-      await expect(service.findOne('other-user', factId)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.findOne('other-user', factId)).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -367,9 +363,7 @@ describe('FactsService', () => {
       const call = mockPrismaService.fact.create.mock.calls[0][0];
       const occurredAt = call.data.occurredAt;
 
-      expect(occurredAt.getTime()).toBeGreaterThanOrEqual(
-        beforeCreate.getTime(),
-      );
+      expect(occurredAt.getTime()).toBeGreaterThanOrEqual(beforeCreate.getTime());
       expect(occurredAt.getTime()).toBeLessThanOrEqual(afterCreate.getTime());
     });
 

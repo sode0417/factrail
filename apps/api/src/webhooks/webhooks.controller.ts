@@ -1,13 +1,4 @@
-import {
-  Controller,
-  Post,
-  Headers,
-  Body,
-  Req,
-  HttpCode,
-  HttpStatus,
-  Logger,
-} from '@nestjs/common';
+import { Controller, Post, Headers, Body, Req, HttpCode, HttpStatus, Logger } from '@nestjs/common';
 import { Request } from 'express';
 import { WebhooksService } from './webhooks.service';
 
@@ -29,9 +20,7 @@ export class WebhooksController {
     @Req() req: Request,
     @Body() payload: Record<string, unknown>,
   ) {
-    this.logger.log(
-      `Received GitHub webhook: event=${eventType}, delivery=${deliveryId}`,
-    );
+    this.logger.log(`Received GitHub webhook: event=${eventType}, delivery=${deliveryId}`);
 
     // Raw body を取得して署名検証
     const rawBody = JSON.stringify(payload);
@@ -42,10 +31,7 @@ export class WebhooksController {
       return { success: true, message: 'No event type specified' };
     }
 
-    const result = await this.webhooksService.processGitHubEvent(
-      eventType,
-      payload as never,
-    );
+    const result = await this.webhooksService.processGitHubEvent(eventType, payload as never);
 
     if (result === null) {
       return { success: true, message: `Event ${eventType} acknowledged` };

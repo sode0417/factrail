@@ -65,11 +65,7 @@ export class SessionService implements OnModuleInit {
       createdAt: Date.now(),
     };
 
-    await this.redisClient.setex(
-      `session:${sessionId}`,
-      ttl,
-      JSON.stringify(sessionData),
-    );
+    await this.redisClient.setex(`session:${sessionId}`, ttl, JSON.stringify(sessionData));
 
     // ユーザーのセッション一覧にも追加
     await this.redisClient.sadd(`user_sessions:${userId}`, sessionId);
@@ -88,19 +84,12 @@ export class SessionService implements OnModuleInit {
   /**
    * セッション更新（アクセストークンリフレッシュ時）
    */
-  async updateSession(
-    sessionId: string,
-    accessToken: string,
-  ): Promise<void> {
+  async updateSession(sessionId: string, accessToken: string): Promise<void> {
     const session = await this.getSession(sessionId);
     if (session) {
       session.accessToken = accessToken;
       const ttl = await this.redisClient.ttl(`session:${sessionId}`);
-      await this.redisClient.setex(
-        `session:${sessionId}`,
-        ttl,
-        JSON.stringify(session),
-      );
+      await this.redisClient.setex(`session:${sessionId}`, ttl, JSON.stringify(session));
     }
   }
 
@@ -133,7 +122,9 @@ export class SessionService implements OnModuleInit {
   /**
    * リフレッシュトークンからセッション検索
    */
-  async findSessionByRefreshToken(refreshToken: string): Promise<{ sessionId: string; session: SessionData } | null> {
+  async findSessionByRefreshToken(
+    refreshToken: string,
+  ): Promise<{ sessionId: string; session: SessionData } | null> {
     // 全セッションを検索（本番環境では最適化が必要）
     const keys = await this.redisClient.keys('session:*');
 
