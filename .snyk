@@ -1,0 +1,43 @@
+# Snyk (https://snyk.io) policy file, patches or ignores known vulnerabilities.
+version: v1.25.0
+
+# 脆弱性の無視設定（必要に応じて個別に設定）
+ignore: {}
+
+# パッチ適用の設定
+patch: {}
+
+# 言語固有の設定
+language-settings:
+  javascript:
+    # 開発依存関係も含めてスキャン
+    includeDev: true
+
+# ライセンスポリシー
+license-policy:
+  # 使用を許可するライセンス
+  allowedLicenses:
+    - MIT
+    - Apache-2.0
+    - BSD-2-Clause
+    - BSD-3-Clause
+    - ISC
+    - 0BSD
+    - CC0-1.0
+  # 禁止するライセンス
+  deniedLicenses:
+    - GPL-2.0
+    - GPL-3.0
+    - AGPL-3.0
+
+# スキャン対象外のパス
+exclude:
+  global:
+    - '**/node_modules/**'
+    - '**/dist/**'
+    - '**/build/**'
+    - '**/coverage/**'
+    - '**/.next/**'
+    - '**/test/**'
+    - '**/*.test.ts'
+    - '**/*.spec.ts'

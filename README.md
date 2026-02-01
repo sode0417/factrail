@@ -246,6 +246,57 @@ npm run test:cov
 
 ---
 
+## 🛡️ セキュリティ
+
+### セキュリティスキャン
+
+このプロジェクトでは、複数のセキュリティツールを使用して依存関係とコードの脆弱性を自動的にスキャンしています。
+
+#### 自動実行
+
+以下のタイミングでセキュリティスキャンが自動実行されます：
+- Pull Request作成時
+- mainブランチへのpush時
+- 毎週日曜日午前0時（UTC）
+
+#### 使用ツール
+
+1. **npm audit** - npm標準の依存関係脆弱性チェック
+2. **Snyk** - 依存関係とコードの脆弱性スキャン
+3. **Trivy** - ファイルシステムとIaC設定のスキャン
+
+#### ローカルでのセキュリティチェック
+
+```bash
+# npm auditを実行（API）
+npm run audit:api
+
+# npm auditを実行（Web）
+npm run audit:web
+
+# Snykを実行（事前にSnyk CLIのインストールと認証が必要）
+cd apps/api
+npx snyk test --severity-threshold=high
+
+# Trivyを実行（事前にTrivyのインストールが必要）
+trivy fs --severity HIGH,CRITICAL .
+```
+
+#### Snykのセットアップ（リポジトリ管理者向け）
+
+1. [Snyk](https://snyk.io/)でアカウントを作成
+2. GitHubリポジトリと連携
+3. Snyk APIトークンを取得
+4. GitHubリポジトリのSettings > Secrets > Actionsで `SNYK_TOKEN` を設定
+
+#### セキュリティポリシー
+
+- 高（HIGH）または致命的（CRITICAL）な脆弱性が検出された場合、CIは失敗します
+- 脆弱性レポートはGitHub Actions Artifactsとして30日間保存されます
+- SARIF形式のレポートはGitHub Securityタブで確認できます
+
+---
+
 ## 📊 データモデル
 
 ### Fact（記録）

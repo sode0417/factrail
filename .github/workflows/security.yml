@@ -1,0 +1,182 @@
+name: Security Scan
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    # 毎週日曜日 午前0時（UTC）に実行
+    - cron: '0 0 * * 0'
+  workflow_dispatch: # 手動実行も可能にする
+
+jobs:
+  # npm audit - 依存関係の脆弱性チェック
+  npm-audit:
+    name: NPM Audit
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [api, web]
+      fail-fast: false # 一つが失敗しても他を続行
+
+    defaults:
+      run:
+        working-directory: apps/${{ matrix.app }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: apps/${{ matrix.app }}/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        run: npm audit --audit-level=high --json > npm-audit-${{ matrix.app }}.json || true
+
+      - name: Check for high/critical vulnerabilities
+        run: |
+          VULN_COUNT=$(cat npm-audit-${{ matrix.app }}.json | jq '.metadata.vulnerabilities.high + .metadata.vulnerabilities.critical')
+          echo "High/Critical vulnerabilities found: $VULN_COUNT"
+          if [ "$VULN_COUNT" -gt 0 ]; then
+            echo "⚠️ High or Critical vulnerabilities detected in ${{ matrix.app }}!"
+            cat npm-audit-${{ matrix.app }}.json | jq '.vulnerabilities'
+            exit 1
+          fi
+
+      - name: Upload npm audit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-${{ matrix.app }}
+          path: apps/${{ matrix.app }}/npm-audit-${{ matrix.app }}.json
+          retention-days: 30
+
+  # Snyk - 依存関係とコードの脆弱性スキャン
+  snyk:
+    name: Snyk Security Scan
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [api, web]
+      fail-fast: false
+
+    defaults:
+      run:
+        working-directory: apps/${{ matrix.app }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: apps/${{ matrix.app }}/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Snyk to check for vulnerabilities
+        uses: snyk/actions/node@master
+        continue-on-error: true # レポート生成のため継続
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --json-file-output=snyk-${{ matrix.app }}.json
+
+      - name: Upload Snyk results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: snyk-${{ matrix.app }}
+          path: apps/${{ matrix.app }}/snyk-${{ matrix.app }}.json
+          retention-days: 30
+
+  # Trivy - ファイルシステムとIaCスキャン
+  trivy:
+    name: Trivy Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner (filesystem)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '0' # レポート生成のため継続
+
+      - name: Run Trivy vulnerability scanner (config)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: '.'
+          format: 'json'
+          output: 'trivy-config-results.json'
+          exit-code: '0' # レポート生成のため継続
+
+      - name: Upload Trivy results (SARIF)
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+          category: 'trivy-filesystem'
+
+      - name: Upload Trivy results (JSON)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-results
+          path: |
+            trivy-results.sarif
+            trivy-config-results.json
+          retention-days: 30
+
+      - name: Check Trivy results for failures
+        run: |
+          if [ -f trivy-results.sarif ]; then
+            VULNS=$(jq '.runs[0].results | length' trivy-results.sarif)
+            echo "Vulnerabilities found: $VULNS"
+            if [ "$VULNS" -gt 0 ]; then
+              echo "⚠️ High/Critical vulnerabilities detected by Trivy!"
+              jq '.runs[0].results' trivy-results.sarif
+              exit 1
+            fi
+          fi
+
+  # セキュリティスキャン結果のサマリー
+  security-summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs: [npm-audit, snyk, trivy]
+    if: always()
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Generate security summary
+        run: |
+          echo "# 🛡️ Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "- NPM Audit: ${{ needs.npm-audit.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Snyk: ${{ needs.snyk.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Trivy: ${{ needs.trivy.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Check the artifacts for detailed reports." >> $GITHUB_STEP_SUMMARY
