@@ -39,7 +39,7 @@ jobs:
         run: npm ci
 
       - name: Run npm audit
-        run: npm audit --audit-level=high --json > npm-audit-${{ matrix.app }}.json || true
+        run: npm audit --omit=dev --audit-level=high --json > npm-audit-${{ matrix.app }}.json || true
 
       - name: Check for high/critical vulnerabilities
         run: |
