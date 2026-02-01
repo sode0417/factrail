@@ -6,6 +6,14 @@
   "scripts": {
     "dev:api": "cd apps/api && npm run start:dev",
     "build:api": "cd apps/api && npm run build",
-    "start:api": "cd apps/api && npm run start"
+    "start:api": "cd apps/api && npm run start",
+    "lint:api": "cd apps/api && npm run lint",
+    "format:api": "cd apps/api && npm run format",
+    "lint:web": "cd apps/web && npm run lint",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7"
   }
 }
