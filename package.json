@@ -10,6 +10,8 @@
     "lint:api": "cd apps/api && npm run lint",
     "format:api": "cd apps/api && npm run format",
     "lint:web": "cd apps/web && npm run lint",
+    "audit:api": "cd apps/api && npm audit --audit-level=high",
+    "audit:web": "cd apps/web && npm audit --audit-level=high",
     "prepare": "husky"
   },
   "devDependencies": {
