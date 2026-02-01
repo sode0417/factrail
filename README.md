@@ -129,6 +129,7 @@ npm run dev
 - [プロジェクトコンテキスト（最新の実装状況）](.claude/context.md)
 - [クイックリファレンス（コマンド・トラブルシューティング）](.claude/quickref.md)
 - [開発ガイドライン](.claude/instructions.md)
+- [Branch Protection Rules 設定ガイド](docs/branch-protection-setup.md)
 
 ---
 
