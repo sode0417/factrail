@@ -6,10 +6,11 @@ import { SettingsService } from '../settings/settings.service';
 import { Fact } from '@prisma/client';
 
 // Mock @slack/web-api
+const mockPostMessage = jest.fn();
 jest.mock('@slack/web-api', () => ({
   WebClient: jest.fn().mockImplementation(() => ({
     chat: {
-      postMessage: jest.fn(),
+      postMessage: mockPostMessage,
     },
   })),
 }));
@@ -18,7 +19,6 @@ describe('SlackDispatcherService', () => {
   let service: SlackDispatcherService;
   let integrationsService: IntegrationsService;
   let settingsService: SettingsService;
-  let mockWebClient: any;
 
   const mockIntegrationsService = {
     findByProvider: jest.fn(),
@@ -48,11 +48,6 @@ describe('SlackDispatcherService', () => {
   };
 
   beforeEach(async () => {
-    mockWebClient = {
-      chat: {
-        postMessage: jest.fn(),
-      },
-    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -102,7 +97,7 @@ describe('SlackDispatcherService', () => {
     beforeEach(() => {
       mockIntegrationsService.findByProvider.mockResolvedValue([mockIntegration]);
       mockSettingsService.getDecryptedValue.mockResolvedValue('C123456789');
-      mockWebClient.chat.postMessage.mockResolvedValue({
+      mockPostMessage.mockResolvedValue({
         ok: true,
         ts: '1234567890.123456',
         channel: 'C123456789',
@@ -115,7 +110,7 @@ describe('SlackDispatcherService', () => {
       expect(result).toBe('1234567890.123456');
       expect(integrationsService.findByProvider).toHaveBeenCalledWith('user-123', 'slack');
       expect(settingsService.getDecryptedValue).toHaveBeenCalledWith('slack', 'target_channel_id');
-      expect(mockWebClient.chat.postMessage).toHaveBeenCalledWith({
+      expect(mockPostMessage).toHaveBeenCalledWith({
         channel: 'C123456789',
         blocks: expect.any(Array),
         text: mockFact.title,
@@ -146,7 +141,7 @@ describe('SlackDispatcherService', () => {
 
     it('Slack APIエラーをスローすること', async () => {
       const error = new Error('Slack API error');
-      mockWebClient.chat.postMessage.mockRejectedValue(error);
+      mockPostMessage.mockRejectedValue(error);
 
       await expect(service.postFactToDM(mockFact)).rejects.toThrow(error);
     });
@@ -154,7 +149,7 @@ describe('SlackDispatcherService', () => {
     it('GitHubソースの場合は正しいブロックを生成すること', async () => {
       await service.postFactToDM(mockFact);
 
-      const call = mockWebClient.chat.postMessage.mock.calls[0][0];
+      const call = mockPostMessage.mock.calls[0][0];
       const blocks = call.blocks;
 
       expect(blocks[0]).toEqual({
@@ -182,7 +177,7 @@ describe('SlackDispatcherService', () => {
     it('summaryがある場合はブロックに含まれること', async () => {
       await service.postFactToDM(mockFact);
 
-      const call = mockWebClient.chat.postMessage.mock.calls[0][0];
+      const call = mockPostMessage.mock.calls[0][0];
       const blocks = call.blocks;
 
       const summaryBlock = blocks.find(
@@ -195,7 +190,7 @@ describe('SlackDispatcherService', () => {
       const factWithoutSummary = { ...mockFact, summary: null };
       await service.postFactToDM(factWithoutSummary);
 
-      const call = mockWebClient.chat.postMessage.mock.calls[0][0];
+      const call = mockPostMessage.mock.calls[0][0];
       const blocks = call.blocks;
 
       const summaryBlock = blocks.find(
@@ -207,7 +202,7 @@ describe('SlackDispatcherService', () => {
     it('sourceUrlがある場合はブロックに含まれること', async () => {
       await service.postFactToDM(mockFact);
 
-      const call = mockWebClient.chat.postMessage.mock.calls[0][0];
+      const call = mockPostMessage.mock.calls[0][0];
       const blocks = call.blocks;
 
       const urlBlock = blocks.find(
@@ -220,7 +215,7 @@ describe('SlackDispatcherService', () => {
       const factWithoutUrl = { ...mockFact, sourceUrl: null };
       await service.postFactToDM(factWithoutUrl);
 
-      const call = mockWebClient.chat.postMessage.mock.calls[0][0];
+      const call = mockPostMessage.mock.calls[0][0];
       const blocks = call.blocks;
 
       const urlBlock = blocks.find((block: any) => block.text?.text?.includes('詳細を見る'));
@@ -230,7 +225,7 @@ describe('SlackDispatcherService', () => {
     it('contextブロックが含まれること', async () => {
       await service.postFactToDM(mockFact);
 
-      const call = mockWebClient.chat.postMessage.mock.calls[0][0];
+      const call = mockPostMessage.mock.calls[0][0];
       const blocks = call.blocks;
 
       const contextBlock = blocks.find((block: any) => block.type === 'context');
@@ -243,7 +238,7 @@ describe('SlackDispatcherService', () => {
       const slackFact = { ...mockFact, source: 'slack' };
       await service.postFactToDM(slackFact);
 
-      const call = mockWebClient.chat.postMessage.mock.calls[0][0];
+      const call = mockPostMessage.mock.calls[0][0];
       const blocks = call.blocks;
 
       expect(blocks[0].text.text).toBe('💬 新しいFact');
@@ -253,7 +248,7 @@ describe('SlackDispatcherService', () => {
       const googleFact = { ...mockFact, source: 'google' };
       await service.postFactToDM(googleFact);
 
-      const call = mockWebClient.chat.postMessage.mock.calls[0][0];
+      const call = mockPostMessage.mock.calls[0][0];
       const blocks = call.blocks;
 
       expect(blocks[0].text.text).toBe('📅 新しいFact');
@@ -263,7 +258,7 @@ describe('SlackDispatcherService', () => {
       const manualFact = { ...mockFact, source: 'manual' };
       await service.postFactToDM(manualFact);
 
-      const call = mockWebClient.chat.postMessage.mock.calls[0][0];
+      const call = mockPostMessage.mock.calls[0][0];
       const blocks = call.blocks;
 
       expect(blocks[0].text.text).toBe('✍️ 新しいFact');
@@ -273,7 +268,7 @@ describe('SlackDispatcherService', () => {
       const unknownFact = { ...mockFact, source: 'unknown' };
       await service.postFactToDM(unknownFact);
 
-      const call = mockWebClient.chat.postMessage.mock.calls[0][0];
+      const call = mockPostMessage.mock.calls[0][0];
       const blocks = call.blocks;
 
       expect(blocks[0].text.text).toBe('📌 新しいFact');
