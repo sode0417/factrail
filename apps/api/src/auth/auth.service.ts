@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma.service';
 import { SessionService } from './session/session.service';
 import * as bcrypt from 'bcrypt';
+import { randomBytes } from 'crypto';
 import { RegisterDto } from './dto/register.dto';
 
 interface OAuthUserDto {
@@ -163,7 +164,7 @@ export class AuthService {
    * リフレッシュトークンを生成
    */
   generateRefreshToken(): string {
-    return `${Date.now()}-${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
+    return randomBytes(32).toString('hex');
   }
 
   /**
