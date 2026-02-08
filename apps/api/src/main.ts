@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/filters';
-import { json } from 'express';
+import { json, Request } from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bodyParser: false });
@@ -10,7 +10,7 @@ async function bootstrap() {
   // Custom body parser that preserves raw body for webhook signature verification
   app.use(
     json({
-      verify: (req: any, res, buf: Buffer) => {
+      verify: (req: Request, res, buf: Buffer) => {
         req.rawBody = buf.toString('utf8');
       },
     }),

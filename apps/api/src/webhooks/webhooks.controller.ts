@@ -23,7 +23,7 @@ export class WebhooksController {
     this.logger.log(`Received GitHub webhook: event=${eventType}, delivery=${deliveryId}`);
 
     // 生のリクエストボディを取得して署名検証
-    const rawBody = (req as any).rawBody;
+    const rawBody = req.rawBody;
     if (!rawBody) {
       throw new Error('Raw body not available for signature verification');
     }
