@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { IntegrationsController } from './integrations.controller';
 import { IntegrationsService, DecryptedIntegration } from './integrations.service';
 import { SlackOAuthService } from './slack-oauth.service';
+import { SlackOAuthStateService } from './slack-oauth-state.service';
 import { CreateIntegrationDto, UpdateIntegrationDto, SlackOAuthCallbackDto } from './dto';
 
 describe('IntegrationsController', () => {
@@ -21,6 +22,11 @@ describe('IntegrationsController', () => {
 
   const mockSlackOAuthService = {
     handleCallback: jest.fn(),
+  };
+
+  const mockSlackOAuthStateService = {
+    generateState: jest.fn(),
+    verifyState: jest.fn(),
   };
 
   const mockRequest = {
@@ -57,6 +63,10 @@ describe('IntegrationsController', () => {
         {
           provide: SlackOAuthService,
           useValue: mockSlackOAuthService,
+        },
+        {
+          provide: SlackOAuthStateService,
+          useValue: mockSlackOAuthStateService,
         },
       ],
     }).compile();
@@ -246,7 +256,10 @@ describe('IntegrationsController', () => {
       const result = await controller.slackCallback(callbackDto);
 
       expect(result).toEqual({ success: true });
-      expect(slackOAuthService.handleCallback).toHaveBeenCalledWith('auth-code-123', 'test-state-123');
+      expect(slackOAuthService.handleCallback).toHaveBeenCalledWith(
+        'auth-code-123',
+        'test-state-123',
+      );
     });
   });
 
