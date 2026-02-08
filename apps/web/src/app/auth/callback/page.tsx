@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { Spinner, Text, VStack } from '@chakra-ui/react';
 import apiClient from '@/lib/axios';
@@ -11,43 +11,48 @@ export const dynamic = 'force-dynamic';
 
 function CallbackContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { login } = useAuthStore();
 
   useEffect(() => {
-    const accessToken = searchParams.get('accessToken');
-    const refreshToken = searchParams.get('refreshToken');
+    const authenticateFromCookie = async () => {
+      try {
+        // クッキーからトークンを取得
+        const tokenResponse = await apiClient.get('/auth/token');
+        const { accessToken, refreshToken } = tokenResponse.data;
 
-    if (accessToken && refreshToken) {
-      const fetchUser = async () => {
-        try {
-          const response = await apiClient.get('/auth/me', {
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-            },
-          });
-
-          const user = response.data;
-
-          login({
-            user,
-            accessToken,
-            refreshToken,
-            sessionId: '', // セッションIDはバックエンドで管理
-          });
-
-          router.push('/');
-        } catch (error) {
-          console.error('ユーザー情報の取得に失敗しました', error);
+        if (!accessToken || !refreshToken) {
+          console.error('トークンの取得に失敗しました');
           router.push('/login');
+          return;
         }
-      };
 
-      fetchUser();
-    } else {
-      router.push('/login');
-    }
-  }, [searchParams, login, router]);
+        // ユーザー情報を取得
+        const userResponse = await apiClient.get('/auth/me', {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+
+        const user = userResponse.data;
+
+        // Zustandストアにログイン情報を保存
+        login({
+          user,
+          accessToken,
+          refreshToken,
+          sessionId: '', // セッションIDはバックエンドで管理
+        });
+
+        // ダッシュボードへリダイレクト
+        router.push('/');
+      } catch (error) {
+        console.error('認証処理に失敗しました', error);
+        router.push('/login');
+      }
+    };
+
+    authenticateFromCookie();
+  }, [login, router]);
 
   return (
     <VStack minH="100vh" justify="center" bg="gray.900">
