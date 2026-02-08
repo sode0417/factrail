@@ -3,9 +3,13 @@ import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/filters';
 import { json, Request } from 'express';
+import * as cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bodyParser: false });
+
+  // Cookie parser for secure token handling
+  app.use(cookieParser());
 
   // Custom body parser that preserves raw body for webhook signature verification
   app.use(

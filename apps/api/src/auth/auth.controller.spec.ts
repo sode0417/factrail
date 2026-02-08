@@ -127,6 +127,7 @@ describe('AuthController', () => {
       } as unknown as Request;
       const mockResponse = {
         redirect: jest.fn(),
+        cookie: jest.fn(),
       } as unknown as Response;
       const userAgent = 'Mozilla/5.0';
 
@@ -138,9 +139,19 @@ describe('AuthController', () => {
         userAgent,
         ip: '127.0.0.1',
       });
-      expect(mockResponse.redirect).toHaveBeenCalledWith(
-        `http://localhost:3000/auth/callback?accessToken=${mockLoginData.accessToken}&refreshToken=${mockLoginData.refreshToken}`,
+      // セキュアクッキーにトークンを設定
+      expect(mockResponse.cookie).toHaveBeenCalledWith(
+        'accessToken',
+        mockLoginData.accessToken,
+        expect.any(Object),
       );
+      expect(mockResponse.cookie).toHaveBeenCalledWith(
+        'refreshToken',
+        mockLoginData.refreshToken,
+        expect.any(Object),
+      );
+      // クエリパラメータなしでリダイレクト
+      expect(mockResponse.redirect).toHaveBeenCalledWith('http://localhost:3000/auth/callback');
     });
 
     it('user-agentヘッダーなしでGoogle OAuthコールバックを処理すること', async () => {
@@ -150,6 +161,7 @@ describe('AuthController', () => {
       } as unknown as Request;
       const mockResponse = {
         redirect: jest.fn(),
+        cookie: jest.fn(),
       } as unknown as Response;
 
       mockAuthService.login.mockResolvedValue(mockLoginData);
@@ -160,7 +172,8 @@ describe('AuthController', () => {
         userAgent: undefined,
         ip: '10.0.0.1',
       });
-      expect(mockResponse.redirect).toHaveBeenCalled();
+      expect(mockResponse.cookie).toHaveBeenCalledTimes(2);
+      expect(mockResponse.redirect).toHaveBeenCalledWith('http://localhost:3000/auth/callback');
     });
   });
 
@@ -180,6 +193,7 @@ describe('AuthController', () => {
       } as unknown as Request;
       const mockResponse = {
         redirect: jest.fn(),
+        cookie: jest.fn(),
       } as unknown as Response;
       const userAgent = 'Mozilla/5.0';
 
@@ -191,9 +205,19 @@ describe('AuthController', () => {
         userAgent,
         ip: '127.0.0.1',
       });
-      expect(mockResponse.redirect).toHaveBeenCalledWith(
-        `http://localhost:3000/auth/callback?accessToken=${mockLoginData.accessToken}&refreshToken=${mockLoginData.refreshToken}`,
+      // セキュアクッキーにトークンを設定
+      expect(mockResponse.cookie).toHaveBeenCalledWith(
+        'accessToken',
+        mockLoginData.accessToken,
+        expect.any(Object),
       );
+      expect(mockResponse.cookie).toHaveBeenCalledWith(
+        'refreshToken',
+        mockLoginData.refreshToken,
+        expect.any(Object),
+      );
+      // クエリパラメータなしでリダイレクト
+      expect(mockResponse.redirect).toHaveBeenCalledWith('http://localhost:3000/auth/callback');
     });
 
     it('user-agentヘッダーなしでGitHub OAuthコールバックを処理すること', async () => {
@@ -203,6 +227,7 @@ describe('AuthController', () => {
       } as unknown as Request;
       const mockResponse = {
         redirect: jest.fn(),
+        cookie: jest.fn(),
       } as unknown as Response;
 
       mockAuthService.login.mockResolvedValue(mockLoginData);
@@ -213,7 +238,8 @@ describe('AuthController', () => {
         userAgent: undefined,
         ip: '172.16.0.1',
       });
-      expect(mockResponse.redirect).toHaveBeenCalled();
+      expect(mockResponse.cookie).toHaveBeenCalledTimes(2);
+      expect(mockResponse.redirect).toHaveBeenCalledWith('http://localhost:3000/auth/callback');
     });
   });
 
@@ -223,10 +249,13 @@ describe('AuthController', () => {
       const expectedResult = {
         accessToken: 'new-access-token',
       };
+      const mockRequest = {
+        cookies: {},
+      } as unknown as Request;
 
       mockAuthService.refreshAccessToken.mockResolvedValue(expectedResult);
 
-      const result = await controller.refresh(refreshToken);
+      const result = await controller.refresh(refreshToken, mockRequest);
 
       expect(result).toEqual(expectedResult);
       expect(authService.refreshAccessToken).toHaveBeenCalledWith(refreshToken);
@@ -236,11 +265,16 @@ describe('AuthController', () => {
   describe('logout', () => {
     it('指定されたセッションからログアウトすること', async () => {
       const sessionId = 'session-123';
+      const mockResponse = {
+        clearCookie: jest.fn(),
+      } as unknown as Response;
 
-      const result = await controller.logout(sessionId);
+      const result = await controller.logout(sessionId, mockResponse);
 
       expect(result).toEqual({ message: 'ログアウトしました' });
       expect(authService.logout).toHaveBeenCalledWith(sessionId);
+      expect(mockResponse.clearCookie).toHaveBeenCalledWith('accessToken', expect.any(Object));
+      expect(mockResponse.clearCookie).toHaveBeenCalledWith('refreshToken', expect.any(Object));
     });
   });
 
@@ -249,11 +283,16 @@ describe('AuthController', () => {
       const mockRequest = {
         user: mockUser,
       } as unknown as Request;
+      const mockResponse = {
+        clearCookie: jest.fn(),
+      } as unknown as Response;
 
-      const result = await controller.logoutAll(mockRequest);
+      const result = await controller.logoutAll(mockRequest, mockResponse);
 
       expect(result).toEqual({ message: '全てのセッションからログアウトしました' });
       expect(authService.logoutAllSessions).toHaveBeenCalledWith(mockUser.id);
+      expect(mockResponse.clearCookie).toHaveBeenCalledWith('accessToken', expect.any(Object));
+      expect(mockResponse.clearCookie).toHaveBeenCalledWith('refreshToken', expect.any(Object));
     });
   });
 
