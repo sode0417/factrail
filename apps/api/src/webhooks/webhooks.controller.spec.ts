@@ -15,6 +15,7 @@ describe('WebhooksController', () => {
   const mockRequest = {
     body: {},
     headers: {},
+    rawBody: '{"test":"payload"}',
   };
 
   beforeEach(async () => {
@@ -82,10 +83,7 @@ describe('WebhooksController', () => {
       );
 
       expect(result).toEqual({ success: true, factId: 'fact-1' });
-      expect(service.verifyGitHubSignature).toHaveBeenCalledWith(
-        JSON.stringify(issuePayload),
-        signature,
-      );
+      expect(service.verifyGitHubSignature).toHaveBeenCalledWith(mockRequest.rawBody, signature);
       expect(service.processGitHubEvent).toHaveBeenCalledWith(eventType, issuePayload);
     });
 
@@ -100,10 +98,7 @@ describe('WebhooksController', () => {
         issuePayload,
       );
 
-      expect(service.verifyGitHubSignature).toHaveBeenCalledWith(
-        JSON.stringify(issuePayload),
-        signature,
-      );
+      expect(service.verifyGitHubSignature).toHaveBeenCalledWith(mockRequest.rawBody, signature);
     });
 
     it('イベントタイプがない場合はメッセージを返すこと', async () => {
@@ -212,10 +207,7 @@ describe('WebhooksController', () => {
         issuePayload,
       );
 
-      expect(service.verifyGitHubSignature).toHaveBeenCalledWith(
-        JSON.stringify(issuePayload),
-        undefined,
-      );
+      expect(service.verifyGitHubSignature).toHaveBeenCalledWith(mockRequest.rawBody, undefined);
     });
   });
 });
