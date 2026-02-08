@@ -147,4 +147,53 @@ export class SessionService implements OnModuleInit {
   private generateSessionId(): string {
     return `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
   }
+
+  /**
+   * トークンをブラックリストに追加
+   * @param token JWTトークン
+   * @param ttl 有効期限（秒）- トークンの残り有効期限と同じにする
+   */
+  async addToBlacklist(token: string, ttl: number = 900): Promise<void> {
+    // トークンのハッシュをキーとして保存（トークン自体は長いため）
+    const tokenHash = this.hashToken(token);
+    await this.redisClient.setex(`blacklist:${tokenHash}`, ttl, '1');
+  }
+
+  /**
+   * トークンがブラックリストに含まれているかチェック
+   */
+  async isBlacklisted(token: string): Promise<boolean> {
+    const tokenHash = this.hashToken(token);
+    const result = await this.redisClient.exists(`blacklist:${tokenHash}`);
+    return result === 1;
+  }
+
+  /**
+   * ユーザーの全トークンをブラックリストに追加
+   * パスワード変更時などに使用
+   */
+  async blacklistAllUserTokens(userId: string): Promise<void> {
+    const sessionIds = await this.redisClient.smembers(`user_sessions:${userId}`);
+
+    for (const sessionId of sessionIds) {
+      const session = await this.getSession(sessionId);
+      if (session) {
+        // アクセストークンとリフレッシュトークンをブラックリストに追加
+        // アクセストークン: 15分、リフレッシュトークン: 7日
+        await this.addToBlacklist(session.accessToken, 900);
+        await this.addToBlacklist(session.refreshToken, 604800);
+      }
+    }
+
+    // 全セッションを削除
+    await this.deleteAllUserSessions(userId);
+  }
+
+  /**
+   * トークンのハッシュを生成（簡易版）
+   */
+  private hashToken(token: string): string {
+    // 簡易的にトークンの一部を使用（本番では crypto.createHash を使用推奨）
+    return token.slice(-32);
+  }
 }

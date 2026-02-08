@@ -33,6 +33,9 @@ describe('AuthService', () => {
     updateSession: jest.fn(),
     deleteSession: jest.fn(),
     deleteAllUserSessions: jest.fn(),
+    getSession: jest.fn(),
+    addToBlacklist: jest.fn(),
+    blacklistAllUserTokens: jest.fn(),
   };
 
   const mockUser = {
@@ -537,22 +540,55 @@ describe('AuthService', () => {
   });
 
   describe('logout', () => {
-    it('セッションを削除すること', async () => {
+    it('セッションを取得してトークンをブラックリストに追加し、セッションを削除すること', async () => {
       const sessionId = 'session-123';
+      const mockSession = {
+        userId: 'user-123',
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+        expiresAt: Date.now() + 86400000,
+      };
+
+      mockSessionService.getSession.mockResolvedValue(mockSession);
 
       await service.logout(sessionId);
 
+      expect(sessionService.getSession).toHaveBeenCalledWith(sessionId);
+      expect(sessionService.addToBlacklist).toHaveBeenCalledWith(mockSession.accessToken, 900);
+      expect(sessionService.addToBlacklist).toHaveBeenCalledWith(mockSession.refreshToken, 604800);
+      expect(sessionService.deleteSession).toHaveBeenCalledWith(sessionId);
+    });
+
+    it('セッションが見つからない場合でもセッション削除を試みること', async () => {
+      const sessionId = 'nonexistent-session';
+
+      mockSessionService.getSession.mockResolvedValue(null);
+
+      await service.logout(sessionId);
+
+      expect(sessionService.getSession).toHaveBeenCalledWith(sessionId);
+      expect(sessionService.addToBlacklist).not.toHaveBeenCalled();
       expect(sessionService.deleteSession).toHaveBeenCalledWith(sessionId);
     });
   });
 
   describe('logoutAllSessions', () => {
-    it('ユーザーの全セッションを削除すること', async () => {
+    it('ユーザーの全トークンをブラックリストに追加すること', async () => {
       const userId = 'user-123';
 
       await service.logoutAllSessions(userId);
 
-      expect(sessionService.deleteAllUserSessions).toHaveBeenCalledWith(userId);
+      expect(sessionService.blacklistAllUserTokens).toHaveBeenCalledWith(userId);
+    });
+  });
+
+  describe('invalidateAllTokens', () => {
+    it('ユーザーの全トークンをブラックリストに追加すること', async () => {
+      const userId = 'user-123';
+
+      await service.invalidateAllTokens(userId);
+
+      expect(sessionService.blacklistAllUserTokens).toHaveBeenCalledWith(userId);
     });
   });
 });
