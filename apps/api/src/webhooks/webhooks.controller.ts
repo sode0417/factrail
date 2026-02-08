@@ -1,8 +1,10 @@
 import { Controller, Post, Headers, Body, Req, HttpCode, HttpStatus, Logger } from '@nestjs/common';
 import { Request } from 'express';
+import { SkipThrottle } from '@nestjs/throttler';
 import { WebhooksService } from './webhooks.service';
 
 @Controller('webhooks')
+@SkipThrottle() // 外部サービスからのWebhookはレート制限から除外
 export class WebhooksController {
   private readonly logger = new Logger(WebhooksController.name);
 

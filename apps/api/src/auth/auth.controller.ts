@@ -1,5 +1,6 @@
 import { Controller, Post, Body, Get, Req, Res, UseGuards, Headers } from '@nestjs/common';
 import { Response, Request } from 'express';
+import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LocalAuthGuard } from './guards/local-auth.guard';
@@ -45,16 +46,20 @@ export class AuthController {
 
   /**
    * メール/パスワードで新規登録
+   * レート制限: 1分に5回まで（ブルートフォース対策）
    */
   @Post('register')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
 
   /**
    * メール/パスワードでログイン
+   * レート制限: 1分に5回まで（ブルートフォース対策）
    */
   @Post('login')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @UseGuards(LocalAuthGuard)
   async login(@Req() req: Request, @Headers('user-agent') userAgent?: string) {
     const user = req.user as any;
