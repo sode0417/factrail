@@ -24,6 +24,7 @@ async function bootstrap() {
   app.enableCors({
     origin: process.env.WEB_URL || 'http://localhost:3000',
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   });
 
   // Global validation pipe for DTOs
