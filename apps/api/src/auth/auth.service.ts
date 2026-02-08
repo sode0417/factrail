@@ -238,16 +238,31 @@ export class AuthService {
   }
 
   /**
-   * ログアウト（セッション削除）
+   * ログアウト（セッション削除 + トークンブラックリスト）
    */
   async logout(sessionId: string) {
+    // セッション情報を取得してトークンをブラックリストに追加
+    const session = await this.sessionService.getSession(sessionId);
+    if (session) {
+      // アクセストークンをブラックリストに追加（15分 = 900秒）
+      await this.sessionService.addToBlacklist(session.accessToken, 900);
+      // リフレッシュトークンもブラックリストに追加（7日 = 604800秒）
+      await this.sessionService.addToBlacklist(session.refreshToken, 604800);
+    }
     await this.sessionService.deleteSession(sessionId);
   }
 
   /**
-   * 全セッション削除（セキュリティ用）
+   * 全セッション削除（セキュリティ用 - 全トークンをブラックリスト）
    */
   async logoutAllSessions(userId: string) {
-    await this.sessionService.deleteAllUserSessions(userId);
+    await this.sessionService.blacklistAllUserTokens(userId);
+  }
+
+  /**
+   * パスワード変更時に全トークンを無効化
+   */
+  async invalidateAllTokens(userId: string) {
+    await this.sessionService.blacklistAllUserTokens(userId);
   }
 }
