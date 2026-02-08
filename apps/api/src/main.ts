@@ -4,9 +4,25 @@ import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/filters';
 import { json, Request } from 'express';
 import * as cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bodyParser: false });
+
+  // Security headers (helmet)
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          scriptSrc: ["'self'"],
+          imgSrc: ["'self'", 'data:', 'https:'],
+        },
+      },
+      crossOriginEmbedderPolicy: false, // API用に無効化
+    }),
+  );
 
   // Cookie parser for secure token handling
   app.use(cookieParser());
