@@ -6,9 +6,42 @@ import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuthGuard } from '@nestjs/passport';
 
+// クッキー設定の共通オプション
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax' as const,
+  path: '/',
+};
+
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
+
+  /**
+   * トークンをセキュアクッキーに設定する
+   */
+  private setTokenCookies(res: Response, accessToken: string, refreshToken: string): void {
+    // アクセストークン: 15分
+    res.cookie('accessToken', accessToken, {
+      ...COOKIE_OPTIONS,
+      maxAge: 15 * 60 * 1000, // 15分
+    });
+
+    // リフレッシュトークン: 7日
+    res.cookie('refreshToken', refreshToken, {
+      ...COOKIE_OPTIONS,
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7日
+    });
+  }
+
+  /**
+   * トークンクッキーをクリアする
+   */
+  private clearTokenCookies(res: Response): void {
+    res.clearCookie('accessToken', COOKIE_OPTIONS);
+    res.clearCookie('refreshToken', COOKIE_OPTIONS);
+  }
 
   /**
    * メール/パスワードで新規登録
@@ -56,10 +89,11 @@ export class AuthController {
       ip: req.ip,
     });
 
-    // フロントエンドにリダイレクト
-    res.redirect(
-      `${process.env.WEB_URL}/auth/callback?accessToken=${loginData.accessToken}&refreshToken=${loginData.refreshToken}`,
-    );
+    // セキュアクッキーにトークンを設定
+    this.setTokenCookies(res, loginData.accessToken, loginData.refreshToken);
+
+    // フロントエンドにリダイレクト（トークンはクッキーで送信）
+    res.redirect(`${process.env.WEB_URL}/auth/callback`);
   }
 
   /**
@@ -87,17 +121,41 @@ export class AuthController {
       ip: req.ip,
     });
 
-    res.redirect(
-      `${process.env.WEB_URL}/auth/callback?accessToken=${loginData.accessToken}&refreshToken=${loginData.refreshToken}`,
-    );
+    // セキュアクッキーにトークンを設定
+    this.setTokenCookies(res, loginData.accessToken, loginData.refreshToken);
+
+    // フロントエンドにリダイレクト（トークンはクッキーで送信）
+    res.redirect(`${process.env.WEB_URL}/auth/callback`);
+  }
+
+  /**
+   * クッキーからトークンを取得する
+   * フロントエンドがOAuthコールバック後にトークンを取得するために使用
+   */
+  @Get('token')
+  async getTokenFromCookie(@Req() req: Request, @Res() res: Response) {
+    const accessToken = req.cookies?.accessToken;
+    const refreshToken = req.cookies?.refreshToken;
+
+    if (!accessToken || !refreshToken) {
+      res.status(401).json({ error: 'トークンが見つかりません' });
+      return;
+    }
+
+    // クッキーをクリア（トークンは一度だけ取得可能）
+    this.clearTokenCookies(res);
+
+    res.json({ accessToken, refreshToken });
   }
 
   /**
    * トークンリフレッシュ
    */
   @Post('refresh')
-  async refresh(@Body('refreshToken') refreshToken: string) {
-    return this.authService.refreshAccessToken(refreshToken);
+  async refresh(@Body('refreshToken') refreshToken: string, @Req() req: Request) {
+    // ボディにない場合はクッキーから取得
+    const token = refreshToken || req.cookies?.refreshToken;
+    return this.authService.refreshAccessToken(token);
   }
 
   /**
@@ -105,8 +163,9 @@ export class AuthController {
    */
   @Post('logout')
   @UseGuards(JwtAuthGuard)
-  async logout(@Body('sessionId') sessionId: string) {
+  async logout(@Body('sessionId') sessionId: string, @Res({ passthrough: true }) res: Response) {
     await this.authService.logout(sessionId);
+    this.clearTokenCookies(res);
     return { message: 'ログアウトしました' };
   }
 
@@ -115,9 +174,10 @@ export class AuthController {
    */
   @Post('logout-all')
   @UseGuards(JwtAuthGuard)
-  async logoutAll(@Req() req: Request) {
+  async logoutAll(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const user = req.user as any;
     await this.authService.logoutAllSessions(user.id);
+    this.clearTokenCookies(res);
     return { message: '全てのセッションからログアウトしました' };
   }
 
