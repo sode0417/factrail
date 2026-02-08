@@ -65,10 +65,20 @@ export class SessionService implements OnModuleInit {
       createdAt: Date.now(),
     };
 
-    await this.redisClient.setex(`session:${sessionId}`, ttl, JSON.stringify(sessionData));
+    // パイプラインで一括処理
+    const pipeline = this.redisClient.pipeline();
+
+    // セッションデータを保存
+    pipeline.setex(`session:${sessionId}`, ttl, JSON.stringify(sessionData));
 
     // ユーザーのセッション一覧にも追加
-    await this.redisClient.sadd(`user_sessions:${userId}`, sessionId);
+    pipeline.sadd(`user_sessions:${userId}`, sessionId);
+
+    // リフレッシュトークンからセッションIDへのインデックスを追加（O(1)検索用）
+    const refreshTokenHash = this.hashToken(refreshToken);
+    pipeline.setex(`refresh_token_index:${refreshTokenHash}`, ttl, sessionId);
+
+    await pipeline.exec();
 
     return sessionId;
   }
@@ -99,8 +109,19 @@ export class SessionService implements OnModuleInit {
   async deleteSession(sessionId: string): Promise<void> {
     const session = await this.getSession(sessionId);
     if (session) {
-      await this.redisClient.del(`session:${sessionId}`);
-      await this.redisClient.srem(`user_sessions:${session.userId}`, sessionId);
+      const pipeline = this.redisClient.pipeline();
+
+      // セッションデータを削除
+      pipeline.del(`session:${sessionId}`);
+
+      // ユーザーセッション一覧から削除
+      pipeline.srem(`user_sessions:${session.userId}`, sessionId);
+
+      // リフレッシュトークンインデックスを削除
+      const refreshTokenHash = this.hashToken(session.refreshToken);
+      pipeline.del(`refresh_token_index:${refreshTokenHash}`);
+
+      await pipeline.exec();
     }
   }
 
@@ -109,39 +130,61 @@ export class SessionService implements OnModuleInit {
    */
   async deleteAllUserSessions(userId: string): Promise<void> {
     const sessionIds = await this.redisClient.smembers(`user_sessions:${userId}`);
+
+    // 各セッションのリフレッシュトークンインデックスも削除するため、セッションデータを取得
+    const sessions = await Promise.all(
+      sessionIds.map(async (sessionId) => {
+        const session = await this.getSession(sessionId);
+        return { sessionId, session };
+      }),
+    );
+
     const pipeline = this.redisClient.pipeline();
 
-    sessionIds.forEach((sessionId) => {
+    sessions.forEach(({ sessionId, session }) => {
+      // セッションデータを削除
       pipeline.del(`session:${sessionId}`);
+
+      // リフレッシュトークンインデックスを削除
+      if (session) {
+        const refreshTokenHash = this.hashToken(session.refreshToken);
+        pipeline.del(`refresh_token_index:${refreshTokenHash}`);
+      }
     });
 
+    // ユーザーセッション一覧を削除
     pipeline.del(`user_sessions:${userId}`);
     await pipeline.exec();
   }
 
   /**
-   * リフレッシュトークンからセッション検索
+   * リフレッシュトークンからセッション検索（O(1)インデックス検索）
    */
   async findSessionByRefreshToken(
     refreshToken: string,
   ): Promise<{ sessionId: string; session: SessionData } | null> {
-    // 全セッションを検索（本番環境では最適化が必要）
-    const keys = await this.redisClient.keys('session:*');
+    // インデックスからセッションIDを取得（O(1)）
+    const refreshTokenHash = this.hashToken(refreshToken);
+    const sessionId = await this.redisClient.get(`refresh_token_index:${refreshTokenHash}`);
 
-    for (const key of keys) {
-      const data = await this.redisClient.get(key);
-      if (data) {
-        const session: SessionData = JSON.parse(data);
-        if (session.refreshToken === refreshToken) {
-          return {
-            sessionId: key.replace('session:', ''),
-            session,
-          };
-        }
-      }
+    if (!sessionId) {
+      return null;
     }
 
-    return null;
+    // セッションデータを取得
+    const session = await this.getSession(sessionId);
+    if (!session) {
+      // インデックスはあるがセッションが無い場合（不整合）、インデックスを削除
+      await this.redisClient.del(`refresh_token_index:${refreshTokenHash}`);
+      return null;
+    }
+
+    // リフレッシュトークンが一致することを確認（セキュリティチェック）
+    if (session.refreshToken !== refreshToken) {
+      return null;
+    }
+
+    return { sessionId, session };
   }
 
   private generateSessionId(): string {
