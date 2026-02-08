@@ -59,6 +59,7 @@ describe('SlackOAuthService', () => {
 
   describe('handleCallback', () => {
     const code = 'test-auth-code';
+    const state = 'test-state';
     const clientId = 'test-client-id';
     const clientSecret = 'test-client-secret';
 
@@ -102,7 +103,7 @@ describe('SlackOAuthService', () => {
     });
 
     it('OAuth callbackを正常に処理できること', async () => {
-      await service.handleCallback(code);
+      await service.handleCallback(code, state);
 
       expect(mockSettingsService.getDecryptedValue).toHaveBeenCalledWith('slack', 'client_id');
       expect(mockSettingsService.getDecryptedValue).toHaveBeenCalledWith('slack', 'client_secret');
@@ -137,7 +138,7 @@ describe('SlackOAuthService', () => {
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce(clientSecret);
 
-      await expect(service.handleCallback(code)).rejects.toThrow(
+      await expect(service.handleCallback(code, state)).rejects.toThrow(
         'Slack Client IDまたはClient Secretが設定されていません',
       );
     });
@@ -148,7 +149,7 @@ describe('SlackOAuthService', () => {
         .mockResolvedValueOnce(clientId)
         .mockResolvedValueOnce(null);
 
-      await expect(service.handleCallback(code)).rejects.toThrow(BadRequestException);
+      await expect(service.handleCallback(code, state)).rejects.toThrow(BadRequestException);
     });
 
     it('Slack APIがエラーを返す場合はエラーをスローすること', async () => {
@@ -165,7 +166,7 @@ describe('SlackOAuthService', () => {
         json: jest.fn().mockResolvedValue(errorResponse),
       });
 
-      await expect(service.handleCallback(code)).rejects.toThrow(
+      await expect(service.handleCallback(code, state)).rejects.toThrow(
         'Slack OAuth エラー: invalid_code',
       );
     });
@@ -179,7 +180,7 @@ describe('SlackOAuthService', () => {
         json: jest.fn().mockResolvedValue(responseWithoutToken),
       });
 
-      await expect(service.handleCallback(code)).rejects.toThrow(BadRequestException);
+      await expect(service.handleCallback(code, state)).rejects.toThrow(BadRequestException);
     });
 
     it('ユーザーが見つからない場合はエラーをスローすること', async () => {
@@ -189,7 +190,7 @@ describe('SlackOAuthService', () => {
         .mockResolvedValueOnce(clientSecret);
       mockPrismaService.user.findFirst.mockResolvedValue(null);
 
-      await expect(service.handleCallback(code)).rejects.toThrow('ユーザーが見つかりません');
+      await expect(service.handleCallback(code, state)).rejects.toThrow('ユーザーが見つかりません');
     });
 
     it('teamがない場合はデフォルト値を使用すること', async () => {
@@ -201,7 +202,7 @@ describe('SlackOAuthService', () => {
         json: jest.fn().mockResolvedValue(responseWithoutTeam),
       });
 
-      await service.handleCallback(code);
+      await service.handleCallback(code, state);
 
       expect(mockIntegrationsService.upsert).toHaveBeenCalledWith(
         'user-123',
@@ -221,7 +222,7 @@ describe('SlackOAuthService', () => {
         json: jest.fn().mockResolvedValue(responseWithoutScope),
       });
 
-      await service.handleCallback(code);
+      await service.handleCallback(code, state);
 
       expect(mockIntegrationsService.upsert).toHaveBeenCalledWith(
         'user-123',
@@ -240,7 +241,7 @@ describe('SlackOAuthService', () => {
         json: jest.fn().mockResolvedValue(responseWithoutAuthedUser),
       });
 
-      await service.handleCallback(code);
+      await service.handleCallback(code, state);
 
       expect(mockSettingsService.upsert).not.toHaveBeenCalledWith(
         expect.objectContaining({
@@ -258,7 +259,7 @@ describe('SlackOAuthService', () => {
         json: jest.fn().mockResolvedValue(responseWithScope),
       });
 
-      await service.handleCallback(code);
+      await service.handleCallback(code, state);
 
       expect(mockIntegrationsService.upsert).toHaveBeenCalledWith(
         'user-123',
