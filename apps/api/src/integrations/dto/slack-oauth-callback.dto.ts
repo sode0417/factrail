@@ -1,10 +1,9 @@
-import { IsString, IsOptional } from 'class-validator';
+import { IsString } from 'class-validator';
 
 export class SlackOAuthCallbackDto {
   @IsString()
   code: string;
 
-  @IsOptional()
   @IsString()
-  state?: string;
+  state: string;
 }
