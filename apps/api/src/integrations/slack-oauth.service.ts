@@ -40,7 +40,7 @@ export class SlackOAuthService {
   /**
    * OAuth codeをアクセストークンと交換し、Integrationsに保存
    */
-  async handleCallback(code: string): Promise<void> {
+  async handleCallback(code: string, state: string): Promise<void> {
     this.logger.log('Slack OAuth callbackを処理開始');
 
     // Settingsから client_id と client_secret を取得

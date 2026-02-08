@@ -237,6 +237,7 @@ describe('IntegrationsController', () => {
   describe('slackCallback', () => {
     const callbackDto: SlackOAuthCallbackDto = {
       code: 'auth-code-123',
+      state: 'test-state-123',
     };
 
     it('Slack OAuth callbackを処理できること', async () => {
@@ -245,7 +246,7 @@ describe('IntegrationsController', () => {
       const result = await controller.slackCallback(callbackDto);
 
       expect(result).toEqual({ success: true });
-      expect(slackOAuthService.handleCallback).toHaveBeenCalledWith('auth-code-123');
+      expect(slackOAuthService.handleCallback).toHaveBeenCalledWith('auth-code-123', 'test-state-123');
     });
   });
 
