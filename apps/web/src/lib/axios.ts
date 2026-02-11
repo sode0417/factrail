@@ -3,6 +3,7 @@ import { useAuthStore } from '@/stores/authStore';
 
 const apiClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
+  withCredentials: true,
 });
 
 // リクエストインターセプター: アクセストークンを自動付与
@@ -23,7 +24,10 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // 認証フロー中のエンドポイントはリフレッシュ対象外
+    const isAuthFlowRequest = originalRequest.url?.includes('/auth/token');
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthFlowRequest) {
       originalRequest._retry = true;
 
       const { refreshToken, updateAccessToken, logout } = useAuthStore.getState();
