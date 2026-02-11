@@ -25,7 +25,7 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config;
 
     // 認証フロー中のエンドポイントはリフレッシュ対象外
-    const isAuthFlowRequest = originalRequest.url?.includes('/auth/token');
+    const isAuthFlowRequest = originalRequest.url?.includes('/auth/exchange');
 
     if (error.response?.status === 401 && !originalRequest._retry && !isAuthFlowRequest) {
       originalRequest._retry = true;

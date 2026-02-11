@@ -94,11 +94,11 @@ export class AuthController {
       ip: req.ip,
     });
 
-    // セキュアクッキーにトークンを設定
-    this.setTokenCookies(res, loginData.accessToken, loginData.refreshToken);
+    // ワンタイム認証コードを生成してRedisに保存
+    const code = await this.authService.createAuthCode(loginData);
 
-    // フロントエンドにリダイレクト（トークンはクッキーで送信）
-    res.redirect(`${process.env.WEB_URL}/auth/callback`);
+    // フロントエンドにリダイレクト（コードをURLパラメータで送信）
+    res.redirect(`${process.env.WEB_URL}/auth/callback?code=${code}`);
   }
 
   /**
@@ -126,31 +126,20 @@ export class AuthController {
       ip: req.ip,
     });
 
-    // セキュアクッキーにトークンを設定
-    this.setTokenCookies(res, loginData.accessToken, loginData.refreshToken);
+    // ワンタイム認証コードを生成してRedisに保存
+    const code = await this.authService.createAuthCode(loginData);
 
-    // フロントエンドにリダイレクト（トークンはクッキーで送信）
-    res.redirect(`${process.env.WEB_URL}/auth/callback`);
+    // フロントエンドにリダイレクト（コードをURLパラメータで送信）
+    res.redirect(`${process.env.WEB_URL}/auth/callback?code=${code}`);
   }
 
   /**
-   * クッキーからトークンを取得する
+   * ワンタイム認証コードをトークンに交換
    * フロントエンドがOAuthコールバック後にトークンを取得するために使用
    */
-  @Get('token')
-  async getTokenFromCookie(@Req() req: Request, @Res() res: Response) {
-    const accessToken = req.cookies?.accessToken;
-    const refreshToken = req.cookies?.refreshToken;
-
-    if (!accessToken || !refreshToken) {
-      res.status(401).json({ error: 'トークンが見つかりません' });
-      return;
-    }
-
-    // クッキーをクリア（トークンは一度だけ取得可能）
-    this.clearTokenCookies(res);
-
-    res.json({ accessToken, refreshToken });
+  @Post('exchange')
+  async exchangeAuthCode(@Body('code') code: string) {
+    return this.authService.exchangeAuthCode(code);
   }
 
   /**

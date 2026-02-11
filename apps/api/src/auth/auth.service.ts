@@ -200,6 +200,43 @@ export class AuthService {
   }
 
   /**
+   * ワンタイム認証コードを生成
+   */
+  generateAuthCode(): string {
+    return randomBytes(32).toString('hex');
+  }
+
+  /**
+   * ワンタイム認証コードを生成してRedisに保存
+   */
+  async createAuthCode(loginData: {
+    user: { id: string; email: string; name?: string; avatar?: string };
+    accessToken: string;
+    refreshToken: string;
+    sessionId: string;
+  }): Promise<string> {
+    const code = this.generateAuthCode();
+    await this.sessionService.storeAuthCode(code, loginData, 30);
+    return code;
+  }
+
+  /**
+   * ワンタイム認証コードをトークンに交換
+   */
+  async exchangeAuthCode(code: string) {
+    if (!code) {
+      throw new UnauthorizedException('認証コードが必要です');
+    }
+
+    const data = await this.sessionService.getAndDeleteAuthCode(code);
+    if (!data) {
+      throw new UnauthorizedException('無効または期限切れの認証コードです');
+    }
+
+    return data;
+  }
+
+  /**
    * リフレッシュトークンからアクセストークンを再発行
    */
   async refreshAccessToken(refreshToken: string) {

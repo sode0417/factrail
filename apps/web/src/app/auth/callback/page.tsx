@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, Suspense } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { Spinner, Text, VStack } from '@chakra-ui/react';
 import apiClient from '@/lib/axios';
@@ -11,36 +11,30 @@ export const dynamic = 'force-dynamic';
 
 function CallbackContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login } = useAuthStore();
 
   useEffect(() => {
-    const authenticateFromCookie = async () => {
+    const exchangeCodeForTokens = async () => {
       try {
-        // クッキーからトークンを取得
-        const tokenResponse = await apiClient.get('/auth/token');
-        const { accessToken, refreshToken } = tokenResponse.data;
+        const code = searchParams.get('code');
 
-        if (!accessToken || !refreshToken) {
-          console.error('トークンの取得に失敗しました');
+        if (!code) {
+          console.error('認証コードが見つかりません');
           router.push('/login');
           return;
         }
 
-        // ユーザー情報を取得
-        const userResponse = await apiClient.get('/auth/me', {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
-        });
-
-        const user = userResponse.data;
+        // ワンタイムコードをトークンに交換
+        const response = await apiClient.post('/auth/exchange', { code });
+        const { user, accessToken, refreshToken, sessionId } = response.data;
 
         // Zustandストアにログイン情報を保存
         login({
           user,
           accessToken,
           refreshToken,
-          sessionId: '', // セッションIDはバックエンドで管理
+          sessionId,
         });
 
         // ダッシュボードへリダイレクト
@@ -51,8 +45,8 @@ function CallbackContent() {
       }
     };
 
-    authenticateFromCookie();
-  }, [login, router]);
+    exchangeCodeForTokens();
+  }, [login, router, searchParams]);
 
   return (
     <VStack minH="100vh" justify="center" bg="gray.900">

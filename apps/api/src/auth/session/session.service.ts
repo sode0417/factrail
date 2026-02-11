@@ -233,6 +233,30 @@ export class SessionService implements OnModuleInit {
   }
 
   /**
+   * ワンタイム認証コードを保存
+   */
+  async storeAuthCode(
+    code: string,
+    data: Record<string, unknown>,
+    ttl: number = 30,
+  ): Promise<void> {
+    await this.redisClient.setex(`auth_code:${code}`, ttl, JSON.stringify(data));
+  }
+
+  /**
+   * ワンタイム認証コードを取得・削除（1回限り使用）
+   */
+  async getAndDeleteAuthCode(code: string): Promise<Record<string, unknown> | null> {
+    const key = `auth_code:${code}`;
+    const data = await this.redisClient.get(key);
+    if (!data) {
+      return null;
+    }
+    await this.redisClient.del(key);
+    return JSON.parse(data);
+  }
+
+  /**
    * トークンのハッシュを生成（簡易版）
    */
   private hashToken(token: string): string {
