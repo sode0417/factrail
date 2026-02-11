@@ -25,13 +25,16 @@ export class SettingsService {
 
   /**
    * 設定を作成または更新する（値は暗号化して保存）
+   * @param dto 設定データ
+   * @param userId ユーザーID（nullの場合はグローバル設定）
    */
-  async upsert(dto: CreateSettingDto): Promise<SettingResponse> {
+  async upsert(dto: CreateSettingDto, userId?: string | null): Promise<SettingResponse> {
     const encryptedValue = this.cryptoService.encrypt(dto.value);
 
     const setting = await this.prisma.settings.upsert({
       where: {
-        provider_settingType: {
+        userId_provider_settingType: {
+          userId: userId ?? null,
           provider: dto.provider,
           settingType: dto.settingType,
         },
@@ -40,6 +43,7 @@ export class SettingsService {
         provider: dto.provider,
         settingType: dto.settingType,
         value: encryptedValue,
+        userId: userId ?? null,
       },
       update: {
         value: encryptedValue,
@@ -51,10 +55,21 @@ export class SettingsService {
 
   /**
    * 全ての設定を取得する（値は非表示）
+   * @param provider プロバイダーでフィルタ
+   * @param userId ユーザーID（指定時はそのユーザーの設定+グローバル設定を返す）
    */
-  async findAll(provider?: string): Promise<SettingResponse[]> {
+  async findAll(provider?: string, userId?: string | null): Promise<SettingResponse[]> {
+    const where: Record<string, unknown> = {};
+    if (provider) {
+      where.provider = provider;
+    }
+    if (userId) {
+      // ユーザー別設定とグローバル設定（userId=NULL）の両方を返す
+      where.OR = [{ userId }, { userId: null }];
+    }
+
     const settings = await this.prisma.settings.findMany({
-      where: provider ? { provider } : undefined,
+      where: Object.keys(where).length > 0 ? where : undefined,
       orderBy: [{ provider: 'asc' }, { settingType: 'asc' }],
     });
 
@@ -64,10 +79,18 @@ export class SettingsService {
   /**
    * 特定の設定を取得する（値は非表示）
    */
-  async findOne(provider: string, settingType: string): Promise<SettingResponse> {
+  async findOne(
+    provider: string,
+    settingType: string,
+    userId?: string | null,
+  ): Promise<SettingResponse> {
     const setting = await this.prisma.settings.findUnique({
       where: {
-        provider_settingType: { provider, settingType },
+        userId_provider_settingType: {
+          userId: userId ?? null,
+          provider,
+          settingType,
+        },
       },
     });
 
@@ -80,28 +103,59 @@ export class SettingsService {
 
   /**
    * 特定の設定の復号化された値を取得する（内部用）
+   * userIdが指定された場合、ユーザー別設定を優先し、なければグローバル設定にフォールバック
    */
-  async getDecryptedValue(provider: string, settingType: string): Promise<string | null> {
-    const setting = await this.prisma.settings.findUnique({
+  async getDecryptedValue(
+    provider: string,
+    settingType: string,
+    userId?: string | null,
+  ): Promise<string | null> {
+    // ユーザー別設定を検索
+    if (userId) {
+      const userSetting = await this.prisma.settings.findUnique({
+        where: {
+          userId_provider_settingType: {
+            userId,
+            provider,
+            settingType,
+          },
+        },
+      });
+
+      if (userSetting) {
+        return this.cryptoService.decrypt(userSetting.value);
+      }
+    }
+
+    // グローバル設定（userId=NULL）にフォールバック
+    const globalSetting = await this.prisma.settings.findUnique({
       where: {
-        provider_settingType: { provider, settingType },
+        userId_provider_settingType: {
+          userId: null,
+          provider,
+          settingType,
+        },
       },
     });
 
-    if (!setting) {
+    if (!globalSetting) {
       return null;
     }
 
-    return this.cryptoService.decrypt(setting.value);
+    return this.cryptoService.decrypt(globalSetting.value);
   }
 
   /**
    * 設定を削除する
    */
-  async remove(provider: string, settingType: string): Promise<void> {
+  async remove(provider: string, settingType: string, userId?: string | null): Promise<void> {
     const setting = await this.prisma.settings.findUnique({
       where: {
-        provider_settingType: { provider, settingType },
+        userId_provider_settingType: {
+          userId: userId ?? null,
+          provider,
+          settingType,
+        },
       },
     });
 
@@ -111,7 +165,11 @@ export class SettingsService {
 
     await this.prisma.settings.delete({
       where: {
-        provider_settingType: { provider, settingType },
+        userId_provider_settingType: {
+          userId: userId ?? null,
+          provider,
+          settingType,
+        },
       },
     });
   }

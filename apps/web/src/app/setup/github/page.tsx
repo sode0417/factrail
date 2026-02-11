@@ -25,6 +25,7 @@ import {
 import { MainLayout } from '@/components/layout';
 import { FiGithub, FiCopy, FiCheck, FiExternalLink, FiSave } from 'react-icons/fi';
 import { useState, useEffect, useCallback } from 'react';
+import apiClient from '@/lib/axios';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://factrail-production.up.railway.app';
 
@@ -44,23 +45,22 @@ export default function GitHubSetupPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isNewSecret, setIsNewSecret] = useState(false);
   const toast = useToast();
-  
-  const webhookUrl = typeof window !== 'undefined' 
+
+  const webhookUrl = typeof window !== 'undefined'
     ? `${API_URL}/webhooks/github`
     : '';
-  
+
   const { hasCopied: hasCopiedUrl, onCopy: onCopyUrl } = useClipboard(webhookUrl);
   const { hasCopied: hasCopiedSecret, onCopy: onCopySecret } = useClipboard(webhookSecret);
 
   // 設定状態を取得
   const fetchSettings = useCallback(async () => {
     try {
-      const response = await fetch(`${API_URL}/settings?provider=github`);
-      if (response.ok) {
-        const data: SettingResponse[] = await response.json();
-        const webhookSetting = data.find(s => s.settingType === 'webhook_secret');
-        setIsConfigured(!!webhookSetting?.hasValue);
-      }
+      const response = await apiClient.get<SettingResponse[]>('/settings', {
+        params: { provider: 'github' },
+      });
+      const webhookSetting = response.data.find(s => s.settingType === 'webhook_secret');
+      setIsConfigured(!!webhookSetting?.hasValue);
     } catch (error) {
       console.error('Failed to fetch settings:', error);
     } finally {
@@ -92,30 +92,20 @@ export default function GitHubSetupPage() {
 
     setIsSaving(true);
     try {
-      const response = await fetch(`${API_URL}/settings`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          provider: 'github',
-          settingType: 'webhook_secret',
-          value: webhookSecret,
-        }),
+      await apiClient.post('/settings', {
+        provider: 'github',
+        settingType: 'webhook_secret',
+        value: webhookSecret,
       });
 
-      if (response.ok) {
-        toast({
-          title: 'Webhook Secretを保存しました',
-          description: 'GitHubのWebhook設定にも同じシークレットを設定してください',
-          status: 'success',
-          duration: 5000,
-        });
-        setIsConfigured(true);
-        setIsNewSecret(false);
-      } else {
-        throw new Error('Failed to save');
-      }
+      toast({
+        title: 'Webhook Secretを保存しました',
+        description: 'GitHubのWebhook設定にも同じシークレットを設定してください',
+        status: 'success',
+        duration: 5000,
+      });
+      setIsConfigured(true);
+      setIsNewSecret(false);
     } catch (error) {
       console.error('Failed to save secret:', error);
       toast({
@@ -151,10 +141,10 @@ export default function GitHubSetupPage() {
               {isLoading ? (
                 <Spinner size="sm" />
               ) : (
-                <Badge 
-                  colorScheme={isConfigured ? 'green' : 'yellow'} 
-                  fontSize="sm" 
-                  px={3} 
+                <Badge
+                  colorScheme={isConfigured ? 'green' : 'yellow'}
+                  fontSize="sm"
+                  px={3}
                   py={1}
                 >
                   {isConfigured ? '設定済み' : '未設定'}
@@ -270,9 +260,9 @@ export default function GitHubSetupPage() {
                     )}
                   </HStack>
                   <FormHelperText color="gray.500">
-                    {isNewSecret 
+                    {isNewSecret
                       ? '生成したシークレットをコピーしてからサーバーに保存してください'
-                      : isConfigured 
+                      : isConfigured
                         ? 'シークレットは既に設定されています。変更する場合は再生成してください'
                         : 'シークレットを生成してサーバーに保存してください'
                     }

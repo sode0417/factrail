@@ -23,6 +23,10 @@ describe('SettingsController', () => {
     updatedAt: new Date('2024-01-01'),
   };
 
+  const mockRequest = {
+    user: { id: 'user-1' },
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [SettingsController],
@@ -52,7 +56,7 @@ describe('SettingsController', () => {
     it('設定を作成または更新できること', async () => {
       mockSettingsService.upsert.mockResolvedValue(mockSettingResponse);
 
-      const result = await controller.upsert(createDto);
+      const result = await controller.upsert(mockRequest, createDto);
 
       expect(result).toEqual(mockSettingResponse);
       expect(service.upsert).toHaveBeenCalledWith(createDto);
@@ -61,7 +65,7 @@ describe('SettingsController', () => {
     it('レスポンスに値が含まれないこと', async () => {
       mockSettingsService.upsert.mockResolvedValue(mockSettingResponse);
 
-      const result = await controller.upsert(createDto);
+      const result = await controller.upsert(mockRequest, createDto);
 
       expect(result).not.toHaveProperty('value');
       expect(result.hasValue).toBe(true);
@@ -88,29 +92,29 @@ describe('SettingsController', () => {
       },
     ];
 
-    it('全ての設定を取得できること', async () => {
+    it('全ての設定を取得できること（ユーザーIDを渡す）', async () => {
       mockSettingsService.findAll.mockResolvedValue(mockSettings);
 
-      const result = await controller.findAll();
+      const result = await controller.findAll(mockRequest);
 
       expect(result).toEqual(mockSettings);
-      expect(service.findAll).toHaveBeenCalledWith(undefined);
+      expect(service.findAll).toHaveBeenCalledWith(undefined, 'user-1');
     });
 
     it('プロバイダーでフィルタリングできること', async () => {
       const githubSettings = [mockSettings[0]];
       mockSettingsService.findAll.mockResolvedValue(githubSettings);
 
-      const result = await controller.findAll('github');
+      const result = await controller.findAll(mockRequest, 'github');
 
       expect(result).toEqual(githubSettings);
-      expect(service.findAll).toHaveBeenCalledWith('github');
+      expect(service.findAll).toHaveBeenCalledWith('github', 'user-1');
     });
 
     it('空の配列を返すこと', async () => {
       mockSettingsService.findAll.mockResolvedValue([]);
 
-      const result = await controller.findAll();
+      const result = await controller.findAll(mockRequest);
 
       expect(result).toEqual([]);
     });
