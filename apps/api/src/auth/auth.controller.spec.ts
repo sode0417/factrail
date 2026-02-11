@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { IntegrationsService } from '../integrations/integrations.service';
 import { RegisterDto } from './dto/register.dto';
 import { Request, Response } from 'express';
 
@@ -14,6 +15,10 @@ describe('AuthController', () => {
     refreshAccessToken: jest.fn(),
     logout: jest.fn(),
     logoutAllSessions: jest.fn(),
+  };
+
+  const mockIntegrationsService = {
+    upsert: jest.fn(),
   };
 
   const mockUser = {
@@ -37,6 +42,10 @@ describe('AuthController', () => {
         {
           provide: AuthService,
           useValue: mockAuthService,
+        },
+        {
+          provide: IntegrationsService,
+          useValue: mockIntegrationsService,
         },
       ],
     }).compile();
