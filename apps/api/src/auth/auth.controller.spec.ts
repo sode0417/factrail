@@ -15,6 +15,8 @@ describe('AuthController', () => {
     refreshAccessToken: jest.fn(),
     logout: jest.fn(),
     logoutAllSessions: jest.fn(),
+    createAuthCode: jest.fn(),
+    exchangeAuthCode: jest.fn(),
   };
 
   const mockIntegrationsService = {
@@ -139,8 +141,10 @@ describe('AuthController', () => {
         cookie: jest.fn(),
       } as unknown as Response;
       const userAgent = 'Mozilla/5.0';
+      const mockAuthCode = 'mock-auth-code-123';
 
       mockAuthService.login.mockResolvedValue(mockLoginData);
+      mockAuthService.createAuthCode.mockResolvedValue(mockAuthCode);
 
       await controller.googleAuthCallback(mockRequest, mockResponse, userAgent);
 
@@ -148,19 +152,9 @@ describe('AuthController', () => {
         userAgent,
         ip: '127.0.0.1',
       });
-      // セキュアクッキーにトークンを設定
-      expect(mockResponse.cookie).toHaveBeenCalledWith(
-        'accessToken',
-        mockLoginData.accessToken,
-        expect.any(Object),
-      );
-      expect(mockResponse.cookie).toHaveBeenCalledWith(
-        'refreshToken',
-        mockLoginData.refreshToken,
-        expect.any(Object),
-      );
-      // クエリパラメータなしでリダイレクト
-      expect(mockResponse.redirect).toHaveBeenCalledWith('http://localhost:3000/auth/callback');
+      expect(authService.createAuthCode).toHaveBeenCalledWith(mockLoginData);
+      // ワンタイム認証コード付きでリダイレクト
+      expect(mockResponse.redirect).toHaveBeenCalledWith(`http://localhost:3000/auth/callback?code=${mockAuthCode}`);
     });
 
     it('user-agentヘッダーなしでGoogle OAuthコールバックを処理すること', async () => {
@@ -172,8 +166,10 @@ describe('AuthController', () => {
         redirect: jest.fn(),
         cookie: jest.fn(),
       } as unknown as Response;
+      const mockAuthCode = 'mock-auth-code-456';
 
       mockAuthService.login.mockResolvedValue(mockLoginData);
+      mockAuthService.createAuthCode.mockResolvedValue(mockAuthCode);
 
       await controller.googleAuthCallback(mockRequest, mockResponse);
 
@@ -181,8 +177,8 @@ describe('AuthController', () => {
         userAgent: undefined,
         ip: '10.0.0.1',
       });
-      expect(mockResponse.cookie).toHaveBeenCalledTimes(2);
-      expect(mockResponse.redirect).toHaveBeenCalledWith('http://localhost:3000/auth/callback');
+      expect(authService.createAuthCode).toHaveBeenCalledWith(mockLoginData);
+      expect(mockResponse.redirect).toHaveBeenCalledWith(`http://localhost:3000/auth/callback?code=${mockAuthCode}`);
     });
   });
 
@@ -197,7 +193,7 @@ describe('AuthController', () => {
   describe('githubAuthCallback', () => {
     it('GitHub OAuthコールバックを処理してリダイレクトすること', async () => {
       const mockRequest = {
-        user: mockUser,
+        user: { ...mockUser, githubUsername: 'testuser' },
         ip: '127.0.0.1',
       } as unknown as Request;
       const mockResponse = {
@@ -205,28 +201,30 @@ describe('AuthController', () => {
         cookie: jest.fn(),
       } as unknown as Response;
       const userAgent = 'Mozilla/5.0';
+      const mockAuthCode = 'mock-auth-code-789';
 
       mockAuthService.login.mockResolvedValue(mockLoginData);
+      mockAuthService.createAuthCode.mockResolvedValue(mockAuthCode);
 
       await controller.githubAuthCallback(mockRequest, mockResponse, userAgent);
 
-      expect(authService.login).toHaveBeenCalledWith(mockUser, {
-        userAgent,
-        ip: '127.0.0.1',
+      expect(authService.login).toHaveBeenCalledWith(
+        { ...mockUser, githubUsername: 'testuser' },
+        {
+          userAgent,
+          ip: '127.0.0.1',
+        },
+      );
+      expect(mockIntegrationsService.upsert).toHaveBeenCalledWith(mockUser.id, {
+        provider: 'github',
+        accountId: 'testuser',
+        accountName: 'testuser',
+        accessToken: 'oauth-login',
+        scope: ['user:email'],
       });
-      // セキュアクッキーにトークンを設定
-      expect(mockResponse.cookie).toHaveBeenCalledWith(
-        'accessToken',
-        mockLoginData.accessToken,
-        expect.any(Object),
-      );
-      expect(mockResponse.cookie).toHaveBeenCalledWith(
-        'refreshToken',
-        mockLoginData.refreshToken,
-        expect.any(Object),
-      );
-      // クエリパラメータなしでリダイレクト
-      expect(mockResponse.redirect).toHaveBeenCalledWith('http://localhost:3000/auth/callback');
+      expect(authService.createAuthCode).toHaveBeenCalledWith(mockLoginData);
+      // ワンタイム認証コード付きでリダイレクト
+      expect(mockResponse.redirect).toHaveBeenCalledWith(`http://localhost:3000/auth/callback?code=${mockAuthCode}`);
     });
 
     it('user-agentヘッダーなしでGitHub OAuthコールバックを処理すること', async () => {
@@ -238,8 +236,10 @@ describe('AuthController', () => {
         redirect: jest.fn(),
         cookie: jest.fn(),
       } as unknown as Response;
+      const mockAuthCode = 'mock-auth-code-abc';
 
       mockAuthService.login.mockResolvedValue(mockLoginData);
+      mockAuthService.createAuthCode.mockResolvedValue(mockAuthCode);
 
       await controller.githubAuthCallback(mockRequest, mockResponse);
 
@@ -247,8 +247,8 @@ describe('AuthController', () => {
         userAgent: undefined,
         ip: '172.16.0.1',
       });
-      expect(mockResponse.cookie).toHaveBeenCalledTimes(2);
-      expect(mockResponse.redirect).toHaveBeenCalledWith('http://localhost:3000/auth/callback');
+      expect(authService.createAuthCode).toHaveBeenCalledWith(mockLoginData);
+      expect(mockResponse.redirect).toHaveBeenCalledWith(`http://localhost:3000/auth/callback?code=${mockAuthCode}`);
     });
   });
 
