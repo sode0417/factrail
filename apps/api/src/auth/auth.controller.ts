@@ -2,6 +2,7 @@ import { Controller, Post, Body, Get, Req, Res, UseGuards, Headers } from '@nest
 import { Response, Request } from 'express';
 import { Throttle, SkipThrottle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
+import { IntegrationsService } from '../integrations/integrations.service';
 import { RegisterDto } from './dto/register.dto';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -17,7 +18,10 @@ const COOKIE_OPTIONS = {
 
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private integrationsService: IntegrationsService,
+  ) {}
 
   /**
    * トークンをセキュアクッキーに設定する
@@ -125,6 +129,17 @@ export class AuthController {
       userAgent,
       ip: req.ip,
     });
+
+    // GitHub Integrationレコードを作成/更新（Webhook受信時のユーザー特定に必要）
+    if (user.githubUsername) {
+      await this.integrationsService.upsert(user.id, {
+        provider: 'github',
+        accountId: user.githubUsername,
+        accountName: user.githubUsername,
+        accessToken: 'oauth-login', // OAuthログイン用のプレースホルダー
+        scope: ['user:email'],
+      });
+    }
 
     // ワンタイム認証コードを生成してRedisに保存
     const code = await this.authService.createAuthCode(loginData);

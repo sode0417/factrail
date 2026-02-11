@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { SettingsService } from '../settings/settings.service';
 import { IntegrationsService } from './integrations.service';
-import { PrismaService } from '../prisma.service';
+import { SlackOAuthStateService } from './slack-oauth-state.service';
 
 interface SlackOAuthResponse {
   ok: boolean;
@@ -34,7 +34,7 @@ export class SlackOAuthService {
   constructor(
     private readonly settingsService: SettingsService,
     private readonly integrationsService: IntegrationsService,
-    private readonly prisma: PrismaService,
+    private readonly slackOAuthStateService: SlackOAuthStateService,
   ) {}
 
   /**
@@ -75,14 +75,8 @@ export class SlackOAuthService {
 
     this.logger.log(`Slack OAuth成功: チーム=${data.team?.name}, ユーザー=${data.authed_user?.id}`);
 
-    // ユーザーIDを取得（最初のアクティブユーザーを使用）
-    // TODO: OAuth開始時にstateパラメータでuserIdを渡す実装に変更する
-    const userId = await this.findUserIdForSlackIntegration();
-    if (!userId) {
-      throw new BadRequestException(
-        'ユーザーが見つかりません。先にユーザー登録を完了してください。',
-      );
-    }
+    // stateパラメータからユーザーIDを抽出（署名検証・期限チェック付き）
+    const userId = this.slackOAuthStateService.validateState(state);
 
     // Integrations テーブルに保存
     const teamId = data.team?.id || 'unknown';
@@ -110,26 +104,5 @@ export class SlackOAuthService {
       });
       this.logger.log(`Slack送信先ID（User）を保存しました: ${data.authed_user.id}`);
     }
-  }
-
-  /**
-   * Slack連携に使用するユーザーIDを取得する
-   * 現在はシステム内の最初のアクティブユーザーを返す
-   *
-   * @remarks
-   * TODO: 将来的にはOAuth開始時にstateパラメータでuserIdを渡す実装に変更する
-   */
-  private async findUserIdForSlackIntegration(): Promise<string | null> {
-    const user = await this.prisma.user.findFirst({
-      where: { status: 'active' },
-      orderBy: { createdAt: 'asc' },
-    });
-
-    if (!user) {
-      this.logger.warn('アクティブなユーザーが見つかりません');
-      return null;
-    }
-
-    return user.id;
   }
 }

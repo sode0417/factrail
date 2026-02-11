@@ -16,9 +16,7 @@ import {
 } from '@chakra-ui/react';
 import { MainLayout } from '@/components/layout';
 import { FiCheckCircle, FiXCircle } from 'react-icons/fi';
-import { validateOAuthState } from '@/utils/oauth';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://factrail-production.up.railway.app';
+import apiClient from '@/lib/axios';
 
 function SlackCallbackContent() {
   const searchParams = useSearchParams();
@@ -26,37 +24,27 @@ function SlackCallbackContent() {
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [errorMessage, setErrorMessage] = useState<string>('');
 
-  const handleCallback = async (code: string) => {
+  const handleCallback = async (code: string, state: string) => {
     try {
-      const response = await fetch(`${API_URL}/integrations/slack/callback`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ code }),
-      });
-
-      if (response.ok) {
-        setStatus('success');
-        // 3秒後に設定ページにリダイレクト
-        setTimeout(() => {
-          router.push('/setup/slack');
-        }, 3000);
-      } else {
-        const data = await response.json();
-        throw new Error(data.message || '連携に失敗しました');
-      }
-    } catch (error) {
+      await apiClient.post('/integrations/slack/callback', { code, state });
+      setStatus('success');
+      // 3秒後に設定ページにリダイレクト
+      setTimeout(() => {
+        router.push('/setup/slack');
+      }, 3000);
+    } catch (error: unknown) {
       console.error('Slack callback error:', error);
       setStatus('error');
-      setErrorMessage(error instanceof Error ? error.message : '連携に失敗しました');
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      const message = axiosError?.response?.data?.message || (error instanceof Error ? error.message : '連携に失敗しました');
+      setErrorMessage(message);
     }
   };
 
   useEffect(() => {
     const code = searchParams.get('code');
     const error = searchParams.get('error');
-    const receivedState = searchParams.get('state');
+    const state = searchParams.get('state');
 
     if (error) {
       setStatus('error');
@@ -64,21 +52,14 @@ function SlackCallbackContent() {
       return;
     }
 
-    if (!code) {
+    if (!code || !state) {
       setStatus('error');
-      setErrorMessage('認証コードが見つかりません');
+      setErrorMessage('認証コードまたはstateパラメータが見つかりません');
       return;
     }
 
-    // CSRF保護: stateパラメータを検証
-    if (!validateOAuthState('slack', receivedState)) {
-      setStatus('error');
-      setErrorMessage('セキュリティ検証に失敗しました。もう一度お試しください。');
-      return;
-    }
-
-    // バックエンドにコードを送信
-    handleCallback(code);
+    // バックエンドにcode + stateを送信（stateの検証はバックエンド側で実施）
+    handleCallback(code, state);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

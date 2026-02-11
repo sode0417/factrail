@@ -30,9 +30,7 @@ import {
 import { MainLayout } from '@/components/layout';
 import { FiMessageSquare, FiCopy, FiCheck, FiExternalLink, FiSave } from 'react-icons/fi';
 import { useState, useEffect, useCallback } from 'react';
-import { prepareOAuthState } from '@/utils/oauth';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://factrail-production.up.railway.app';
+import apiClient from '@/lib/axios';
 
 interface SettingResponse {
   id: string;
@@ -76,16 +74,16 @@ export default function SlackSetupPage() {
   // 設定状態を取得
   const fetchSettings = useCallback(async () => {
     try {
-      const response = await fetch(`${API_URL}/settings?provider=slack`);
-      if (response.ok) {
-        const data: SettingResponse[] = await response.json();
-        const clientIdSetting = data.find(s => s.settingType === 'client_id');
-        const clientSecretSetting = data.find(s => s.settingType === 'client_secret');
-        const channelIdSetting = data.find(s => s.settingType === 'target_channel_id');
-        setIsClientIdConfigured(!!clientIdSetting?.hasValue);
-        setIsClientSecretConfigured(!!clientSecretSetting?.hasValue);
-        setIsChannelIdConfigured(!!channelIdSetting?.hasValue);
-      }
+      const response = await apiClient.get<SettingResponse[]>('/settings', {
+        params: { provider: 'slack' },
+      });
+      const data = response.data;
+      const clientIdSetting = data.find(s => s.settingType === 'client_id');
+      const clientSecretSetting = data.find(s => s.settingType === 'client_secret');
+      const channelIdSetting = data.find(s => s.settingType === 'target_channel_id');
+      setIsClientIdConfigured(!!clientIdSetting?.hasValue);
+      setIsClientSecretConfigured(!!clientSecretSetting?.hasValue);
+      setIsChannelIdConfigured(!!channelIdSetting?.hasValue);
     } catch (error) {
       console.error('Failed to fetch settings:', error);
     }
@@ -94,16 +92,16 @@ export default function SlackSetupPage() {
   // 連携状態を取得
   const fetchIntegrations = useCallback(async () => {
     try {
-      const response = await fetch(`${API_URL}/integrations?provider=slack`);
-      if (response.ok) {
-        const data: IntegrationResponse[] = await response.json();
-        if (data.length > 0 && data[0].status === 'active') {
-          setIsConnected(true);
-          setConnectedAccountName(data[0].accountName || 'Unknown Workspace');
-        } else {
-          setIsConnected(false);
-          setConnectedAccountName('');
-        }
+      const response = await apiClient.get<{ data: IntegrationResponse[] }>('/integrations', {
+        params: { provider: 'slack' },
+      });
+      const data = response.data.data;
+      if (data.length > 0 && data[0].status === 'active') {
+        setIsConnected(true);
+        setConnectedAccountName(data[0].accountName || 'Unknown Workspace');
+      } else {
+        setIsConnected(false);
+        setConnectedAccountName('');
       }
     } catch (error) {
       console.error('Failed to fetch integrations:', error);
@@ -130,29 +128,18 @@ export default function SlackSetupPage() {
 
     setIsSaving(true);
     try {
-      const response = await fetch(`${API_URL}/settings`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          provider: 'slack',
-          settingType: 'client_id',
-          value: clientId,
-        }),
+      await apiClient.post('/settings', {
+        provider: 'slack',
+        settingType: 'client_id',
+        value: clientId,
       });
-
-      if (response.ok) {
-        toast({
-          title: 'Client IDを保存しました',
-          status: 'success',
-          duration: 3000,
-        });
-        setIsClientIdConfigured(true);
-        setClientId('');
-      } else {
-        throw new Error('Failed to save');
-      }
+      toast({
+        title: 'Client IDを保存しました',
+        status: 'success',
+        duration: 3000,
+      });
+      setIsClientIdConfigured(true);
+      setClientId('');
     } catch (error) {
       console.error('Failed to save client ID:', error);
       toast({
@@ -177,29 +164,18 @@ export default function SlackSetupPage() {
 
     setIsSaving(true);
     try {
-      const response = await fetch(`${API_URL}/settings`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          provider: 'slack',
-          settingType: 'client_secret',
-          value: clientSecret,
-        }),
+      await apiClient.post('/settings', {
+        provider: 'slack',
+        settingType: 'client_secret',
+        value: clientSecret,
       });
-
-      if (response.ok) {
-        toast({
-          title: 'Client Secretを保存しました',
-          status: 'success',
-          duration: 3000,
-        });
-        setIsClientSecretConfigured(true);
-        setClientSecret('');
-      } else {
-        throw new Error('Failed to save');
-      }
+      toast({
+        title: 'Client Secretを保存しました',
+        status: 'success',
+        duration: 3000,
+      });
+      setIsClientSecretConfigured(true);
+      setClientSecret('');
     } catch (error) {
       console.error('Failed to save client secret:', error);
       toast({
@@ -224,29 +200,18 @@ export default function SlackSetupPage() {
 
     setIsSaving(true);
     try {
-      const response = await fetch(`${API_URL}/settings`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          provider: 'slack',
-          settingType: 'target_channel_id',
-          value: targetChannelId,
-        }),
+      await apiClient.post('/settings', {
+        provider: 'slack',
+        settingType: 'target_channel_id',
+        value: targetChannelId,
       });
-
-      if (response.ok) {
-        toast({
-          title: '送信先IDを保存しました',
-          status: 'success',
-          duration: 3000,
-        });
-        setIsChannelIdConfigured(true);
-        setTargetChannelId('');
-      } else {
-        throw new Error('Failed to save');
-      }
+      toast({
+        title: '送信先IDを保存しました',
+        status: 'success',
+        duration: 3000,
+      });
+      setIsChannelIdConfigured(true);
+      setTargetChannelId('');
     } catch (error) {
       console.error('Failed to save target channel ID:', error);
       toast({
@@ -284,12 +249,22 @@ export default function SlackSetupPage() {
       return;
     }
 
-    // CSRF保護のためのstateパラメータを生成
-    const state = prepareOAuthState('slack');
+    // バックエンドから署名付きstateを取得（ユーザーIDが埋め込まれる）
+    try {
+      const stateResponse = await apiClient.get<{ state: string }>('/integrations/slack/oauth-state');
+      const state = stateResponse.data.state;
 
-    const scopes = 'chat:write,users:read';
-    const authUrl = `https://slack.com/oauth/v2/authorize?client_id=${useClientId}&scope=${scopes}&state=${encodeURIComponent(state)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
-    window.location.href = authUrl;
+      const scopes = 'chat:write,users:read';
+      const authUrl = `https://slack.com/oauth/v2/authorize?client_id=${useClientId}&scope=${scopes}&state=${encodeURIComponent(state)}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+      window.location.href = authUrl;
+    } catch (error) {
+      console.error('Failed to get OAuth state:', error);
+      toast({
+        title: 'OAuth状態の取得に失敗しました。ログインしているか確認してください。',
+        status: 'error',
+        duration: 5000,
+      });
+    }
   };
 
   return (
