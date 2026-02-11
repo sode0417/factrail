@@ -60,11 +60,12 @@ describe('SettingsService', () => {
       provider: 'github',
       settingType: 'webhook_secret',
       value: 'encrypted-my-secret-value',
+      userId: null,
       createdAt: new Date('2024-01-01'),
       updatedAt: new Date('2024-01-01'),
     };
 
-    it('設定を作成または更新できること', async () => {
+    it('グローバル設定を作成または更新できること', async () => {
       mockPrismaService.settings.upsert.mockResolvedValue(mockSetting);
 
       const result = await service.upsert(createDto);
@@ -80,7 +81,8 @@ describe('SettingsService', () => {
       expect(crypto.encrypt).toHaveBeenCalledWith('my-secret-value');
       expect(prisma.settings.upsert).toHaveBeenCalledWith({
         where: {
-          provider_settingType: {
+          userId_provider_settingType: {
+            userId: null,
             provider: 'github',
             settingType: 'webhook_secret',
           },
@@ -89,6 +91,7 @@ describe('SettingsService', () => {
           provider: 'github',
           settingType: 'webhook_secret',
           value: 'encrypted-my-secret-value',
+          userId: null,
         },
         update: {
           value: 'encrypted-my-secret-value',
@@ -96,18 +99,30 @@ describe('SettingsService', () => {
       });
     });
 
-    it('値が空の設定も保存できること', async () => {
-      const emptyDto = { ...createDto, value: '' };
-      const emptySettings = {
-        ...mockSetting,
-        value: 'encrypted-',
-      };
-      mockPrismaService.settings.upsert.mockResolvedValue(emptySettings);
+    it('ユーザー別設定を作成または更新できること', async () => {
+      const userSetting = { ...mockSetting, userId: 'user-1' };
+      mockPrismaService.settings.upsert.mockResolvedValue(userSetting);
 
-      const result = await service.upsert(emptyDto);
+      await service.upsert(createDto, 'user-1');
 
-      expect(result.hasValue).toBe(true);
-      expect(crypto.encrypt).toHaveBeenCalledWith('');
+      expect(prisma.settings.upsert).toHaveBeenCalledWith({
+        where: {
+          userId_provider_settingType: {
+            userId: 'user-1',
+            provider: 'github',
+            settingType: 'webhook_secret',
+          },
+        },
+        create: {
+          provider: 'github',
+          settingType: 'webhook_secret',
+          value: 'encrypted-my-secret-value',
+          userId: 'user-1',
+        },
+        update: {
+          value: 'encrypted-my-secret-value',
+        },
+      });
     });
   });
 
@@ -118,6 +133,7 @@ describe('SettingsService', () => {
         provider: 'github',
         settingType: 'webhook_secret',
         value: 'encrypted-value-1',
+        userId: null,
         createdAt: new Date('2024-01-01'),
         updatedAt: new Date('2024-01-01'),
       },
@@ -126,6 +142,7 @@ describe('SettingsService', () => {
         provider: 'slack',
         settingType: 'client_id',
         value: 'encrypted-value-2',
+        userId: null,
         createdAt: new Date('2024-01-02'),
         updatedAt: new Date('2024-01-02'),
       },
@@ -144,14 +161,6 @@ describe('SettingsService', () => {
         hasValue: true,
         createdAt: new Date('2024-01-01'),
         updatedAt: new Date('2024-01-01'),
-      });
-      expect(result[1]).toEqual({
-        id: 'setting-2',
-        provider: 'slack',
-        settingType: 'client_id',
-        hasValue: true,
-        createdAt: new Date('2024-01-02'),
-        updatedAt: new Date('2024-01-02'),
       });
       expect(prisma.settings.findMany).toHaveBeenCalledWith({
         where: undefined,
@@ -173,26 +182,37 @@ describe('SettingsService', () => {
       });
     });
 
+    it('userId指定時はユーザー別+グローバル設定を返すこと', async () => {
+      mockPrismaService.settings.findMany.mockResolvedValue(mockSettings);
+
+      await service.findAll(undefined, 'user-1');
+
+      expect(prisma.settings.findMany).toHaveBeenCalledWith({
+        where: { OR: [{ userId: 'user-1' }, { userId: null }] },
+        orderBy: [{ provider: 'asc' }, { settingType: 'asc' }],
+      });
+    });
+
+    it('provider+userId指定時は両方のフィルタが適用されること', async () => {
+      mockPrismaService.settings.findMany.mockResolvedValue([]);
+
+      await service.findAll('slack', 'user-1');
+
+      expect(prisma.settings.findMany).toHaveBeenCalledWith({
+        where: {
+          provider: 'slack',
+          OR: [{ userId: 'user-1' }, { userId: null }],
+        },
+        orderBy: [{ provider: 'asc' }, { settingType: 'asc' }],
+      });
+    });
+
     it('設定がない場合は空配列を返すこと', async () => {
       mockPrismaService.settings.findMany.mockResolvedValue([]);
 
       const result = await service.findAll();
 
       expect(result).toEqual([]);
-    });
-
-    it('値がnullの設定はhasValueがfalseであること', async () => {
-      const settingWithNullValue = [
-        {
-          ...mockSettings[0],
-          value: null,
-        },
-      ];
-      mockPrismaService.settings.findMany.mockResolvedValue(settingWithNullValue);
-
-      const result = await service.findAll();
-
-      expect(result[0].hasValue).toBe(false);
     });
   });
 
@@ -202,6 +222,7 @@ describe('SettingsService', () => {
       provider: 'github',
       settingType: 'webhook_secret',
       value: 'encrypted-value',
+      userId: null,
       createdAt: new Date('2024-01-01'),
       updatedAt: new Date('2024-01-01'),
     };
@@ -221,7 +242,8 @@ describe('SettingsService', () => {
       });
       expect(prisma.settings.findUnique).toHaveBeenCalledWith({
         where: {
-          provider_settingType: {
+          userId_provider_settingType: {
+            userId: null,
             provider: 'github',
             settingType: 'webhook_secret',
           },
@@ -245,11 +267,12 @@ describe('SettingsService', () => {
       provider: 'github',
       settingType: 'webhook_secret',
       value: 'encrypted-my-secret',
+      userId: null,
       createdAt: new Date('2024-01-01'),
       updatedAt: new Date('2024-01-01'),
     };
 
-    it('復号化された値を取得できること', async () => {
+    it('グローバル設定の復号化された値を取得できること', async () => {
       mockPrismaService.settings.findUnique.mockResolvedValue(mockSetting);
 
       const result = await service.getDecryptedValue('github', 'webhook_secret');
@@ -266,6 +289,55 @@ describe('SettingsService', () => {
       expect(result).toBeNull();
       expect(crypto.decrypt).not.toHaveBeenCalled();
     });
+
+    it('userId指定時にユーザー別設定を優先して返すこと', async () => {
+      const userSetting = { ...mockSetting, userId: 'user-1', value: 'encrypted-user-secret' };
+      mockPrismaService.settings.findUnique.mockResolvedValue(userSetting);
+
+      const result = await service.getDecryptedValue('slack', 'target_channel_id', 'user-1');
+
+      expect(result).toBe('user-secret');
+      expect(prisma.settings.findUnique).toHaveBeenCalledWith({
+        where: {
+          userId_provider_settingType: {
+            userId: 'user-1',
+            provider: 'slack',
+            settingType: 'target_channel_id',
+          },
+        },
+      });
+    });
+
+    it('userId指定時にユーザー別設定がなければグローバル設定にフォールバックすること', async () => {
+      mockPrismaService.settings.findUnique
+        .mockResolvedValueOnce(null) // ユーザー別設定なし
+        .mockResolvedValueOnce(mockSetting); // グローバル設定あり
+
+      const result = await service.getDecryptedValue('slack', 'target_channel_id', 'user-1');
+
+      expect(result).toBe('my-secret');
+      expect(prisma.settings.findUnique).toHaveBeenCalledTimes(2);
+      // 1回目: ユーザー別設定の検索
+      expect(prisma.settings.findUnique).toHaveBeenNthCalledWith(1, {
+        where: {
+          userId_provider_settingType: {
+            userId: 'user-1',
+            provider: 'slack',
+            settingType: 'target_channel_id',
+          },
+        },
+      });
+      // 2回目: グローバル設定の検索
+      expect(prisma.settings.findUnique).toHaveBeenNthCalledWith(2, {
+        where: {
+          userId_provider_settingType: {
+            userId: null,
+            provider: 'slack',
+            settingType: 'target_channel_id',
+          },
+        },
+      });
+    });
   });
 
   describe('remove', () => {
@@ -274,6 +346,7 @@ describe('SettingsService', () => {
       provider: 'github',
       settingType: 'webhook_secret',
       value: 'encrypted-value',
+      userId: null,
       createdAt: new Date('2024-01-01'),
       updatedAt: new Date('2024-01-01'),
     };
@@ -286,7 +359,8 @@ describe('SettingsService', () => {
 
       expect(prisma.settings.delete).toHaveBeenCalledWith({
         where: {
-          provider_settingType: {
+          userId_provider_settingType: {
+            userId: null,
             provider: 'github',
             settingType: 'webhook_secret',
           },

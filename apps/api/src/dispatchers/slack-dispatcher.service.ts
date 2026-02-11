@@ -29,8 +29,12 @@ export class SlackDispatcherService {
     const integration = integrations[0];
     const client = new WebClient(integration.accessToken);
 
-    // 送信先ID（User ID or Channel ID）を取得
-    const channelId = await this.settingsService.getDecryptedValue('slack', 'target_channel_id');
+    // 送信先ID（User ID or Channel ID）を取得（ユーザー別設定を優先）
+    const channelId = await this.settingsService.getDecryptedValue(
+      'slack',
+      'target_channel_id',
+      fact.userId,
+    );
     if (!channelId) {
       throw new InternalServerErrorException('Slack送信先ID（User/Channel）が設定されていません');
     }

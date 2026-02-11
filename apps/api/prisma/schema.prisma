@@ -75,10 +75,13 @@ model Settings {
   settingType String @map("setting_type") // "webhook_secret", "api_key" など
   value       String @db.Text // 暗号化された値
 
+  userId String? @map("user_id")
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@unique([provider, settingType])
+  @@unique([userId, provider, settingType])
   @@map("settings")
   @@schema("factrail")
 }
@@ -106,6 +109,7 @@ model User {
   // リレーション
   facts        Fact[]
   integrations Integration[]
+  settings     Settings[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
