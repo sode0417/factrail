@@ -3,7 +3,7 @@ import { BadRequestException, Logger } from '@nestjs/common';
 import { SlackOAuthService } from './slack-oauth.service';
 import { SettingsService } from '../settings/settings.service';
 import { IntegrationsService } from './integrations.service';
-import { PrismaService } from '../prisma.service';
+import { SlackOAuthStateService } from './slack-oauth-state.service';
 
 // Mock fetch globally
 global.fetch = jest.fn();
@@ -20,10 +20,8 @@ describe('SlackOAuthService', () => {
     upsert: jest.fn(),
   };
 
-  const mockPrismaService = {
-    user: {
-      findFirst: jest.fn(),
-    },
+  const mockSlackOAuthStateService = {
+    validateState: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -39,8 +37,8 @@ describe('SlackOAuthService', () => {
           useValue: mockIntegrationsService,
         },
         {
-          provide: PrismaService,
-          useValue: mockPrismaService,
+          provide: SlackOAuthStateService,
+          useValue: mockSlackOAuthStateService,
         },
       ],
     }).compile();
@@ -94,7 +92,7 @@ describe('SlackOAuthService', () => {
       mockSettingsService.getDecryptedValue
         .mockResolvedValueOnce(clientId)
         .mockResolvedValueOnce(clientSecret);
-      mockPrismaService.user.findFirst.mockResolvedValue(mockUser);
+      mockSlackOAuthStateService.validateState.mockReturnValue(mockUser.id);
       (global.fetch as jest.Mock).mockResolvedValue({
         json: jest.fn().mockResolvedValue(mockOAuthResponse),
       });
@@ -125,11 +123,14 @@ describe('SlackOAuthService', () => {
         expiresAt: null,
         scope: ['chat:write', 'users:read'],
       });
-      expect(mockSettingsService.upsert).toHaveBeenCalledWith({
-        provider: 'slack',
-        settingType: 'target_channel_id',
-        value: 'U123456',
-      });
+      expect(mockSettingsService.upsert).toHaveBeenCalledWith(
+        {
+          provider: 'slack',
+          settingType: 'target_channel_id',
+          value: 'U123456',
+        },
+        'user-123',
+      );
     });
 
     it('Client IDが設定されていない場合はエラーをスローすること', async () => {
@@ -183,14 +184,16 @@ describe('SlackOAuthService', () => {
       await expect(service.handleCallback(code, state)).rejects.toThrow(BadRequestException);
     });
 
-    it('ユーザーが見つからない場合はエラーをスローすること', async () => {
+    it('stateが無効な場合はエラーをスローすること', async () => {
       mockSettingsService.getDecryptedValue.mockReset();
       mockSettingsService.getDecryptedValue
         .mockResolvedValueOnce(clientId)
         .mockResolvedValueOnce(clientSecret);
-      mockPrismaService.user.findFirst.mockResolvedValue(null);
+      mockSlackOAuthStateService.validateState.mockImplementation(() => {
+        throw new BadRequestException('Invalid OAuth state parameter');
+      });
 
-      await expect(service.handleCallback(code, state)).rejects.toThrow('ユーザーが見つかりません');
+      await expect(service.handleCallback(code, state)).rejects.toThrow(BadRequestException);
     });
 
     it('teamがない場合はデフォルト値を使用すること', async () => {
