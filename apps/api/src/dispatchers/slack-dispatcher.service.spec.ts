@@ -48,7 +48,6 @@ describe('SlackDispatcherService', () => {
   };
 
   beforeEach(async () => {
-
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         SlackDispatcherService,
@@ -109,7 +108,11 @@ describe('SlackDispatcherService', () => {
 
       expect(result).toBe('1234567890.123456');
       expect(integrationsService.findByProvider).toHaveBeenCalledWith('user-123', 'slack');
-      expect(settingsService.getDecryptedValue).toHaveBeenCalledWith('slack', 'target_channel_id');
+      expect(settingsService.getDecryptedValue).toHaveBeenCalledWith(
+        'slack',
+        'target_channel_id',
+        'user-123',
+      );
       expect(mockPostMessage).toHaveBeenCalledWith({
         channel: 'C123456789',
         blocks: expect.any(Array),
