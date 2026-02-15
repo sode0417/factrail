@@ -18,10 +18,12 @@ import {
   Icon,
 } from '@chakra-ui/react';
 import { MainLayout } from '@/components/layout';
+import { DateFilter } from '@/components/facts';
 import { FiSearch, FiExternalLink, FiRefreshCw } from 'react-icons/fi';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import apiClient from '@/lib/axios';
 import { formatRelativeTime } from '@/lib/formatRelativeTime';
+import { useDateFilter } from '@/hooks/useDateFilter';
 
 interface Fact {
   id: string;
@@ -71,40 +73,56 @@ function formatDate(dateString: string): string {
 // ポーリング間隔（30秒）
 const POLLING_INTERVAL = 30000;
 
-export default function FactsPage() {
+function FactsPageContent() {
   const [facts, setFacts] = useState<Fact[]>([]);
   const [loading, setLoading] = useState(true);
   const [isBackgroundUpdate, setIsBackgroundUpdate] = useState(false);
   const [sourceFilter, setSourceFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const fetchFacts = async (isBackground = false) => {
-    if (!isBackground) {
-      setLoading(true);
-    } else {
-      setIsBackgroundUpdate(true);
-    }
+  const {
+    from,
+    to,
+    preset,
+    isActive: dateFilterActive,
+    setDateRange,
+    applyPreset,
+    clearFilter,
+    apiParams,
+  } = useDateFilter();
 
-    try {
-      const params = new URLSearchParams();
-      if (sourceFilter) params.append('source', sourceFilter);
+  const fetchFacts = useCallback(
+    async (isBackground = false) => {
+      if (!isBackground) {
+        setLoading(true);
+      } else {
+        setIsBackgroundUpdate(true);
+      }
 
-      const response = await apiClient.get<FactsResponse>(
-        `/api/facts?${params.toString()}`
-      );
-      setFacts(response.data.data);
-    } catch (error) {
-      console.error('Failed to fetch facts:', error);
-    } finally {
-      setLoading(false);
-      setIsBackgroundUpdate(false);
-    }
-  };
+      try {
+        const params = new URLSearchParams();
+        if (sourceFilter) params.append('source', sourceFilter);
+        if (apiParams.from) params.append('from', apiParams.from);
+        if (apiParams.to) params.append('to', apiParams.to);
+
+        const response = await apiClient.get<FactsResponse>(
+          `/api/facts?${params.toString()}`,
+        );
+        setFacts(response.data.data);
+      } catch (error) {
+        console.error('Failed to fetch facts:', error);
+      } finally {
+        setLoading(false);
+        setIsBackgroundUpdate(false);
+      }
+    },
+    [sourceFilter, apiParams.from, apiParams.to],
+  );
 
   // 初回ロードとフィルター変更時のフェッチ
   useEffect(() => {
     fetchFacts();
-  }, [sourceFilter]);
+  }, [fetchFacts]);
 
   // 30秒ごとのポーリング
   useEffect(() => {
@@ -112,11 +130,10 @@ export default function FactsPage() {
       fetchFacts(true);
     }, POLLING_INTERVAL);
 
-    // クリーンアップ
     return () => {
       clearInterval(intervalId);
     };
-  }, [sourceFilter]);
+  }, [fetchFacts]);
 
   const filteredFacts = facts.filter((fact) => {
     if (!searchQuery) return true;
@@ -132,44 +149,60 @@ export default function FactsPage() {
       {/* Filters */}
       <Card bg="gray.800" borderColor="gray.700" borderWidth="1px" mb={6}>
         <CardBody>
-          <Flex gap={4} flexWrap="wrap">
-            <InputGroup maxW="300px">
-              <InputLeftElement pointerEvents="none">
-                <FiSearch color="gray" />
-              </InputLeftElement>
-              <Input
-                placeholder="検索..."
+          <VStack spacing={4} align="stretch">
+            <Flex gap={4} flexWrap="wrap">
+              <InputGroup maxW="300px">
+                <InputLeftElement pointerEvents="none">
+                  <FiSearch color="gray" />
+                </InputLeftElement>
+                <Input
+                  placeholder="検索..."
+                  bg="gray.900"
+                  border="none"
+                  _placeholder={{ color: 'gray.500' }}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </InputGroup>
+
+              <Select
+                maxW="200px"
                 bg="gray.900"
-                border="none"
-                _placeholder={{ color: 'gray.500' }}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </InputGroup>
+                borderColor="gray.700"
+                value={sourceFilter}
+                onChange={(e) => setSourceFilter(e.target.value)}
+              >
+                <option value="">すべてのソース</option>
+                <option value="github">GitHub</option>
+                <option value="slack">Slack</option>
+                <option value="manual">Manual</option>
+              </Select>
 
-            <Select
-              maxW="200px"
-              bg="gray.900"
-              borderColor="gray.700"
-              value={sourceFilter}
-              onChange={(e) => setSourceFilter(e.target.value)}
-            >
-              <option value="">すべてのソース</option>
-              <option value="github">GitHub</option>
-              <option value="slack">Slack</option>
-              <option value="manual">Manual</option>
-            </Select>
+              <Button
+                leftIcon={
+                  <FiRefreshCw
+                    className={isBackgroundUpdate ? 'animate-spin' : ''}
+                  />
+                }
+                variant="outline"
+                colorScheme="gray"
+                onClick={() => fetchFacts(false)}
+                isLoading={loading}
+              >
+                更新
+              </Button>
+            </Flex>
 
-            <Button
-              leftIcon={<FiRefreshCw className={isBackgroundUpdate ? 'animate-spin' : ''} />}
-              variant="outline"
-              colorScheme="gray"
-              onClick={() => fetchFacts(false)}
-              isLoading={loading}
-            >
-              更新
-            </Button>
-          </Flex>
+            <DateFilter
+              from={from}
+              to={to}
+              preset={preset}
+              isActive={dateFilterActive}
+              onPreset={applyPreset}
+              onRangeChange={setDateRange}
+              onClear={clearFilter}
+            />
+          </VStack>
         </CardBody>
       </Card>
 
@@ -227,7 +260,8 @@ export default function FactsPage() {
                           {fact.type}
                         </Badge>
                         <Text fontSize="xs" color="gray.500">
-                          {formatRelativeTime(fact.occurredAt)} ({formatDate(fact.occurredAt)})
+                          {formatRelativeTime(fact.occurredAt)} (
+                          {formatDate(fact.occurredAt)})
                         </Text>
                       </HStack>
                     </Box>
@@ -253,5 +287,21 @@ export default function FactsPage() {
         </VStack>
       )}
     </MainLayout>
+  );
+}
+
+export default function FactsPage() {
+  return (
+    <Suspense
+      fallback={
+        <MainLayout title="Facts" subtitle="収集されたすべてのファクトを表示">
+          <Flex justify="center" py={10}>
+            <Spinner size="xl" color="brand.500" />
+          </Flex>
+        </MainLayout>
+      }
+    >
+      <FactsPageContent />
+    </Suspense>
   );
 }
