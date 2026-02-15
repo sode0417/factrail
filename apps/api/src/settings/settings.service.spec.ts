@@ -182,13 +182,13 @@ describe('SettingsService', () => {
       });
     });
 
-    it('userId指定時はユーザー別+グローバル設定を返すこと', async () => {
+    it('userId指定時はそのユーザーの設定のみ返すこと', async () => {
       mockPrismaService.settings.findMany.mockResolvedValue(mockSettings);
 
       await service.findAll(undefined, 'user-1');
 
       expect(prisma.settings.findMany).toHaveBeenCalledWith({
-        where: { OR: [{ userId: 'user-1' }, { userId: null }] },
+        where: { userId: 'user-1' },
         orderBy: [{ provider: 'asc' }, { settingType: 'asc' }],
       });
     });
@@ -201,7 +201,7 @@ describe('SettingsService', () => {
       expect(prisma.settings.findMany).toHaveBeenCalledWith({
         where: {
           provider: 'slack',
-          OR: [{ userId: 'user-1' }, { userId: null }],
+          userId: 'user-1',
         },
         orderBy: [{ provider: 'asc' }, { settingType: 'asc' }],
       });

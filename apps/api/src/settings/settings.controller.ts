@@ -22,11 +22,11 @@ export class SettingsController {
 
   /**
    * 設定を作成または更新する
-   * グローバル設定（webhook_secret等）はuserId=nullで保存
+   * 認証ユーザーのIDに紐付けて保存
    */
   @Post()
   async upsert(@Request() req, @Body() dto: CreateSettingDto): Promise<SettingResponse> {
-    return this.settingsService.upsert(dto);
+    return this.settingsService.upsert(dto, req.user.id);
   }
 
   /**
@@ -43,10 +43,11 @@ export class SettingsController {
    */
   @Get(':provider/:settingType')
   async findOne(
+    @Request() req,
     @Param('provider') provider: string,
     @Param('settingType') settingType: string,
   ): Promise<SettingResponse> {
-    return this.settingsService.findOne(provider, settingType);
+    return this.settingsService.findOne(provider, settingType, req.user.id);
   }
 
   /**
@@ -55,9 +56,10 @@ export class SettingsController {
   @Delete(':provider/:settingType')
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(
+    @Request() req,
     @Param('provider') provider: string,
     @Param('settingType') settingType: string,
   ): Promise<void> {
-    await this.settingsService.remove(provider, settingType);
+    await this.settingsService.remove(provider, settingType, req.user.id);
   }
 }
