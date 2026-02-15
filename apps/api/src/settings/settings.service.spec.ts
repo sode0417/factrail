@@ -15,6 +15,9 @@ describe('SettingsService', () => {
       upsert: jest.fn(),
       findMany: jest.fn(),
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
       delete: jest.fn(),
     },
   };
@@ -65,8 +68,9 @@ describe('SettingsService', () => {
       updatedAt: new Date('2024-01-01'),
     };
 
-    it('グローバル設定を作成または更新できること', async () => {
-      mockPrismaService.settings.upsert.mockResolvedValue(mockSetting);
+    it('グローバル設定を新規作成できること（既存なし）', async () => {
+      mockPrismaService.settings.findFirst.mockResolvedValue(null);
+      mockPrismaService.settings.create.mockResolvedValue(mockSetting);
 
       const result = await service.upsert(createDto);
 
@@ -79,23 +83,32 @@ describe('SettingsService', () => {
         updatedAt: new Date('2024-01-01'),
       });
       expect(crypto.encrypt).toHaveBeenCalledWith('my-secret-value');
-      expect(prisma.settings.upsert).toHaveBeenCalledWith({
+      expect(prisma.settings.findFirst).toHaveBeenCalledWith({
         where: {
-          userId_provider_settingType: {
-            userId: null,
-            provider: 'github',
-            settingType: 'webhook_secret',
-          },
+          userId: null,
+          provider: 'github',
+          settingType: 'webhook_secret',
         },
-        create: {
+      });
+      expect(prisma.settings.create).toHaveBeenCalledWith({
+        data: {
           provider: 'github',
           settingType: 'webhook_secret',
           value: 'encrypted-my-secret-value',
           userId: null,
         },
-        update: {
-          value: 'encrypted-my-secret-value',
-        },
+      });
+    });
+
+    it('グローバル設定を更新できること（既存あり）', async () => {
+      mockPrismaService.settings.findFirst.mockResolvedValue(mockSetting);
+      mockPrismaService.settings.update.mockResolvedValue(mockSetting);
+
+      await service.upsert(createDto);
+
+      expect(prisma.settings.update).toHaveBeenCalledWith({
+        where: { id: 'setting-1' },
+        data: { value: 'encrypted-my-secret-value' },
       });
     });
 
@@ -227,8 +240,8 @@ describe('SettingsService', () => {
       updatedAt: new Date('2024-01-01'),
     };
 
-    it('特定の設定を取得できること', async () => {
-      mockPrismaService.settings.findUnique.mockResolvedValue(mockSetting);
+    it('グローバル設定を取得できること（userId未指定）', async () => {
+      mockPrismaService.settings.findFirst.mockResolvedValue(mockSetting);
 
       const result = await service.findOne('github', 'webhook_secret');
 
@@ -240,10 +253,26 @@ describe('SettingsService', () => {
         createdAt: new Date('2024-01-01'),
         updatedAt: new Date('2024-01-01'),
       });
+      expect(prisma.settings.findFirst).toHaveBeenCalledWith({
+        where: {
+          userId: null,
+          provider: 'github',
+          settingType: 'webhook_secret',
+        },
+      });
+    });
+
+    it('ユーザー別設定を取得できること（userId指定）', async () => {
+      const userSetting = { ...mockSetting, userId: 'user-1' };
+      mockPrismaService.settings.findUnique.mockResolvedValue(userSetting);
+
+      const result = await service.findOne('github', 'webhook_secret', 'user-1');
+
+      expect(result.id).toBe('setting-1');
       expect(prisma.settings.findUnique).toHaveBeenCalledWith({
         where: {
           userId_provider_settingType: {
-            userId: null,
+            userId: 'user-1',
             provider: 'github',
             settingType: 'webhook_secret',
           },
@@ -252,7 +281,7 @@ describe('SettingsService', () => {
     });
 
     it('設定が見つからない場合はNotFoundExceptionをスローすること', async () => {
-      mockPrismaService.settings.findUnique.mockResolvedValue(null);
+      mockPrismaService.settings.findFirst.mockResolvedValue(null);
 
       await expect(service.findOne('github', 'webhook_secret')).rejects.toThrow(NotFoundException);
       await expect(service.findOne('github', 'webhook_secret')).rejects.toThrow(
@@ -273,7 +302,7 @@ describe('SettingsService', () => {
     };
 
     it('グローバル設定の復号化された値を取得できること', async () => {
-      mockPrismaService.settings.findUnique.mockResolvedValue(mockSetting);
+      mockPrismaService.settings.findFirst.mockResolvedValue(mockSetting);
 
       const result = await service.getDecryptedValue('github', 'webhook_secret');
 
@@ -282,7 +311,7 @@ describe('SettingsService', () => {
     });
 
     it('設定が見つからない場合はnullを返すこと', async () => {
-      mockPrismaService.settings.findUnique.mockResolvedValue(null);
+      mockPrismaService.settings.findFirst.mockResolvedValue(null);
 
       const result = await service.getDecryptedValue('github', 'webhook_secret');
 
@@ -309,16 +338,14 @@ describe('SettingsService', () => {
     });
 
     it('userId指定時にユーザー別設定がなければグローバル設定にフォールバックすること', async () => {
-      mockPrismaService.settings.findUnique
-        .mockResolvedValueOnce(null) // ユーザー別設定なし
-        .mockResolvedValueOnce(mockSetting); // グローバル設定あり
+      mockPrismaService.settings.findUnique.mockResolvedValue(null); // ユーザー別設定なし
+      mockPrismaService.settings.findFirst.mockResolvedValue(mockSetting); // グローバル設定あり
 
       const result = await service.getDecryptedValue('slack', 'target_channel_id', 'user-1');
 
       expect(result).toBe('my-secret');
-      expect(prisma.settings.findUnique).toHaveBeenCalledTimes(2);
-      // 1回目: ユーザー別設定の検索
-      expect(prisma.settings.findUnique).toHaveBeenNthCalledWith(1, {
+      // ユーザー別設定の検索（findUnique）
+      expect(prisma.settings.findUnique).toHaveBeenCalledWith({
         where: {
           userId_provider_settingType: {
             userId: 'user-1',
@@ -327,14 +354,12 @@ describe('SettingsService', () => {
           },
         },
       });
-      // 2回目: グローバル設定の検索
-      expect(prisma.settings.findUnique).toHaveBeenNthCalledWith(2, {
+      // グローバル設定の検索（findFirst）
+      expect(prisma.settings.findFirst).toHaveBeenCalledWith({
         where: {
-          userId_provider_settingType: {
-            userId: null,
-            provider: 'slack',
-            settingType: 'target_channel_id',
-          },
+          userId: null,
+          provider: 'slack',
+          settingType: 'target_channel_id',
         },
       });
     });
@@ -351,25 +376,47 @@ describe('SettingsService', () => {
       updatedAt: new Date('2024-01-01'),
     };
 
-    it('設定を削除できること', async () => {
-      mockPrismaService.settings.findUnique.mockResolvedValue(mockSetting);
+    it('グローバル設定を削除できること', async () => {
+      mockPrismaService.settings.findFirst.mockResolvedValue(mockSetting);
       mockPrismaService.settings.delete.mockResolvedValue(mockSetting);
 
       await service.remove('github', 'webhook_secret');
 
+      expect(prisma.settings.findFirst).toHaveBeenCalledWith({
+        where: {
+          userId: null,
+          provider: 'github',
+          settingType: 'webhook_secret',
+        },
+      });
       expect(prisma.settings.delete).toHaveBeenCalledWith({
+        where: { id: 'setting-1' },
+      });
+    });
+
+    it('ユーザー別設定を削除できること', async () => {
+      const userSetting = { ...mockSetting, userId: 'user-1' };
+      mockPrismaService.settings.findUnique.mockResolvedValue(userSetting);
+      mockPrismaService.settings.delete.mockResolvedValue(userSetting);
+
+      await service.remove('github', 'webhook_secret', 'user-1');
+
+      expect(prisma.settings.findUnique).toHaveBeenCalledWith({
         where: {
           userId_provider_settingType: {
-            userId: null,
+            userId: 'user-1',
             provider: 'github',
             settingType: 'webhook_secret',
           },
         },
       });
+      expect(prisma.settings.delete).toHaveBeenCalledWith({
+        where: { id: 'setting-1' },
+      });
     });
 
     it('設定が見つからない場合はNotFoundExceptionをスローすること', async () => {
-      mockPrismaService.settings.findUnique.mockResolvedValue(null);
+      mockPrismaService.settings.findFirst.mockResolvedValue(null);
 
       await expect(service.remove('github', 'webhook_secret')).rejects.toThrow(NotFoundException);
       await expect(service.remove('github', 'webhook_secret')).rejects.toThrow(
