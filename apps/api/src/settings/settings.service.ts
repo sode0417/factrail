@@ -30,11 +30,40 @@ export class SettingsService {
    */
   async upsert(dto: CreateSettingDto, userId?: string | null): Promise<SettingResponse> {
     const encryptedValue = this.cryptoService.encrypt(dto.value);
+    const effectiveUserId = userId ?? null;
+
+    // Prisma の upsert は複合ユニークキーに null を使用できないため、
+    // userId が null の場合は findFirst + create/update で代替する
+    if (effectiveUserId === null) {
+      const existing = await this.prisma.settings.findFirst({
+        where: {
+          userId: null,
+          provider: dto.provider,
+          settingType: dto.settingType,
+        },
+      });
+
+      const setting = existing
+        ? await this.prisma.settings.update({
+            where: { id: existing.id },
+            data: { value: encryptedValue },
+          })
+        : await this.prisma.settings.create({
+            data: {
+              provider: dto.provider,
+              settingType: dto.settingType,
+              value: encryptedValue,
+              userId: null,
+            },
+          });
+
+      return this.toResponse(setting);
+    }
 
     const setting = await this.prisma.settings.upsert({
       where: {
         userId_provider_settingType: {
-          userId: userId ?? null,
+          userId: effectiveUserId,
           provider: dto.provider,
           settingType: dto.settingType,
         },
@@ -43,7 +72,7 @@ export class SettingsService {
         provider: dto.provider,
         settingType: dto.settingType,
         value: encryptedValue,
-        userId: userId ?? null,
+        userId: effectiveUserId,
       },
       update: {
         value: encryptedValue,
@@ -83,15 +112,27 @@ export class SettingsService {
     settingType: string,
     userId?: string | null,
   ): Promise<SettingResponse> {
-    const setting = await this.prisma.settings.findUnique({
-      where: {
-        userId_provider_settingType: {
-          userId: userId ?? null,
-          provider,
-          settingType,
-        },
-      },
-    });
+    const effectiveUserId = userId ?? null;
+
+    // Prisma の findUnique は複合ユニークキーに null を使用できないため分岐
+    const setting =
+      effectiveUserId !== null
+        ? await this.prisma.settings.findUnique({
+            where: {
+              userId_provider_settingType: {
+                userId: effectiveUserId,
+                provider,
+                settingType,
+              },
+            },
+          })
+        : await this.prisma.settings.findFirst({
+            where: {
+              userId: null,
+              provider,
+              settingType,
+            },
+          });
 
     if (!setting) {
       throw new NotFoundException(`設定が見つかりません: ${provider}/${settingType}`);
@@ -127,13 +168,12 @@ export class SettingsService {
     }
 
     // グローバル設定（userId=NULL）にフォールバック
-    const globalSetting = await this.prisma.settings.findUnique({
+    // Prisma の findUnique は複合ユニークキーに null を使用できないため findFirst を使用
+    const globalSetting = await this.prisma.settings.findFirst({
       where: {
-        userId_provider_settingType: {
-          userId: null,
-          provider,
-          settingType,
-        },
+        userId: null,
+        provider,
+        settingType,
       },
     });
 
@@ -148,28 +188,34 @@ export class SettingsService {
    * 設定を削除する
    */
   async remove(provider: string, settingType: string, userId?: string | null): Promise<void> {
-    const setting = await this.prisma.settings.findUnique({
-      where: {
-        userId_provider_settingType: {
-          userId: userId ?? null,
-          provider,
-          settingType,
-        },
-      },
-    });
+    const effectiveUserId = userId ?? null;
+
+    // Prisma の findUnique は複合ユニークキーに null を使用できないため分岐
+    const setting =
+      effectiveUserId !== null
+        ? await this.prisma.settings.findUnique({
+            where: {
+              userId_provider_settingType: {
+                userId: effectiveUserId,
+                provider,
+                settingType,
+              },
+            },
+          })
+        : await this.prisma.settings.findFirst({
+            where: {
+              userId: null,
+              provider,
+              settingType,
+            },
+          });
 
     if (!setting) {
       throw new NotFoundException(`設定が見つかりません: ${provider}/${settingType}`);
     }
 
     await this.prisma.settings.delete({
-      where: {
-        userId_provider_settingType: {
-          userId: userId ?? null,
-          provider,
-          settingType,
-        },
-      },
+      where: { id: setting.id },
     });
   }
 
