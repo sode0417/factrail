@@ -59,7 +59,7 @@ describe('SettingsController', () => {
       const result = await controller.upsert(mockRequest, createDto);
 
       expect(result).toEqual(mockSettingResponse);
-      expect(service.upsert).toHaveBeenCalledWith(createDto);
+      expect(service.upsert).toHaveBeenCalledWith(createDto, 'user-1');
     });
 
     it('レスポンスに値が含まれないこと', async () => {
@@ -121,13 +121,13 @@ describe('SettingsController', () => {
   });
 
   describe('findOne', () => {
-    it('特定の設定を取得できること', async () => {
+    it('特定の設定を取得できること（ユーザーIDを渡す）', async () => {
       mockSettingsService.findOne.mockResolvedValue(mockSettingResponse);
 
-      const result = await controller.findOne('github', 'webhook_secret');
+      const result = await controller.findOne(mockRequest, 'github', 'webhook_secret');
 
       expect(result).toEqual(mockSettingResponse);
-      expect(service.findOne).toHaveBeenCalledWith('github', 'webhook_secret');
+      expect(service.findOne).toHaveBeenCalledWith('github', 'webhook_secret', 'user-1');
     });
 
     it('異なるプロバイダーとタイプで取得できること', async () => {
@@ -141,26 +141,26 @@ describe('SettingsController', () => {
       };
       mockSettingsService.findOne.mockResolvedValue(slackSetting);
 
-      const result = await controller.findOne('slack', 'client_id');
+      const result = await controller.findOne(mockRequest, 'slack', 'client_id');
 
       expect(result).toEqual(slackSetting);
-      expect(service.findOne).toHaveBeenCalledWith('slack', 'client_id');
+      expect(service.findOne).toHaveBeenCalledWith('slack', 'client_id', 'user-1');
     });
   });
 
   describe('remove', () => {
-    it('設定を削除できること', async () => {
+    it('設定を削除できること（ユーザーIDを渡す）', async () => {
       mockSettingsService.remove.mockResolvedValue(undefined);
 
-      await controller.remove('github', 'webhook_secret');
+      await controller.remove(mockRequest, 'github', 'webhook_secret');
 
-      expect(service.remove).toHaveBeenCalledWith('github', 'webhook_secret');
+      expect(service.remove).toHaveBeenCalledWith('github', 'webhook_secret', 'user-1');
     });
 
     it('削除時に値を返さないこと', async () => {
       mockSettingsService.remove.mockResolvedValue(undefined);
 
-      const result = await controller.remove('github', 'webhook_secret');
+      const result = await controller.remove(mockRequest, 'github', 'webhook_secret');
 
       expect(result).toBeUndefined();
     });

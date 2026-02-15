@@ -56,7 +56,7 @@ export class SettingsService {
   /**
    * 全ての設定を取得する（値は非表示）
    * @param provider プロバイダーでフィルタ
-   * @param userId ユーザーID（指定時はそのユーザーの設定+グローバル設定を返す）
+   * @param userId ユーザーID（指定時はそのユーザーの設定のみ返す）
    */
   async findAll(provider?: string, userId?: string | null): Promise<SettingResponse[]> {
     const where: Record<string, unknown> = {};
@@ -64,8 +64,7 @@ export class SettingsService {
       where.provider = provider;
     }
     if (userId) {
-      // ユーザー別設定とグローバル設定（userId=NULL）の両方を返す
-      where.OR = [{ userId }, { userId: null }];
+      where.userId = userId;
     }
 
     const settings = await this.prisma.settings.findMany({
