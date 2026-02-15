@@ -21,9 +21,18 @@ import {
   Tooltip,
   useToast,
   Spinner,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalCloseButton,
+  useDisclosure,
+  InputGroup,
+  InputLeftElement,
 } from '@chakra-ui/react';
 import { MainLayout } from '@/components/layout';
-import { FiGithub, FiCopy, FiCheck, FiExternalLink, FiSave } from 'react-icons/fi';
+import { FiGithub, FiCopy, FiCheck, FiExternalLink, FiSave, FiTrash2, FiPlus, FiSearch, FiZap } from 'react-icons/fi';
 import { useState, useEffect, useCallback } from 'react';
 import apiClient from '@/lib/axios';
 
@@ -38,6 +47,25 @@ interface SettingResponse {
   updatedAt: string;
 }
 
+interface Repository {
+  id: string;
+  fullName: string;
+  owner: string;
+  name: string;
+  isPrivate: boolean;
+  status: string;
+  lastEventAt: string | null;
+  createdAt: string;
+}
+
+interface GitHubRepoInfo {
+  fullName: string;
+  name: string;
+  owner: string;
+  isPrivate: boolean;
+  htmlUrl: string;
+}
+
 export default function GitHubSetupPage() {
   const [webhookSecret, setWebhookSecret] = useState('');
   const [isConfigured, setIsConfigured] = useState(false);
@@ -45,6 +73,17 @@ export default function GitHubSetupPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isNewSecret, setIsNewSecret] = useState(false);
   const toast = useToast();
+
+  // Repository state
+  const [repositories, setRepositories] = useState<Repository[]>([]);
+  const [isLoadingRepos, setIsLoadingRepos] = useState(true);
+  const [availableRepos, setAvailableRepos] = useState<GitHubRepoInfo[]>([]);
+  const [isLoadingAvailable, setIsLoadingAvailable] = useState(false);
+  const [searchFilter, setSearchFilter] = useState('');
+  const [addingRepo, setAddingRepo] = useState<string | null>(null);
+  const [removingRepo, setRemovingRepo] = useState<string | null>(null);
+  const [isDetecting, setIsDetecting] = useState(false);
+  const { isOpen, onOpen, onClose } = useDisclosure();
 
   const webhookUrl = typeof window !== 'undefined'
     ? `${API_URL}/webhooks/github`
@@ -68,9 +107,23 @@ export default function GitHubSetupPage() {
     }
   }, []);
 
+  // 登録済みリポジトリを取得
+  const fetchRepositories = useCallback(async () => {
+    try {
+      const response = await apiClient.get<Repository[]>('/repositories');
+      setRepositories(response.data);
+    } catch (_error) {
+      // GitHub連携がない場合は空配列
+      setRepositories([]);
+    } finally {
+      setIsLoadingRepos(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchSettings();
-  }, [fetchSettings]);
+    fetchRepositories();
+  }, [fetchSettings, fetchRepositories]);
 
   const generateSecret = () => {
     const array = new Uint8Array(32);
@@ -116,6 +169,127 @@ export default function GitHubSetupPage() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  // リポジトリ追加モーダルを開く
+  const openAddModal = async () => {
+    onOpen();
+    setIsLoadingAvailable(true);
+    setSearchFilter('');
+    try {
+      const response = await apiClient.get<GitHubRepoInfo[]>('/repositories/github/available');
+      setAvailableRepos(response.data);
+    } catch (error) {
+      console.error('Failed to fetch available repos:', error);
+      toast({
+        title: 'リポジトリ一覧の取得に失敗しました',
+        description: 'GitHub連携を確認してください',
+        status: 'error',
+        duration: 3000,
+      });
+    } finally {
+      setIsLoadingAvailable(false);
+    }
+  };
+
+  // リポジトリを追加
+  const addRepository = async (fullName: string) => {
+    setAddingRepo(fullName);
+    try {
+      await apiClient.post('/repositories', { fullName });
+      toast({
+        title: 'リポジトリを追加しました',
+        description: fullName,
+        status: 'success',
+        duration: 3000,
+      });
+      await fetchRepositories();
+    } catch (error: unknown) {
+      const axiosError = error as { response?: { data?: { message?: string } } };
+      toast({
+        title: '追加に失敗しました',
+        description: axiosError.response?.data?.message || 'エラーが発生しました',
+        status: 'error',
+        duration: 3000,
+      });
+    } finally {
+      setAddingRepo(null);
+    }
+  };
+
+  // リポジトリを削除
+  const removeRepository = async (id: string) => {
+    setRemovingRepo(id);
+    try {
+      await apiClient.delete(`/repositories/${id}`);
+      toast({
+        title: 'リポジトリを削除しました',
+        status: 'success',
+        duration: 3000,
+      });
+      await fetchRepositories();
+    } catch (error) {
+      console.error('Failed to remove repository:', error);
+      toast({
+        title: '削除に失敗しました',
+        status: 'error',
+        duration: 3000,
+      });
+    } finally {
+      setRemovingRepo(null);
+    }
+  };
+
+  // 既存Factsから自動検出
+  const detectRepositories = async () => {
+    setIsDetecting(true);
+    try {
+      const response = await apiClient.post<{ added: string[] }>('/repositories/detect');
+      const { added } = response.data;
+      if (added.length > 0) {
+        toast({
+          title: `${added.length}件のリポジトリを検出しました`,
+          description: added.join(', '),
+          status: 'success',
+          duration: 5000,
+        });
+        await fetchRepositories();
+      } else {
+        toast({
+          title: '新しいリポジトリは見つかりませんでした',
+          status: 'info',
+          duration: 3000,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to detect repositories:', error);
+      toast({
+        title: '自動検出に失敗しました',
+        status: 'error',
+        duration: 3000,
+      });
+    } finally {
+      setIsDetecting(false);
+    }
+  };
+
+  // 利用可能リポジトリをフィルタ（登録済みを除外 + 検索フィルタ）
+  const registeredNames = new Set(repositories.map(r => r.fullName));
+  const filteredAvailableRepos = availableRepos.filter(repo => {
+    if (registeredNames.has(repo.fullName)) return false;
+    if (searchFilter && !repo.fullName.toLowerCase().includes(searchFilter.toLowerCase())) return false;
+    return true;
+  });
+
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return '-';
+    return new Date(dateStr).toLocaleDateString('ja-JP', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
   return (
@@ -336,6 +510,96 @@ export default function GitHubSetupPage() {
           </CardBody>
         </Card>
 
+        {/* Repository Management Card */}
+        <Card bg="gray.800" borderColor="gray.700" borderWidth="1px">
+          <CardHeader>
+            <HStack justify="space-between">
+              <Text fontSize="lg" fontWeight="semibold">
+                リポジトリ管理
+              </Text>
+              <HStack spacing={2}>
+                <Button
+                  size="sm"
+                  leftIcon={<FiZap />}
+                  variant="outline"
+                  colorScheme="yellow"
+                  onClick={detectRepositories}
+                  isLoading={isDetecting}
+                  loadingText="検出中"
+                >
+                  自動検出
+                </Button>
+                <Button
+                  size="sm"
+                  leftIcon={<FiPlus />}
+                  colorScheme="brand"
+                  onClick={openAddModal}
+                >
+                  追加
+                </Button>
+              </HStack>
+            </HStack>
+          </CardHeader>
+          <CardBody>
+            {isLoadingRepos ? (
+              <HStack justify="center" py={4}>
+                <Spinner size="sm" />
+                <Text color="gray.400">読み込み中...</Text>
+              </HStack>
+            ) : repositories.length === 0 ? (
+              <Box bg="gray.900" p={4} borderRadius="lg">
+                <Text color="gray.400" fontSize="sm">
+                  リポジトリが登録されていません。リポジトリを追加すると、登録済みリポジトリからのイベントのみがFactとして記録されます。
+                </Text>
+                <Text color="gray.500" fontSize="xs" mt={2}>
+                  リポジトリ未登録の場合、すべてのリポジトリからのイベントが記録されます。
+                </Text>
+              </Box>
+            ) : (
+              <VStack spacing={3} align="stretch">
+                {repositories.map((repo) => (
+                  <HStack
+                    key={repo.id}
+                    bg="gray.900"
+                    p={3}
+                    borderRadius="lg"
+                    justify="space-between"
+                  >
+                    <HStack spacing={3}>
+                      <Icon as={FiGithub} color="gray.400" />
+                      <Box>
+                        <HStack spacing={2}>
+                          <Text fontSize="sm" fontWeight="medium">
+                            {repo.fullName}
+                          </Text>
+                          <Badge
+                            colorScheme={repo.isPrivate ? 'orange' : 'green'}
+                            fontSize="xs"
+                          >
+                            {repo.isPrivate ? 'Private' : 'Public'}
+                          </Badge>
+                        </HStack>
+                        <Text fontSize="xs" color="gray.500">
+                          最終イベント: {formatDate(repo.lastEventAt)}
+                        </Text>
+                      </Box>
+                    </HStack>
+                    <IconButton
+                      aria-label="Remove repository"
+                      icon={removingRepo === repo.id ? <Spinner size="xs" /> : <FiTrash2 />}
+                      size="sm"
+                      variant="ghost"
+                      colorScheme="red"
+                      onClick={() => removeRepository(repo.id)}
+                      isLoading={removingRepo === repo.id}
+                    />
+                  </HStack>
+                ))}
+              </VStack>
+            )}
+          </CardBody>
+        </Card>
+
         {/* External Link */}
         <Button
           as="a"
@@ -348,6 +612,89 @@ export default function GitHubSetupPage() {
           GitHub設定を開く
         </Button>
       </VStack>
+
+      {/* Add Repository Modal */}
+      <Modal isOpen={isOpen} onClose={onClose} size="lg">
+        <ModalOverlay />
+        <ModalContent bg="gray.800" borderColor="gray.700" borderWidth="1px">
+          <ModalHeader>リポジトリを追加</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody pb={6}>
+            <VStack spacing={4} align="stretch">
+              <InputGroup>
+                <InputLeftElement>
+                  <FiSearch color="gray" />
+                </InputLeftElement>
+                <Input
+                  placeholder="リポジトリ名で検索..."
+                  value={searchFilter}
+                  onChange={(e) => setSearchFilter(e.target.value)}
+                  bg="gray.900"
+                  borderColor="gray.700"
+                />
+              </InputGroup>
+
+              {isLoadingAvailable ? (
+                <HStack justify="center" py={8}>
+                  <Spinner size="sm" />
+                  <Text color="gray.400">GitHub APIから取得中...</Text>
+                </HStack>
+              ) : filteredAvailableRepos.length === 0 ? (
+                <Box py={4}>
+                  <Text color="gray.400" fontSize="sm" textAlign="center">
+                    {searchFilter ? '検索結果がありません' : '追加可能なリポジトリがありません'}
+                  </Text>
+                </Box>
+              ) : (
+                <VStack
+                  spacing={2}
+                  align="stretch"
+                  maxH="400px"
+                  overflowY="auto"
+                  pr={2}
+                >
+                  {filteredAvailableRepos.map((repo) => (
+                    <HStack
+                      key={repo.fullName}
+                      bg="gray.900"
+                      p={3}
+                      borderRadius="lg"
+                      justify="space-between"
+                      _hover={{ bg: 'gray.750' }}
+                    >
+                      <HStack spacing={3}>
+                        <Icon as={FiGithub} color="gray.400" />
+                        <Box>
+                          <HStack spacing={2}>
+                            <Text fontSize="sm" fontWeight="medium">
+                              {repo.fullName}
+                            </Text>
+                            <Badge
+                              colorScheme={repo.isPrivate ? 'orange' : 'green'}
+                              fontSize="xs"
+                            >
+                              {repo.isPrivate ? 'Private' : 'Public'}
+                            </Badge>
+                          </HStack>
+                        </Box>
+                      </HStack>
+                      <Button
+                        size="sm"
+                        colorScheme="brand"
+                        onClick={() => addRepository(repo.fullName)}
+                        isLoading={addingRepo === repo.fullName}
+                        loadingText="追加中"
+                      >
+                        追加
+                      </Button>
+                    </HStack>
+                  ))}
+                </VStack>
+              )}
+            </VStack>
+          </ModalBody>
+        </ModalContent>
+      </Modal>
     </MainLayout>
   );
 }

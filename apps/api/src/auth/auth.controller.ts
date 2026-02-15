@@ -136,8 +136,8 @@ export class AuthController {
         provider: 'github',
         accountId: user.githubUsername,
         accountName: user.githubUsername,
-        accessToken: 'oauth-login', // OAuthログイン用のプレースホルダー
-        scope: ['user:email'],
+        accessToken: user.githubAccessToken,
+        scope: ['user:email', 'read:user', 'repo'],
       });
     }
 
