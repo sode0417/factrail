@@ -177,11 +177,23 @@ export class SettingsService {
       },
     });
 
-    if (!globalSetting) {
+    if (globalSetting) {
+      return this.cryptoService.decrypt(globalSetting.value);
+    }
+
+    // ユーザーを問わず最初に見つかった設定にフォールバック（Webhook シークレット等のシステム共有設定用）
+    const anySetting = await this.prisma.settings.findFirst({
+      where: {
+        provider,
+        settingType,
+      },
+    });
+
+    if (!anySetting) {
       return null;
     }
 
-    return this.cryptoService.decrypt(globalSetting.value);
+    return this.cryptoService.decrypt(anySetting.value);
   }
 
   /**

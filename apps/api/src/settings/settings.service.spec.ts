@@ -310,7 +310,26 @@ describe('SettingsService', () => {
       expect(crypto.decrypt).toHaveBeenCalledWith('encrypted-my-secret');
     });
 
-    it('設定が見つからない場合はnullを返すこと', async () => {
+    it('グローバル設定がなくてもユーザー別設定にフォールバックすること', async () => {
+      const userSetting = { ...mockSetting, userId: 'user-1' };
+      mockPrismaService.settings.findFirst
+        .mockResolvedValueOnce(null) // グローバル設定なし
+        .mockResolvedValueOnce(userSetting); // ユーザー別設定あり
+
+      const result = await service.getDecryptedValue('github', 'webhook_secret');
+
+      expect(result).toBe('my-secret');
+      expect(prisma.settings.findFirst).toHaveBeenCalledTimes(2);
+      // 2回目: ユーザーを問わず検索
+      expect(prisma.settings.findFirst).toHaveBeenNthCalledWith(2, {
+        where: {
+          provider: 'github',
+          settingType: 'webhook_secret',
+        },
+      });
+    });
+
+    it('全ての設定が見つからない場合はnullを返すこと', async () => {
       mockPrismaService.settings.findFirst.mockResolvedValue(null);
 
       const result = await service.getDecryptedValue('github', 'webhook_secret');
