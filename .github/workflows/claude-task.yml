@@ -34,6 +34,7 @@ jobs:
         id: claude
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           BRANCH_NAME="claude-task/$(date +%Y%m%d-%H%M%S)"
           git checkout -b "$BRANCH_NAME"
@@ -86,5 +87,3 @@ jobs:
             echo "has_changes=false" >> "$GITHUB_OUTPUT"
             echo "No changes were made by Claude Code"
           fi
-        env:
-          GH_TOKEN: ${{ github.token }}
