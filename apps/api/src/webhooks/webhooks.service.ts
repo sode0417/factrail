@@ -122,6 +122,7 @@ export class WebhooksService {
   /**
    * GitHubリポジトリに紐付くユーザーIDを取得する
    * リポジトリ名からowner (username/org) を抽出し、Integration.accountIdとマッチングする
+   * Repositoryが登録されている場合、登録済みリポジトリのみ許可する
    */
   private async findUserIdForGitHubEvent(repository: string): Promise<string | null> {
     // リポジトリ名から所有者を抽出 (例: "sode0417/factrail" -> "sode0417")
@@ -138,7 +139,10 @@ export class WebhooksService {
         provider: 'github',
         accountId: owner,
       },
-      include: { user: true },
+      include: {
+        user: true,
+        repositories: true,
+      },
     });
 
     if (!integration) {
@@ -147,6 +151,24 @@ export class WebhooksService {
           `ヒント: /auth/github にアクセスして、GitHubアカウント "${owner}" で認証を行ってください。`,
       );
       return null;
+    }
+
+    // リポジトリフィルタリング: Repositoryが1件以上登録されている場合のみフィルタ
+    if (integration.repositories.length > 0) {
+      const registered = integration.repositories.find(
+        (r) => r.fullName === repository && r.status === 'active',
+      );
+
+      if (!registered) {
+        this.logger.warn(`未登録のリポジトリからのイベントです。Factを作成しません: ${repository}`);
+        return null;
+      }
+
+      // lastEventAt を更新
+      await this.prisma.repository.update({
+        where: { id: registered.id },
+        data: { lastEventAt: new Date() },
+      });
     }
 
     return integration.userId;

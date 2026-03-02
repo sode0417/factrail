@@ -60,12 +60,36 @@ model Integration {
   userId String @map("user_id")
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  repositories Repository[]
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@unique([provider, accountId])
   @@index([userId])
   @@map("integrations")
+  @@schema("factrail")
+}
+
+model Repository {
+  id            String      @id @default(uuid())
+  integrationId String      @map("integration_id")
+  integration   Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  fullName  String  @map("full_name")
+  owner     String
+  name      String
+  isPrivate Boolean @default(false) @map("is_private")
+  status    String  @default("active")
+
+  lastEventAt DateTime? @map("last_event_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@unique([integrationId, fullName])
+  @@index([fullName])
+  @@index([owner])
+  @@map("repositories")
   @@schema("factrail")
 }
 

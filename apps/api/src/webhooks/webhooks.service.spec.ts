@@ -23,6 +23,9 @@ describe('WebhooksService', () => {
       findMany: jest.fn(),
       findFirst: jest.fn(),
     },
+    repository: {
+      update: jest.fn(),
+    },
   };
 
   const mockIntegrationsService = {};
@@ -123,6 +126,7 @@ describe('WebhooksService', () => {
       provider: 'github',
       accountId: 'test',
       user: { id: 'user-123' },
+      repositories: [],
     };
 
     const mockFact = {
@@ -405,6 +409,7 @@ describe('WebhooksService', () => {
         provider: 'github',
         accountId: 'test',
         user: { id: userId },
+        repositories: [],
       };
       mockPrismaService.integration.findFirst.mockResolvedValue(mockIntegration);
 
@@ -457,6 +462,7 @@ describe('WebhooksService', () => {
         provider: 'github',
         accountId: 'test',
         user: { id: userId },
+        repositories: [],
       };
       mockPrismaService.integration.findFirst.mockResolvedValue(mockIntegration);
 
@@ -491,6 +497,7 @@ describe('WebhooksService', () => {
         provider: 'github',
         accountId: 'sode0417',
         user: { id: 'user-123' },
+        repositories: [],
       };
       mockPrismaService.integration.findFirst.mockResolvedValue(mockIntegration);
       mockPrismaService.fact.upsert.mockResolvedValue({
@@ -524,7 +531,7 @@ describe('WebhooksService', () => {
           provider: 'github',
           accountId: 'sode0417',
         },
-        include: { user: true },
+        include: { user: true, repositories: true },
       });
     });
 
@@ -556,7 +563,7 @@ describe('WebhooksService', () => {
           provider: 'github',
           accountId: 'otheruser',
         },
-        include: { user: true },
+        include: { user: true, repositories: true },
       });
     });
 
@@ -567,6 +574,7 @@ describe('WebhooksService', () => {
         provider: 'github',
         accountId: 'myorg',
         user: { id: 'user-123' },
+        repositories: [],
       };
       mockPrismaService.integration.findFirst.mockResolvedValue(mockIntegration);
       mockPrismaService.fact.upsert.mockResolvedValue({
@@ -600,8 +608,142 @@ describe('WebhooksService', () => {
           provider: 'github',
           accountId: 'myorg',
         },
-        include: { user: true },
+        include: { user: true, repositories: true },
       });
+    });
+  });
+
+  describe('repository filtering', () => {
+    const issuePayload = {
+      action: 'opened',
+      issue: {
+        number: 1,
+        title: 'Test Issue',
+        html_url: 'https://github.com/test/repo/issues/1',
+        user: { login: 'testuser' },
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+      },
+      repository: {
+        full_name: 'test/repo',
+        html_url: 'https://github.com/test/repo',
+      },
+      sender: { login: 'testuser' },
+    };
+
+    it('Repository未登録時（0件）は全イベントを許可すること（後方互換）', async () => {
+      const integrationNoRepos = {
+        id: 'int-1',
+        userId: 'user-123',
+        provider: 'github',
+        accountId: 'test',
+        user: { id: 'user-123' },
+        repositories: [],
+      };
+      mockPrismaService.integration.findFirst.mockResolvedValue(integrationNoRepos);
+      mockPrismaService.fact.upsert.mockResolvedValue({
+        id: 'fact-1',
+        userId: 'user-123',
+        slackMessageId: null,
+      });
+
+      const result = await service.processGitHubEvent('issues', issuePayload);
+
+      expect(result).toEqual({ factId: 'fact-1' });
+      expect(mockPrismaService.repository.update).not.toHaveBeenCalled();
+    });
+
+    it('登録済みリポジトリからのイベントを許可し、lastEventAtを更新すること', async () => {
+      const integrationWithRepos = {
+        id: 'int-1',
+        userId: 'user-123',
+        provider: 'github',
+        accountId: 'test',
+        user: { id: 'user-123' },
+        repositories: [
+          {
+            id: 'repo-1',
+            integrationId: 'int-1',
+            fullName: 'test/repo',
+            owner: 'test',
+            name: 'repo',
+            isPrivate: false,
+            status: 'active',
+            lastEventAt: null,
+          },
+        ],
+      };
+      mockPrismaService.integration.findFirst.mockResolvedValue(integrationWithRepos);
+      mockPrismaService.fact.upsert.mockResolvedValue({
+        id: 'fact-1',
+        userId: 'user-123',
+        slackMessageId: null,
+      });
+      mockPrismaService.repository.update.mockResolvedValue({});
+
+      const result = await service.processGitHubEvent('issues', issuePayload);
+
+      expect(result).toEqual({ factId: 'fact-1' });
+      expect(mockPrismaService.repository.update).toHaveBeenCalledWith({
+        where: { id: 'repo-1' },
+        data: { lastEventAt: expect.any(Date) },
+      });
+    });
+
+    it('未登録リポジトリからのイベントを拒否すること', async () => {
+      const integrationWithOtherRepos = {
+        id: 'int-1',
+        userId: 'user-123',
+        provider: 'github',
+        accountId: 'test',
+        user: { id: 'user-123' },
+        repositories: [
+          {
+            id: 'repo-1',
+            integrationId: 'int-1',
+            fullName: 'test/other-repo',
+            owner: 'test',
+            name: 'other-repo',
+            isPrivate: false,
+            status: 'active',
+            lastEventAt: null,
+          },
+        ],
+      };
+      mockPrismaService.integration.findFirst.mockResolvedValue(integrationWithOtherRepos);
+
+      const result = await service.processGitHubEvent('issues', issuePayload);
+
+      expect(result).toBeNull();
+      expect(mockPrismaService.fact.upsert).not.toHaveBeenCalled();
+    });
+
+    it('inactiveリポジトリからのイベントを拒否すること', async () => {
+      const integrationWithInactiveRepo = {
+        id: 'int-1',
+        userId: 'user-123',
+        provider: 'github',
+        accountId: 'test',
+        user: { id: 'user-123' },
+        repositories: [
+          {
+            id: 'repo-1',
+            integrationId: 'int-1',
+            fullName: 'test/repo',
+            owner: 'test',
+            name: 'repo',
+            isPrivate: false,
+            status: 'inactive',
+            lastEventAt: null,
+          },
+        ],
+      };
+      mockPrismaService.integration.findFirst.mockResolvedValue(integrationWithInactiveRepo);
+
+      const result = await service.processGitHubEvent('issues', issuePayload);
+
+      expect(result).toBeNull();
+      expect(mockPrismaService.fact.upsert).not.toHaveBeenCalled();
     });
   });
 });
