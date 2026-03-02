@@ -14,7 +14,7 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
       clientID: configService.get('GITHUB_CLIENT_ID'),
       clientSecret: configService.get('GITHUB_CLIENT_SECRET'),
       callbackURL: configService.get('GITHUB_CALLBACK_URL'),
-      scope: ['user:email'],
+      scope: ['user:email', 'read:user', 'repo'],
     });
   }
 
@@ -26,6 +26,6 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
       name: profile.displayName || profile.username,
       avatar: profile.photos[0]?.value,
     });
-    return { ...user, githubUsername: profile.username };
+    return { ...user, githubUsername: profile.username, githubAccessToken: accessToken };
   }
 }

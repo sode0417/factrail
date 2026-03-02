@@ -154,7 +154,9 @@ describe('AuthController', () => {
       });
       expect(authService.createAuthCode).toHaveBeenCalledWith(mockLoginData);
       // ワンタイム認証コード付きでリダイレクト
-      expect(mockResponse.redirect).toHaveBeenCalledWith(`http://localhost:3000/auth/callback?code=${mockAuthCode}`);
+      expect(mockResponse.redirect).toHaveBeenCalledWith(
+        `http://localhost:3000/auth/callback?code=${mockAuthCode}`,
+      );
     });
 
     it('user-agentヘッダーなしでGoogle OAuthコールバックを処理すること', async () => {
@@ -178,7 +180,9 @@ describe('AuthController', () => {
         ip: '10.0.0.1',
       });
       expect(authService.createAuthCode).toHaveBeenCalledWith(mockLoginData);
-      expect(mockResponse.redirect).toHaveBeenCalledWith(`http://localhost:3000/auth/callback?code=${mockAuthCode}`);
+      expect(mockResponse.redirect).toHaveBeenCalledWith(
+        `http://localhost:3000/auth/callback?code=${mockAuthCode}`,
+      );
     });
   });
 
@@ -193,7 +197,7 @@ describe('AuthController', () => {
   describe('githubAuthCallback', () => {
     it('GitHub OAuthコールバックを処理してリダイレクトすること', async () => {
       const mockRequest = {
-        user: { ...mockUser, githubUsername: 'testuser' },
+        user: { ...mockUser, githubUsername: 'testuser', githubAccessToken: 'gh-access-token-123' },
         ip: '127.0.0.1',
       } as unknown as Request;
       const mockResponse = {
@@ -209,7 +213,7 @@ describe('AuthController', () => {
       await controller.githubAuthCallback(mockRequest, mockResponse, userAgent);
 
       expect(authService.login).toHaveBeenCalledWith(
-        { ...mockUser, githubUsername: 'testuser' },
+        { ...mockUser, githubUsername: 'testuser', githubAccessToken: 'gh-access-token-123' },
         {
           userAgent,
           ip: '127.0.0.1',
@@ -219,12 +223,14 @@ describe('AuthController', () => {
         provider: 'github',
         accountId: 'testuser',
         accountName: 'testuser',
-        accessToken: 'oauth-login',
-        scope: ['user:email'],
+        accessToken: 'gh-access-token-123',
+        scope: ['user:email', 'read:user', 'repo'],
       });
       expect(authService.createAuthCode).toHaveBeenCalledWith(mockLoginData);
       // ワンタイム認証コード付きでリダイレクト
-      expect(mockResponse.redirect).toHaveBeenCalledWith(`http://localhost:3000/auth/callback?code=${mockAuthCode}`);
+      expect(mockResponse.redirect).toHaveBeenCalledWith(
+        `http://localhost:3000/auth/callback?code=${mockAuthCode}`,
+      );
     });
 
     it('user-agentヘッダーなしでGitHub OAuthコールバックを処理すること', async () => {
@@ -248,7 +254,9 @@ describe('AuthController', () => {
         ip: '172.16.0.1',
       });
       expect(authService.createAuthCode).toHaveBeenCalledWith(mockLoginData);
-      expect(mockResponse.redirect).toHaveBeenCalledWith(`http://localhost:3000/auth/callback?code=${mockAuthCode}`);
+      expect(mockResponse.redirect).toHaveBeenCalledWith(
+        `http://localhost:3000/auth/callback?code=${mockAuthCode}`,
+      );
     });
   });
 

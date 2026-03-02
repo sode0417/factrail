@@ -13,6 +13,7 @@ import { CryptoModule } from './common/crypto';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { SettingsModule } from './settings/settings.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
+import { RepositoriesModule } from './repositories/repositories.module';
 import { DispatchersModule } from './dispatchers/dispatchers.module';
 
 @Module({
@@ -62,6 +63,7 @@ import { DispatchersModule } from './dispatchers/dispatchers.module';
     FactsModule,
     HealthModule,
     IntegrationsModule,
+    RepositoriesModule,
     SettingsModule,
     WebhooksModule,
   ],
