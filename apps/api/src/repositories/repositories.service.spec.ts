@@ -1,8 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { RepositoriesService } from './repositories.service';
 import { PrismaService } from '../prisma.service';
 import { IntegrationsService } from '../integrations/integrations.service';
+import { SettingsService } from '../settings/settings.service';
 import { GitHubApiService } from './github-api.service';
 
 describe('RepositoriesService', () => {
@@ -28,6 +30,16 @@ describe('RepositoriesService', () => {
   const mockGitHubApiService = {
     listRepositories: jest.fn(),
     getRepository: jest.fn(),
+    createWebhook: jest.fn(),
+    deleteWebhook: jest.fn(),
+  };
+
+  const mockSettingsService = {
+    getDecryptedValue: jest.fn(),
+  };
+
+  const mockConfigService = {
+    get: jest.fn(),
   };
 
   const userId = 'user-123';
@@ -62,6 +74,14 @@ describe('RepositoriesService', () => {
         {
           provide: GitHubApiService,
           useValue: mockGitHubApiService,
+        },
+        {
+          provide: SettingsService,
+          useValue: mockSettingsService,
+        },
+        {
+          provide: ConfigService,
+          useValue: mockConfigService,
         },
       ],
     }).compile();
@@ -138,16 +158,20 @@ describe('RepositoriesService', () => {
   });
 
   describe('add', () => {
-    it('リポジトリを追加できること', async () => {
-      const repoInfo = {
-        fullName: 'testuser/repo1',
-        name: 'repo1',
-        owner: 'testuser',
-        isPrivate: false,
-        htmlUrl: 'https://github.com/testuser/repo1',
-      };
+    const repoInfo = {
+      fullName: 'testuser/repo1',
+      name: 'repo1',
+      owner: 'testuser',
+      isPrivate: false,
+      htmlUrl: 'https://github.com/testuser/repo1',
+    };
+
+    it('リポジトリを追加しWebhookを自動作成すること', async () => {
       mockGitHubApiService.getRepository.mockResolvedValue(repoInfo);
       mockPrismaService.repository.findUnique.mockResolvedValue(null);
+      mockConfigService.get.mockReturnValue('https://api.example.com');
+      mockSettingsService.getDecryptedValue.mockResolvedValue('webhook-secret-123');
+      mockGitHubApiService.createWebhook.mockResolvedValue(42);
 
       const createdRepo = {
         id: 'repo-1',
@@ -156,6 +180,7 @@ describe('RepositoriesService', () => {
         owner: 'testuser',
         name: 'repo1',
         isPrivate: false,
+        webhookId: 42,
         status: 'active',
         lastEventAt: null,
         createdAt: new Date(),
@@ -166,10 +191,49 @@ describe('RepositoriesService', () => {
       const result = await service.add(userId, 'testuser/repo1');
 
       expect(result).toEqual(createdRepo);
-      expect(mockGitHubApiService.getRepository).toHaveBeenCalledWith(
+      expect(mockGitHubApiService.createWebhook).toHaveBeenCalledWith(
         'test-token',
         'testuser/repo1',
+        {
+          url: 'https://api.example.com/webhooks/github',
+          secret: 'webhook-secret-123',
+          events: ['issues', 'pull_request', 'push'],
+        },
       );
+      expect(mockPrismaService.repository.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ webhookId: 42 }),
+      });
+    });
+
+    it('Webhook作成に失敗してもリポジトリ追加は成功すること', async () => {
+      mockGitHubApiService.getRepository.mockResolvedValue(repoInfo);
+      mockPrismaService.repository.findUnique.mockResolvedValue(null);
+      mockConfigService.get.mockReturnValue('https://api.example.com');
+      mockSettingsService.getDecryptedValue.mockResolvedValue('webhook-secret-123');
+      mockGitHubApiService.createWebhook.mockRejectedValue(new Error('403 Forbidden'));
+      mockPrismaService.repository.create.mockResolvedValue({ id: 'repo-1' });
+
+      const result = await service.add(userId, 'testuser/repo1');
+
+      expect(result).toEqual({ id: 'repo-1' });
+      expect(mockPrismaService.repository.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ webhookId: null }),
+      });
+    });
+
+    it('API_URLが未設定の場合はWebhook作成をスキップすること', async () => {
+      mockGitHubApiService.getRepository.mockResolvedValue(repoInfo);
+      mockPrismaService.repository.findUnique.mockResolvedValue(null);
+      mockConfigService.get.mockReturnValue(undefined);
+      mockSettingsService.getDecryptedValue.mockResolvedValue('webhook-secret-123');
+      mockPrismaService.repository.create.mockResolvedValue({ id: 'repo-1' });
+
+      await service.add(userId, 'testuser/repo1');
+
+      expect(mockGitHubApiService.createWebhook).not.toHaveBeenCalled();
+      expect(mockPrismaService.repository.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ webhookId: null }),
+      });
     });
 
     it('GitHubにリポジトリが存在しない場合はNotFoundExceptionをスローすること', async () => {
@@ -179,13 +243,6 @@ describe('RepositoriesService', () => {
     });
 
     it('既に登録済みの場合はBadRequestExceptionをスローすること', async () => {
-      const repoInfo = {
-        fullName: 'testuser/repo1',
-        name: 'repo1',
-        owner: 'testuser',
-        isPrivate: false,
-        htmlUrl: 'https://github.com/testuser/repo1',
-      };
       mockGitHubApiService.getRepository.mockResolvedValue(repoInfo);
       mockPrismaService.repository.findUnique.mockResolvedValue({ id: 'existing' });
 
@@ -194,13 +251,55 @@ describe('RepositoriesService', () => {
   });
 
   describe('remove', () => {
-    it('リポジトリを削除できること', async () => {
+    it('リポジトリを削除しWebhookも自動削除すること', async () => {
       const mockRepo = {
         id: 'repo-1',
         integrationId: 'int-1',
         fullName: 'testuser/repo1',
+        webhookId: 42,
       };
       mockPrismaService.repository.findFirst.mockResolvedValue(mockRepo);
+      mockPrismaService.repository.delete.mockResolvedValue(mockRepo);
+
+      await service.remove(userId, 'repo-1');
+
+      expect(mockGitHubApiService.deleteWebhook).toHaveBeenCalledWith(
+        'test-token',
+        'testuser/repo1',
+        42,
+      );
+      expect(mockPrismaService.repository.delete).toHaveBeenCalledWith({
+        where: { id: 'repo-1' },
+      });
+    });
+
+    it('webhookIdがない場合はWebhook削除をスキップすること', async () => {
+      const mockRepo = {
+        id: 'repo-1',
+        integrationId: 'int-1',
+        fullName: 'testuser/repo1',
+        webhookId: null,
+      };
+      mockPrismaService.repository.findFirst.mockResolvedValue(mockRepo);
+      mockPrismaService.repository.delete.mockResolvedValue(mockRepo);
+
+      await service.remove(userId, 'repo-1');
+
+      expect(mockGitHubApiService.deleteWebhook).not.toHaveBeenCalled();
+      expect(mockPrismaService.repository.delete).toHaveBeenCalledWith({
+        where: { id: 'repo-1' },
+      });
+    });
+
+    it('Webhook削除に失敗してもリポジトリ削除は成功すること', async () => {
+      const mockRepo = {
+        id: 'repo-1',
+        integrationId: 'int-1',
+        fullName: 'testuser/repo1',
+        webhookId: 42,
+      };
+      mockPrismaService.repository.findFirst.mockResolvedValue(mockRepo);
+      mockGitHubApiService.deleteWebhook.mockRejectedValue(new Error('Network error'));
       mockPrismaService.repository.delete.mockResolvedValue(mockRepo);
 
       await service.remove(userId, 'repo-1');
