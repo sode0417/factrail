@@ -81,6 +81,7 @@ model Repository {
   name      String
   isPrivate Boolean @default(false) @map("is_private")
   status    String  @default("active")
+  webhookId Int?    @map("webhook_id")
 
   lastEventAt DateTime? @map("last_event_at")
   createdAt   DateTime  @default(now()) @map("created_at")

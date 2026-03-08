@@ -1,6 +1,8 @@
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma.service';
 import { IntegrationsService } from '../integrations/integrations.service';
+import { SettingsService } from '../settings/settings.service';
 import { GitHubApiService, GitHubRepoInfo } from './github-api.service';
 
 @Injectable()
@@ -11,6 +13,8 @@ export class RepositoriesService {
     private readonly prisma: PrismaService,
     private readonly integrationsService: IntegrationsService,
     private readonly githubApiService: GitHubApiService,
+    private readonly settingsService: SettingsService,
+    private readonly configService: ConfigService,
   ) {}
 
   /**
@@ -70,6 +74,26 @@ export class RepositoriesService {
       throw new BadRequestException(`リポジトリは既に登録されています: ${fullName}`);
     }
 
+    // GitHub Webhookを自動作成
+    let webhookId: number | null = null;
+    try {
+      const webhookConfig = await this.buildWebhookConfig();
+      if (webhookConfig) {
+        webhookId = await this.githubApiService.createWebhook(
+          integration.accessToken,
+          repoInfo.fullName,
+          webhookConfig,
+        );
+      } else {
+        this.logger.warn('Webhook設定が不完全なため、Webhook自動作成をスキップしました');
+      }
+    } catch (error) {
+      this.logger.warn(
+        `Webhook自動作成に失敗しました（手動設定が必要です）: ${fullName}`,
+        error instanceof Error ? error.message : error,
+      );
+    }
+
     return this.prisma.repository.create({
       data: {
         integrationId: integration.id,
@@ -77,6 +101,7 @@ export class RepositoriesService {
         owner: repoInfo.owner,
         name: repoInfo.name,
         isPrivate: repoInfo.isPrivate,
+        webhookId,
       },
     });
   }
@@ -96,6 +121,22 @@ export class RepositoriesService {
 
     if (!repository) {
       throw new NotFoundException(`リポジトリが見つかりません: ID ${id}`);
+    }
+
+    // GitHub Webhookを自動削除
+    if (repository.webhookId) {
+      try {
+        await this.githubApiService.deleteWebhook(
+          integration.accessToken,
+          repository.fullName,
+          repository.webhookId,
+        );
+      } catch (error) {
+        this.logger.warn(
+          `Webhook自動削除に失敗しました（手動削除が必要です）: ${repository.fullName}`,
+          error instanceof Error ? error.message : error,
+        );
+      }
     }
 
     await this.prisma.repository.delete({
@@ -185,5 +226,23 @@ export class RepositoriesService {
     }
 
     return { added };
+  }
+
+  /**
+   * Webhook設定を構築する
+   */
+  private async buildWebhookConfig() {
+    const apiUrl = this.configService.get<string>('API_URL');
+    const webhookSecret = await this.settingsService.getDecryptedValue('github', 'webhook_secret');
+
+    if (!apiUrl || !webhookSecret) {
+      return null;
+    }
+
+    return {
+      url: `${apiUrl}/webhooks/github`,
+      secret: webhookSecret,
+      events: ['issues', 'pull_request', 'push'],
+    };
   }
 }
