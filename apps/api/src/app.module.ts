@@ -1,12 +1,14 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { BullModule } from '@nestjs/bull';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaService } from './prisma.service';
 import { AuthModule } from './auth/auth.module';
+import { BackupModule } from './backup/backup.module';
 import { FactsModule } from './facts/facts.module';
 import { HealthModule } from './health/health.module';
 import { CryptoModule } from './common/crypto';
@@ -39,6 +41,8 @@ import { DispatchersModule } from './dispatchers/dispatchers.module';
         limit: 100, // 1分に100リクエストまで
       },
     ]),
+    // スケジュールタスク（cronジョブ）のグローバル設定
+    ScheduleModule.forRoot(),
     // Redis + Bull Queue のグローバル設定
     BullModule.forRootAsync({
       imports: [ConfigModule],
@@ -58,6 +62,7 @@ import { DispatchersModule } from './dispatchers/dispatchers.module';
       inject: [ConfigService],
     }),
     AuthModule,
+    BackupModule,
     CryptoModule,
     DispatchersModule,
     FactsModule,
