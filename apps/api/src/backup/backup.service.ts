@@ -75,7 +75,7 @@ export class BackupService {
    * 毎日深夜2時にシステム全体のバックアップサマリーをログ出力する
    * 本番環境では外部ストレージ（S3等）への保存を推奨
    */
-  @Cron(CronExpression.EVERY_DAY_AT_2AM)
+  @Cron(CronExpression.EVERY_DAY_AT_2AM, { name: 'scheduled-backup' })
   async scheduledBackup(): Promise<void> {
     this.logger.log('スケジュールバックアップ開始');
 
