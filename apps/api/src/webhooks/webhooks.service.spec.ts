@@ -18,6 +18,8 @@ describe('WebhooksService', () => {
   const mockPrismaService = {
     fact: {
       upsert: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn(),
     },
     integration: {
       findMany: jest.fn(),
@@ -150,6 +152,7 @@ describe('WebhooksService', () => {
     beforeEach(() => {
       mockPrismaService.integration.findFirst.mockResolvedValue(mockIntegration);
       mockPrismaService.fact.upsert.mockResolvedValue(mockFact);
+      mockPrismaService.fact.findFirst.mockResolvedValue(null); // assignParent: 親なし
       mockSlackQueue.add.mockResolvedValue({});
     });
 
@@ -184,7 +187,7 @@ describe('WebhooksService', () => {
             where: {
               source_externalId: {
                 source: 'github',
-                externalId: 'test/repo#123',
+                externalId: 'test/repo#issue123:opened',
               },
             },
             create: expect.objectContaining({
@@ -192,6 +195,8 @@ describe('WebhooksService', () => {
               source: 'github',
               type: 'issue.opened',
               title: '[test/repo] Issue #123: Test Issue',
+              groupId: 'github:test/repo:issue:123',
+              groupType: 'issue',
             }),
           }),
         );
@@ -255,7 +260,7 @@ describe('WebhooksService', () => {
             where: {
               source_externalId: {
                 source: 'github',
-                externalId: 'test/repo#456',
+                externalId: 'test/repo#pr456:opened',
               },
             },
             create: expect.objectContaining({
@@ -263,6 +268,8 @@ describe('WebhooksService', () => {
               source: 'github',
               type: 'pull_request.opened',
               title: '[test/repo] PR #456: Test PR',
+              groupId: 'github:test/repo:pull_request:456',
+              groupType: 'pull_request',
             }),
           }),
         );
@@ -372,6 +379,110 @@ describe('WebhooksService', () => {
 
         expect(result).toBeNull();
       });
+    });
+  });
+
+  describe('グループ割り当て', () => {
+    const mockIntegration = {
+      id: 'int-1',
+      userId: 'user-123',
+      provider: 'github',
+      accountId: 'test',
+      user: { id: 'user-123' },
+      repositories: [],
+    };
+
+    const issuePayload = {
+      action: 'closed',
+      issue: {
+        number: 10,
+        title: 'Test',
+        html_url: 'https://github.com/test/repo/issues/10',
+        user: { login: 'testuser' },
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-02T00:00:00Z',
+      },
+      repository: {
+        full_name: 'test/repo',
+        html_url: 'https://github.com/test/repo',
+      },
+      sender: { login: 'testuser' },
+    };
+
+    it('同じ groupId の既存 Fact がある場合、parentId を設定すること', async () => {
+      const parentFact = { id: 'parent-fact-1' };
+      const newFact = { id: 'new-fact-1', slackMessageId: null };
+
+      mockPrismaService.integration.findFirst.mockResolvedValue(mockIntegration);
+      mockPrismaService.fact.upsert.mockResolvedValue(newFact);
+      mockPrismaService.fact.findFirst.mockResolvedValue(parentFact);
+      mockPrismaService.fact.update.mockResolvedValue({});
+      mockSlackQueue.add.mockResolvedValue({});
+
+      await service.processGitHubEvent('issues', issuePayload);
+
+      expect(mockPrismaService.fact.findFirst).toHaveBeenCalledWith({
+        where: {
+          groupId: 'github:test/repo:issue:10',
+          source: 'github',
+          parentId: null,
+          id: { not: 'new-fact-1' },
+        },
+        orderBy: { occurredAt: 'asc' },
+        select: { id: true },
+      });
+      expect(mockPrismaService.fact.update).toHaveBeenCalledWith({
+        where: { id: 'new-fact-1' },
+        data: { parentId: 'parent-fact-1' },
+      });
+    });
+
+    it('同じ groupId の既存 Fact がない場合、自分が親になること（parentId を設定しない）', async () => {
+      const newFact = { id: 'new-fact-1', slackMessageId: null };
+
+      mockPrismaService.integration.findFirst.mockResolvedValue(mockIntegration);
+      mockPrismaService.fact.upsert.mockResolvedValue(newFact);
+      mockPrismaService.fact.findFirst.mockResolvedValue(null);
+      mockSlackQueue.add.mockResolvedValue({});
+
+      await service.processGitHubEvent('issues', issuePayload);
+
+      // update は upsertFact 内の parentId 設定では呼ばれない
+      expect(mockPrismaService.fact.update).not.toHaveBeenCalled();
+    });
+
+    it('push イベントでブランチと日付ベースの groupId が設定されること', async () => {
+      const pushPayload = {
+        ref: 'refs/heads/feature/test',
+        commits: [
+          {
+            id: 'abc123def456',
+            message: 'Fix bug',
+            url: 'https://github.com/test/repo/commit/abc123def456',
+            author: { name: 'Test', email: 'test@example.com' },
+            timestamp: '2024-01-15T10:00:00Z',
+          },
+        ],
+        repository: { full_name: 'test/repo', html_url: 'https://github.com/test/repo' },
+        sender: { login: 'testuser' },
+      };
+
+      const newFact = { id: 'push-fact-1', slackMessageId: null };
+      mockPrismaService.integration.findFirst.mockResolvedValue(mockIntegration);
+      mockPrismaService.fact.upsert.mockResolvedValue(newFact);
+      mockPrismaService.fact.findFirst.mockResolvedValue(null);
+      mockSlackQueue.add.mockResolvedValue({});
+
+      await service.processGitHubEvent('push', pushPayload);
+
+      expect(mockPrismaService.fact.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({
+            groupId: 'github:test/repo:push:feature/test:2024-01-15',
+            groupType: 'push',
+          }),
+        }),
+      );
     });
   });
 

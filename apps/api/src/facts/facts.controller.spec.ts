@@ -10,6 +10,7 @@ describe('FactsController', () => {
   const mockFactsService = {
     findAll: jest.fn(),
     findOne: jest.fn(),
+    findChildren: jest.fn(),
     create: jest.fn(),
     getStats: jest.fn(),
   };
@@ -122,6 +123,27 @@ describe('FactsController', () => {
 
       expect(result).toEqual(mockFacts);
       expect(service.findAll).toHaveBeenCalledWith('user-123', query);
+    });
+  });
+
+  describe('findChildren', () => {
+    it('子 Fact 一覧を取得できること', async () => {
+      const mockChildren = {
+        data: [
+          {
+            id: 'child-1',
+            title: 'Child Fact',
+            source: 'github',
+            type: 'issue.closed',
+          },
+        ],
+      };
+      mockFactsService.findChildren.mockResolvedValue(mockChildren);
+
+      const result = await controller.findChildren(mockRequest, 'parent-1');
+
+      expect(result).toEqual(mockChildren);
+      expect(service.findChildren).toHaveBeenCalledWith('user-123', 'parent-1');
     });
   });
 

@@ -16,10 +16,12 @@ import {
   Button,
   Spinner,
   Icon,
+  IconButton,
+  Collapse,
 } from '@chakra-ui/react';
 import { MainLayout } from '@/components/layout';
 import { DateFilter } from '@/components/facts';
-import { FiSearch, FiExternalLink, FiRefreshCw } from 'react-icons/fi';
+import { FiSearch, FiExternalLink, FiRefreshCw, FiChevronDown, FiChevronRight, FiLayers } from 'react-icons/fi';
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import apiClient from '@/lib/axios';
 import { formatRelativeTime } from '@/lib/formatRelativeTime';
@@ -36,6 +38,9 @@ interface Fact {
   type: string;
   metadata: Record<string, unknown> | null;
   createdAt: string;
+  groupId?: string | null;
+  groupType?: string | null;
+  childCount?: number;
 }
 
 interface FactsResponse {
@@ -79,6 +84,9 @@ function FactsPageContent() {
   const [isBackgroundUpdate, setIsBackgroundUpdate] = useState(false);
   const [sourceFilter, setSourceFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [grouped, setGrouped] = useState(false);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [childrenMap, setChildrenMap] = useState<Record<string, Fact[]>>({});
 
   const {
     from,
@@ -104,6 +112,7 @@ function FactsPageContent() {
         if (sourceFilter) params.append('source', sourceFilter);
         if (apiParams.from) params.append('from', apiParams.from);
         if (apiParams.to) params.append('to', apiParams.to);
+        if (grouped) params.append('grouped', 'true');
 
         const response = await apiClient.get<FactsResponse>(
           `/api/facts?${params.toString()}`,
@@ -116,8 +125,31 @@ function FactsPageContent() {
         setIsBackgroundUpdate(false);
       }
     },
-    [sourceFilter, apiParams.from, apiParams.to],
+    [sourceFilter, apiParams.from, apiParams.to, grouped],
   );
+
+  const toggleExpand = useCallback(async (factId: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(factId)) {
+        next.delete(factId);
+      } else {
+        next.add(factId);
+      }
+      return next;
+    });
+
+    if (!childrenMap[factId]) {
+      try {
+        const response = await apiClient.get<{ data: Fact[] }>(
+          `/api/facts/${factId}/children`,
+        );
+        setChildrenMap((prev) => ({ ...prev, [factId]: response.data.data }));
+      } catch (error) {
+        console.error('Failed to fetch children:', error);
+      }
+    }
+  }, [childrenMap]);
 
   // 初回ロードとフィルター変更時のフェッチ
   useEffect(() => {
@@ -179,6 +211,19 @@ function FactsPageContent() {
               </Select>
 
               <Button
+                leftIcon={<Icon as={FiLayers} />}
+                variant={grouped ? 'solid' : 'outline'}
+                colorScheme={grouped ? 'brand' : 'gray'}
+                onClick={() => {
+                  setGrouped((v) => !v);
+                  setExpandedIds(new Set());
+                  setChildrenMap({});
+                }}
+              >
+                グループ表示
+              </Button>
+
+              <Button
                 leftIcon={
                   <FiRefreshCw
                     className={isBackgroundUpdate ? 'animate-spin' : ''}
@@ -222,67 +267,137 @@ function FactsPageContent() {
       ) : (
         <VStack spacing={4} align="stretch">
           {filteredFacts.map((fact) => (
-            <Card
-              key={fact.id}
-              bg="gray.800"
-              borderColor="gray.700"
-              borderWidth="1px"
-              _hover={{ borderColor: 'gray.600' }}
-              transition="all 0.2s"
-            >
-              <CardBody>
-                <Flex justify="space-between" align="flex-start">
-                  <HStack spacing={4} align="flex-start">
-                    <Box
-                      w={1}
-                      h="full"
-                      minH="60px"
-                      borderRadius="full"
-                      bg={`${getSourceColor(fact.source)}.500`}
-                    />
-                    <Box>
-                      <Text fontWeight="semibold" fontSize="lg" mb={1}>
-                        {fact.title}
-                      </Text>
-                      {fact.summary && (
-                        <Text fontSize="sm" color="gray.400" mb={2}>
-                          {fact.summary}
-                        </Text>
+            <Box key={fact.id}>
+              <Card
+                bg="gray.800"
+                borderColor="gray.700"
+                borderWidth="1px"
+                _hover={{ borderColor: 'gray.600' }}
+                transition="all 0.2s"
+              >
+                <CardBody>
+                  <Flex justify="space-between" align="flex-start">
+                    <HStack spacing={4} align="flex-start">
+                      {grouped && fact.childCount !== undefined && fact.childCount > 0 ? (
+                        <IconButton
+                          aria-label="展開/折りたたみ"
+                          icon={<Icon as={expandedIds.has(fact.id) ? FiChevronDown : FiChevronRight} />}
+                          size="sm"
+                          variant="ghost"
+                          colorScheme="gray"
+                          onClick={() => toggleExpand(fact.id)}
+                          mt={1}
+                        />
+                      ) : (
+                        <Box
+                          w={1}
+                          h="full"
+                          minH="60px"
+                          borderRadius="full"
+                          bg={`${getSourceColor(fact.source)}.500`}
+                        />
                       )}
-                      <HStack spacing={2} flexWrap="wrap">
-                        <Badge
-                          colorScheme={getSourceColor(fact.source)}
-                          variant="subtle"
-                        >
-                          {fact.source}
-                        </Badge>
-                        <Badge colorScheme="gray" variant="outline">
-                          {fact.type}
-                        </Badge>
-                        <Text fontSize="xs" color="gray.500">
-                          {formatRelativeTime(fact.occurredAt)} (
-                          {formatDate(fact.occurredAt)})
-                        </Text>
-                      </HStack>
-                    </Box>
-                  </HStack>
+                      <Box>
+                        <HStack spacing={2} mb={1}>
+                          <Text fontWeight="semibold" fontSize="lg">
+                            {fact.title}
+                          </Text>
+                          {grouped && fact.childCount !== undefined && fact.childCount > 0 && (
+                            <Badge colorScheme="blue" variant="solid" fontSize="xs">
+                              +{fact.childCount}
+                            </Badge>
+                          )}
+                        </HStack>
+                        {fact.summary && (
+                          <Text fontSize="sm" color="gray.400" mb={2}>
+                            {fact.summary}
+                          </Text>
+                        )}
+                        <HStack spacing={2} flexWrap="wrap">
+                          <Badge
+                            colorScheme={getSourceColor(fact.source)}
+                            variant="subtle"
+                          >
+                            {fact.source}
+                          </Badge>
+                          <Badge colorScheme="gray" variant="outline">
+                            {fact.type}
+                          </Badge>
+                          <Text fontSize="xs" color="gray.500">
+                            {formatRelativeTime(fact.occurredAt)} (
+                            {formatDate(fact.occurredAt)})
+                          </Text>
+                        </HStack>
+                      </Box>
+                    </HStack>
 
-                  {fact.sourceUrl && (
-                    <Button
-                      as="a"
-                      href={fact.sourceUrl}
-                      target="_blank"
-                      size="sm"
-                      variant="ghost"
-                      colorScheme="gray"
-                      rightIcon={<Icon as={FiExternalLink} />}
-                    >
-                      開く
-                    </Button>
+                    {fact.sourceUrl && (
+                      <Button
+                        as="a"
+                        href={fact.sourceUrl}
+                        target="_blank"
+                        size="sm"
+                        variant="ghost"
+                        colorScheme="gray"
+                        rightIcon={<Icon as={FiExternalLink} />}
+                      >
+                        開く
+                      </Button>
+                    )}
+                  </Flex>
+                </CardBody>
+              </Card>
+
+              {/* 子 Fact の展開表示 */}
+              {grouped && expandedIds.has(fact.id) && (
+                <VStack spacing={2} align="stretch" pl={8} pt={2}>
+                  {childrenMap[fact.id] ? (
+                    childrenMap[fact.id].map((child) => (
+                      <Card
+                        key={child.id}
+                        bg="gray.750"
+                        borderColor="gray.600"
+                        borderWidth="1px"
+                        borderLeftWidth="3px"
+                        borderLeftColor={`${getSourceColor(child.source)}.500`}
+                        size="sm"
+                      >
+                        <CardBody py={3} px={4}>
+                          <Text fontWeight="medium" fontSize="sm" mb={1}>
+                            {child.title}
+                          </Text>
+                          <HStack spacing={2} flexWrap="wrap">
+                            <Badge colorScheme="gray" variant="outline" fontSize="xs">
+                              {child.type}
+                            </Badge>
+                            <Text fontSize="xs" color="gray.500">
+                              {formatRelativeTime(child.occurredAt)}
+                            </Text>
+                            {child.sourceUrl && (
+                              <Button
+                                as="a"
+                                href={child.sourceUrl}
+                                target="_blank"
+                                size="xs"
+                                variant="ghost"
+                                colorScheme="gray"
+                                rightIcon={<Icon as={FiExternalLink} boxSize={3} />}
+                              >
+                                開く
+                              </Button>
+                            )}
+                          </HStack>
+                        </CardBody>
+                      </Card>
+                    ))
+                  ) : (
+                    <Flex justify="center" py={2}>
+                      <Spinner size="sm" color="gray.500" />
+                    </Flex>
                   )}
-                </Flex>
-              </CardBody>
-            </Card>
+                </VStack>
+              )}
+            </Box>
           ))}
         </VStack>
       )}

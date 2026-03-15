@@ -175,6 +175,41 @@ export class WebhooksService {
   }
 
   /**
+   * グループIDを生成する
+   */
+  private buildGroupId(
+    repo: string,
+    type: 'issue' | 'pull_request' | 'push',
+    identifier: string,
+  ): string {
+    return `github:${repo}:${type}:${identifier}`;
+  }
+
+  /**
+   * 親 Fact を決定し、parentId を設定する
+   * 同じ groupId で最も古い Fact（parentId が null）を親とする
+   */
+  private async assignParent(factId: string, groupId: string, source: string): Promise<void> {
+    const parent = await this.prisma.fact.findFirst({
+      where: {
+        groupId,
+        source,
+        parentId: null,
+        id: { not: factId },
+      },
+      orderBy: { occurredAt: 'asc' },
+      select: { id: true },
+    });
+
+    if (parent) {
+      await this.prisma.fact.update({
+        where: { id: factId },
+        data: { parentId: parent.id },
+      });
+    }
+  }
+
+  /**
    * Issue イベントを処理
    */
   private async processIssueEvent(
@@ -193,7 +228,8 @@ export class WebhooksService {
       return null;
     }
 
-    const externalId = `${repository.full_name}#${issue.number}`;
+    const externalId = `${repository.full_name}#issue${issue.number}:${action}`;
+    const groupId = this.buildGroupId(repository.full_name, 'issue', String(issue.number));
     const type = `issue.${action}`;
     const title = `[${repository.full_name}] Issue #${issue.number}: ${issue.title}`;
     const summary = this.truncate(issue.body || '', 200);
@@ -215,7 +251,11 @@ export class WebhooksService {
         labels: issue.labels?.map((l) => l.name) || [],
       },
       raw: payload,
+      groupId,
+      groupType: 'issue',
     });
+
+    await this.assignParent(fact.id, groupId, 'github');
 
     return { factId: fact.id };
   }
@@ -239,7 +279,12 @@ export class WebhooksService {
       return null;
     }
 
-    const externalId = `${repository.full_name}#${pull_request.number}`;
+    const externalId = `${repository.full_name}#pr${pull_request.number}:${action}`;
+    const groupId = this.buildGroupId(
+      repository.full_name,
+      'pull_request',
+      String(pull_request.number),
+    );
     const type = `pull_request.${action}`;
     const title = `[${repository.full_name}] PR #${pull_request.number}: ${pull_request.title}`;
     const summary = this.truncate(pull_request.body || '', 200);
@@ -262,7 +307,11 @@ export class WebhooksService {
         draft: pull_request.draft,
       },
       raw: payload,
+      groupId,
+      groupType: 'pull_request',
     });
+
+    await this.assignParent(fact.id, groupId, 'github');
 
     return { factId: fact.id };
   }
@@ -285,6 +334,10 @@ export class WebhooksService {
     }
 
     const branch = ref?.replace('refs/heads/', '') || 'unknown';
+    const pushDate = commits[0]?.timestamp
+      ? new Date(commits[0].timestamp).toISOString().slice(0, 10)
+      : new Date().toISOString().slice(0, 10);
+    const groupId = this.buildGroupId(repository.full_name, 'push', `${branch}:${pushDate}`);
     const factIds: string[] = [];
 
     for (const commit of commits) {
@@ -309,8 +362,11 @@ export class WebhooksService {
           authorEmail: commit.author.email,
         },
         raw: commit,
+        groupId,
+        groupType: 'push',
       });
 
+      await this.assignParent(fact.id, groupId, 'github');
       factIds.push(fact.id);
     }
 
@@ -334,6 +390,8 @@ export class WebhooksService {
       type: string;
       metadata: Record<string, unknown>;
       raw: unknown;
+      groupId?: string;
+      groupType?: string;
     },
   ) {
     const fact = await this.prisma.fact.upsert({
@@ -344,7 +402,7 @@ export class WebhooksService {
         },
       },
       create: {
-        userId, // ユーザーIDを追加
+        userId,
         externalId: data.externalId,
         source: data.source,
         sourceUrl: data.sourceUrl,
@@ -355,6 +413,8 @@ export class WebhooksService {
         type: data.type,
         metadata: data.metadata as Prisma.InputJsonValue,
         raw: data.raw as Prisma.InputJsonValue,
+        groupId: data.groupId,
+        groupType: data.groupType,
       },
       update: {
         sourceUrl: data.sourceUrl,
@@ -365,6 +425,8 @@ export class WebhooksService {
         type: data.type,
         metadata: data.metadata as Prisma.InputJsonValue,
         raw: data.raw as Prisma.InputJsonValue,
+        groupId: data.groupId,
+        groupType: data.groupType,
       },
     });
 
