@@ -27,6 +27,12 @@ model Fact {
   slackMessageId String? @unique @map("slack_message_id")
   f2aEventId     String? @unique @map("f2a_event_id")
 
+  groupId   String? @map("group_id")
+  groupType String? @map("group_type")
+  parentId  String? @map("parent_id")
+  parent    Fact?   @relation("FactGroup", fields: [parentId], references: [id], onDelete: SetNull)
+  children  Fact[]  @relation("FactGroup")
+
   userId String @map("user_id")
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -39,6 +45,8 @@ model Fact {
   @@index([source])
   @@index([f2aEventId])
   @@index([userId])
+  @@index([groupId])
+  @@index([parentId])
   @@map("facts")
   @@schema("factrail")
 }

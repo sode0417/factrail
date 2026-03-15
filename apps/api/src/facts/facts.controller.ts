@@ -44,6 +44,16 @@ export class FactsController {
   }
 
   /**
+   * 指定された記録の子 Fact 一覧を取得する
+   * @param id 親記録のID
+   * @returns 子記録のリスト
+   */
+  @Get(':id/children')
+  findChildren(@Request() req, @Param('id', ParseUUIDPipe) id: string) {
+    return this.factsService.findChildren(req.user.id, id);
+  }
+
+  /**
    * IDで単一の記録を取得する
    * @param id 記録のID
    * @returns 記録データ

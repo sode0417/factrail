@@ -16,6 +16,7 @@ describe('FactsService', () => {
       findFirst: jest.fn(),
       create: jest.fn(),
       count: jest.fn(),
+      update: jest.fn(),
     },
   };
 
@@ -100,6 +101,8 @@ describe('FactsService', () => {
           type: true,
           metadata: true,
           createdAt: true,
+          groupId: true,
+          groupType: true,
         },
       });
     });
@@ -200,6 +203,89 @@ describe('FactsService', () => {
       expect(result.data).toHaveLength(2);
       expect(result.meta.hasMore).toBe(false);
       expect(result.meta.nextCursor).toBeUndefined();
+    });
+  });
+
+  describe('findAll (grouped)', () => {
+    const userId = 'user-123';
+
+    it('grouped=true の場合、親のみ + ungrouped を取得し childCount を含めること', async () => {
+      const mockGroupedFacts = [
+        {
+          id: 'fact-parent',
+          externalId: 'ext-1',
+          source: 'github',
+          sourceUrl: null,
+          occurredAt: new Date('2024-01-01'),
+          title: 'Parent Fact',
+          summary: null,
+          type: 'issue.opened',
+          metadata: {},
+          createdAt: new Date('2024-01-01'),
+          groupId: 'github:test/repo:issue:1',
+          groupType: 'issue',
+          _count: { children: 2 },
+        },
+      ];
+      mockPrismaService.fact.findMany.mockResolvedValue(mockGroupedFacts);
+
+      const query: QueryFactsDto = { grouped: 'true' };
+      const result = await service.findAll(userId, query);
+
+      expect(result.data[0]).toHaveProperty('childCount', 2);
+      expect(result.data[0]).not.toHaveProperty('_count');
+      expect(prisma.fact.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            OR: [{ groupId: null }, { parentId: null }],
+          }),
+          select: expect.objectContaining({
+            _count: { select: { children: true } },
+          }),
+        }),
+      );
+    });
+  });
+
+  describe('findChildren', () => {
+    const userId = 'user-123';
+
+    it('親 Fact の子 Fact 一覧を取得できること', async () => {
+      const mockParent = { id: 'parent-1', userId };
+      const mockChildren = [
+        {
+          id: 'child-1',
+          externalId: 'ext-child-1',
+          source: 'github',
+          sourceUrl: null,
+          occurredAt: new Date('2024-01-02'),
+          title: 'Child 1',
+          summary: null,
+          type: 'issue.closed',
+          metadata: {},
+          createdAt: new Date('2024-01-02'),
+          groupId: 'github:test/repo:issue:1',
+          groupType: 'issue',
+        },
+      ];
+      mockPrismaService.fact.findFirst.mockResolvedValue(mockParent);
+      mockPrismaService.fact.findMany.mockResolvedValue(mockChildren);
+
+      const result = await service.findChildren(userId, 'parent-1');
+
+      expect(result.data).toEqual(mockChildren);
+      expect(prisma.fact.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { parentId: 'parent-1', userId },
+          orderBy: { occurredAt: 'asc' },
+        }),
+      );
+    });
+
+    it('親 Fact が見つからない場合は NotFoundException をスローすること', async () => {
+      mockPrismaService.fact.findFirst.mockResolvedValue(null);
+
+      await expect(service.findChildren(userId, 'nonexistent')).rejects.toThrow(NotFoundException);
     });
   });
 

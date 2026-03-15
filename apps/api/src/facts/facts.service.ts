@@ -24,11 +24,11 @@ export class FactsService {
    * @returns ページングされた記録のリスト
    */
   async findAll(userId: string, query: QueryFactsDto) {
-    const { source, type, from, to, limit = 50, cursor } = query;
+    const { source, type, from, to, limit = 50, cursor, grouped } = query;
 
     // 検索条件を組み立て
     const where: Prisma.FactWhereInput = {
-      userId, // ユーザーIDでフィルタ
+      userId,
     };
 
     if (source) {
@@ -50,6 +50,11 @@ export class FactsService {
       }
     }
 
+    // グループ表示モード: ungrouped + 親のみ取得
+    if (grouped === 'true') {
+      where.OR = [{ groupId: null }, { parentId: null }];
+    }
+
     // カーソルベースページネーション: 次ページがあるか確認するため +1 件取得
     const facts = await this.prisma.fact.findMany({
       where,
@@ -57,7 +62,7 @@ export class FactsService {
       take: limit + 1,
       ...(cursor && {
         cursor: { id: cursor },
-        skip: 1, // カーソル自体をスキップ
+        skip: 1,
       }),
       select: {
         id: true,
@@ -70,13 +75,27 @@ export class FactsService {
         type: true,
         metadata: true,
         createdAt: true,
+        groupId: true,
+        groupType: true,
+        ...(grouped === 'true' && {
+          _count: { select: { children: true } },
+        }),
       },
     });
 
     // ページング情報を構築
     const hasMore = facts.length > limit;
-    const data = hasMore ? facts.slice(0, -1) : facts;
-    const nextCursor = hasMore ? data[data.length - 1]?.id : undefined;
+    const rawData = hasMore ? facts.slice(0, -1) : facts;
+    const nextCursor = hasMore ? rawData[rawData.length - 1]?.id : undefined;
+
+    // グループモード時は childCount をマッピング
+    const data =
+      grouped === 'true'
+        ? rawData.map((fact) => {
+            const { _count, ...rest } = fact as typeof fact & { _count?: { children: number } };
+            return { ...rest, childCount: _count?.children ?? 0 };
+          })
+        : rawData;
 
     return {
       data,
@@ -85,6 +104,44 @@ export class FactsService {
         nextCursor,
       },
     };
+  }
+
+  /**
+   * 指定された親 Fact の子 Fact 一覧を返す
+   */
+  async findChildren(userId: string, parentId: string) {
+    // 親 Fact の存在とアクセス権チェック
+    const parent = await this.prisma.fact.findFirst({
+      where: { id: parentId, userId },
+    });
+
+    if (!parent) {
+      throw new NotFoundException(`記録が見つかりません: ID "${parentId}"`);
+    }
+
+    const children = await this.prisma.fact.findMany({
+      where: {
+        parentId,
+        userId,
+      },
+      orderBy: { occurredAt: 'asc' },
+      select: {
+        id: true,
+        externalId: true,
+        source: true,
+        sourceUrl: true,
+        occurredAt: true,
+        title: true,
+        summary: true,
+        type: true,
+        metadata: true,
+        createdAt: true,
+        groupId: true,
+        groupType: true,
+      },
+    });
+
+    return { data: children };
   }
 
   /**

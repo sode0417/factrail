@@ -49,4 +49,11 @@ export class QueryFactsDto {
   @IsOptional()
   @IsString()
   cursor?: string;
+
+  /**
+   * グループ表示モード（"true" でグループ化して表示）
+   */
+  @IsOptional()
+  @IsString()
+  grouped?: string;
 }
