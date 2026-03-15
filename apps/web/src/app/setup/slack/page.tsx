@@ -7,6 +7,7 @@ import {
   CardHeader,
   VStack,
   HStack,
+  Flex,
   Text,
   Button,
   Input,
@@ -273,7 +274,7 @@ export default function SlackSetupPage() {
         {/* Status Card */}
         <Card bg="gray.800" borderColor="gray.700" borderWidth="1px">
           <CardBody>
-            <HStack justify="space-between">
+            <Flex justify="space-between" align={{ base: 'flex-start', md: 'center' }} direction={{ base: 'column', md: 'row' }} gap={{ base: 3, md: 0 }}>
               <HStack spacing={4}>
                 <Box p={3} borderRadius="lg" bg="green.900">
                   <Icon as={FiMessageSquare} boxSize={6} color="green.400" />
@@ -301,7 +302,7 @@ export default function SlackSetupPage() {
                   {isConnected ? '接続済み' : isClientIdConfigured && isClientSecretConfigured ? '設定済み' : '未設定'}
                 </Badge>
               )}
-            </HStack>
+            </Flex>
           </CardBody>
         </Card>
 
@@ -373,14 +374,16 @@ export default function SlackSetupPage() {
                     <Text fontSize="sm" fontWeight="semibold" mb={2}>
                       Redirect URLs:
                     </Text>
-                    <HStack>
+                    <Flex gap={2}>
                       <Input
                         value={redirectUri}
                         isReadOnly
                         bg="gray.800"
                         borderColor="gray.700"
                         fontFamily="mono"
-                        fontSize="sm"
+                        fontSize={{ base: 'xs', md: 'sm' }}
+                        flex={1}
+                        minW="0"
                       />
                       <Tooltip label={hasCopied ? 'コピーしました' : 'コピー'}>
                         <IconButton
@@ -388,9 +391,10 @@ export default function SlackSetupPage() {
                           icon={hasCopied ? <FiCheck /> : <FiCopy />}
                           onClick={onCopy}
                           colorScheme={hasCopied ? 'green' : 'gray'}
+                          flexShrink={0}
                         />
                       </Tooltip>
-                    </HStack>
+                    </Flex>
                   </Box>
                   <Box bg="gray.900" p={4} borderRadius="lg">
                     <Text fontSize="sm" fontWeight="semibold" mb={2}>
@@ -427,7 +431,7 @@ export default function SlackSetupPage() {
                 <VStack spacing={4} pl={9}>
                   <FormControl>
                     <FormLabel fontSize="sm">Client ID</FormLabel>
-                    <HStack>
+                    <Flex gap={2} flexWrap="wrap">
                       <Input
                         value={isClientIdConfigured && !clientId ? '●●●●●●●●●●●●●●●●●●●●' : clientId}
                         onChange={(e) => setClientId(e.target.value)}
@@ -435,6 +439,8 @@ export default function SlackSetupPage() {
                         bg="gray.900"
                         borderColor="gray.700"
                         isReadOnly={isClientIdConfigured && !clientId}
+                        flex={1}
+                        minW="0"
                       />
                       {clientId && (
                         <Tooltip label="保存">
@@ -448,11 +454,11 @@ export default function SlackSetupPage() {
                         </Tooltip>
                       )}
                       {isClientIdConfigured && !clientId && (
-                        <Button onClick={() => setIsClientIdConfigured(false)} colorScheme="brand" minW="100px">
+                        <Button onClick={() => setIsClientIdConfigured(false)} colorScheme="brand" minW="100px" flexShrink={0}>
                           再設定
                         </Button>
                       )}
-                    </HStack>
+                    </Flex>
                     <FormHelperText color="gray.500">
                       {isClientIdConfigured && !clientId
                         ? 'Client IDは設定済みです。変更する場合は再設定ボタンをクリックしてください'
@@ -461,7 +467,7 @@ export default function SlackSetupPage() {
                   </FormControl>
                   <FormControl>
                     <FormLabel fontSize="sm">Client Secret</FormLabel>
-                    <HStack>
+                    <Flex gap={2} flexWrap="wrap">
                       <Input
                         type="password"
                         value={isClientSecretConfigured && !clientSecret ? '●●●●●●●●●●●●●●●●●●●●' : clientSecret}
@@ -470,6 +476,8 @@ export default function SlackSetupPage() {
                         bg="gray.900"
                         borderColor="gray.700"
                         isReadOnly={isClientSecretConfigured && !clientSecret}
+                        flex={1}
+                        minW="0"
                       />
                       {clientSecret && (
                         <Tooltip label="保存">
@@ -483,11 +491,11 @@ export default function SlackSetupPage() {
                         </Tooltip>
                       )}
                       {isClientSecretConfigured && !clientSecret && (
-                        <Button onClick={() => setIsClientSecretConfigured(false)} colorScheme="brand" minW="100px">
+                        <Button onClick={() => setIsClientSecretConfigured(false)} colorScheme="brand" minW="100px" flexShrink={0}>
                           再設定
                         </Button>
                       )}
-                    </HStack>
+                    </Flex>
                     <FormHelperText color="gray.500">
                       {isClientSecretConfigured && !clientSecret
                         ? 'Client Secretは設定済みです。変更する場合は再設定ボタンをクリックしてください'
@@ -496,7 +504,7 @@ export default function SlackSetupPage() {
                   </FormControl>
                   <FormControl>
                     <FormLabel fontSize="sm">送信先ID（User/Channel）</FormLabel>
-                    <HStack>
+                    <Flex gap={2} flexWrap="wrap">
                       <Input
                         value={isChannelIdConfigured && !targetChannelId ? '●●●●●●●●●●●●●●●●●●●●' : targetChannelId}
                         onChange={(e) => setTargetChannelId(e.target.value)}
@@ -504,6 +512,8 @@ export default function SlackSetupPage() {
                         bg="gray.900"
                         borderColor="gray.700"
                         isReadOnly={isChannelIdConfigured && !targetChannelId}
+                        flex={1}
+                        minW="0"
                       />
                       {targetChannelId && (
                         <Tooltip label="保存">
@@ -517,11 +527,11 @@ export default function SlackSetupPage() {
                         </Tooltip>
                       )}
                       {isChannelIdConfigured && !targetChannelId && (
-                        <Button onClick={() => setIsChannelIdConfigured(false)} colorScheme="brand" minW="100px">
+                        <Button onClick={() => setIsChannelIdConfigured(false)} colorScheme="brand" minW="100px" flexShrink={0}>
                           再設定
                         </Button>
                       )}
-                    </HStack>
+                    </Flex>
                     <FormHelperText color="gray.500">
                       {isChannelIdConfigured && !targetChannelId
                         ? '送信先IDは設定済みです（OAuth時に自動設定）。変更する場合は再設定ボタンをクリックしてください'

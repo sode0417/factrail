@@ -64,7 +64,7 @@ export function DateFilter({
         <Input
           type="date"
           size="sm"
-          maxW="160px"
+          maxW={{ base: '130px', md: '160px' }}
           bg="gray.800"
           borderColor="gray.600"
           value={from}
@@ -82,7 +82,7 @@ export function DateFilter({
         <Input
           type="date"
           size="sm"
-          maxW="160px"
+          maxW={{ base: '130px', md: '160px' }}
           bg="gray.800"
           borderColor="gray.600"
           value={to}

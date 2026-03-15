@@ -8,6 +8,12 @@ import {
   VStack,
   Divider,
   Badge,
+  Drawer,
+  DrawerOverlay,
+  DrawerContent,
+  DrawerCloseButton,
+  DrawerBody,
+  useBreakpointValue,
 } from '@chakra-ui/react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -39,12 +45,12 @@ const setupNavItems: NavItem[] = [
   { name: 'Slack', href: '/setup/slack', icon: FiMessageSquare },
 ];
 
-function NavLink({ item }: { item: NavItem }) {
+function NavLink({ item, onClick }: { item: NavItem; onClick?: () => void }) {
   const pathname = usePathname();
   const isActive = pathname === item.href;
 
   return (
-    <Link href={item.href} style={{ width: '100%' }}>
+    <Link href={item.href} style={{ width: '100%' }} onClick={onClick}>
       <Flex
         align="center"
         px={4}
@@ -71,20 +77,9 @@ function NavLink({ item }: { item: NavItem }) {
   );
 }
 
-export function Sidebar() {
+function SidebarContent({ onClose }: { onClose?: () => void }) {
   return (
-    <Box
-      as="aside"
-      w="260px"
-      h="100vh"
-      bg="gray.900"
-      borderRight="1px"
-      borderColor="gray.800"
-      position="fixed"
-      left={0}
-      top={0}
-      py={6}
-    >
+    <>
       {/* Logo */}
       <Flex px={6} mb={8} align="center">
         <Box
@@ -119,7 +114,7 @@ export function Sidebar() {
       {/* Main Navigation */}
       <VStack spacing={1} align="stretch" px={3}>
         {mainNavItems.map((item) => (
-          <NavLink key={item.href} item={item} />
+          <NavLink key={item.href} item={item} onClick={onClose} />
         ))}
       </VStack>
 
@@ -136,7 +131,7 @@ export function Sidebar() {
       </Box>
       <VStack spacing={1} align="stretch" px={3}>
         {setupNavItems.map((item) => (
-          <NavLink key={item.href} item={item} />
+          <NavLink key={item.href} item={item} onClick={onClose} />
         ))}
       </VStack>
 
@@ -157,6 +152,48 @@ export function Sidebar() {
           </Flex>
         </Flex>
       </Box>
-    </Box>
+    </>
+  );
+}
+
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export function Sidebar({ isOpen = false, onClose = () => {} }: SidebarProps) {
+  const isMobile = useBreakpointValue({ base: true, lg: false });
+
+  // デスクトップ: 固定サイドバー
+  if (!isMobile) {
+    return (
+      <Box
+        as="aside"
+        w="260px"
+        h="100vh"
+        bg="gray.900"
+        borderRight="1px"
+        borderColor="gray.800"
+        position="fixed"
+        left={0}
+        top={0}
+        py={6}
+      >
+        <SidebarContent />
+      </Box>
+    );
+  }
+
+  // モバイル: Drawer
+  return (
+    <Drawer isOpen={isOpen} placement="left" onClose={onClose} size="xs">
+      <DrawerOverlay />
+      <DrawerContent bg="gray.900" py={6}>
+        <DrawerCloseButton color="gray.400" />
+        <DrawerBody p={0}>
+          <SidebarContent onClose={onClose} />
+        </DrawerBody>
+      </DrawerContent>
+    </Drawer>
   );
 }

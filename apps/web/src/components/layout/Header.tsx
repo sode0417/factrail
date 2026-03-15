@@ -1,7 +1,7 @@
 'use client';
 
 import { Box, Flex, Text, IconButton, Input, InputGroup, InputLeftElement, Menu, MenuButton, MenuList, MenuItem, Avatar } from '@chakra-ui/react';
-import { FiSearch, FiBell, FiLogOut } from 'react-icons/fi';
+import { FiSearch, FiBell, FiLogOut, FiMenu } from 'react-icons/fi';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import apiClient from '@/lib/axios';
@@ -9,9 +9,10 @@ import apiClient from '@/lib/axios';
 interface HeaderProps {
   title: string;
   subtitle?: string;
+  onMenuOpen?: () => void;
 }
 
-export function Header({ title, subtitle }: HeaderProps) {
+export function Header({ title, subtitle, onMenuOpen }: HeaderProps) {
   const router = useRouter();
   const { user, sessionId, logout } = useAuthStore();
 
@@ -29,26 +30,40 @@ export function Header({ title, subtitle }: HeaderProps) {
   return (
     <Box
       as="header"
-      h="80px"
+      h={{ base: '64px', lg: '80px' }}
       bg="gray.900"
       borderBottom="1px"
       borderColor="gray.800"
-      px={8}
+      px={{ base: 4, md: 6, lg: 8 }}
     >
       <Flex h="full" align="center" justify="space-between">
-        <Box>
-          <Text fontSize="2xl" fontWeight="bold" fontFamily="heading">
-            {title}
-          </Text>
-          {subtitle && (
-            <Text fontSize="sm" color="gray.500" mt={1}>
-              {subtitle}
+        <Flex align="center" gap={3}>
+          {/* ハンバーガーメニュー（モバイルのみ） */}
+          <IconButton
+            aria-label="メニュー"
+            icon={<FiMenu />}
+            variant="ghost"
+            color="gray.400"
+            _hover={{ bg: 'gray.800', color: 'white' }}
+            onClick={onMenuOpen}
+            display={{ base: 'flex', lg: 'none' }}
+            size="sm"
+          />
+          <Box>
+            <Text fontSize={{ base: 'lg', md: '2xl' }} fontWeight="bold" fontFamily="heading">
+              {title}
             </Text>
-          )}
-        </Box>
+            {subtitle && (
+              <Text fontSize={{ base: 'xs', md: 'sm' }} color="gray.500" mt={1} display={{ base: 'none', md: 'block' }}>
+                {subtitle}
+              </Text>
+            )}
+          </Box>
+        </Flex>
 
-        <Flex align="center" gap={4}>
-          <InputGroup maxW="300px">
+        <Flex align="center" gap={{ base: 2, md: 4 }}>
+          {/* 検索バー（デスクトップのみ） */}
+          <InputGroup maxW="300px" display={{ base: 'none', md: 'flex' }}>
             <InputLeftElement pointerEvents="none">
               <FiSearch color="gray" />
             </InputLeftElement>
@@ -67,6 +82,7 @@ export function Header({ title, subtitle }: HeaderProps) {
             variant="ghost"
             color="gray.400"
             _hover={{ bg: 'gray.800', color: 'white' }}
+            size={{ base: 'sm', md: 'md' }}
           />
 
           <Menu>
