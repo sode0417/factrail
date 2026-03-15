@@ -37,8 +37,21 @@ export class SlackDispatcherProcessor {
         return;
       }
 
+      // 親Factがある場合、そのSlackメッセージIDをスレッドtsとして使用
+      let threadTs: string | undefined;
+      if (fact.parentId) {
+        const parent = await this.prisma.fact.findUnique({
+          where: { id: fact.parentId },
+          select: { slackMessageId: true },
+        });
+        if (parent?.slackMessageId) {
+          threadTs = parent.slackMessageId;
+          this.logger.log(`スレッド返信: parent=${fact.parentId}, thread_ts=${threadTs}`);
+        }
+      }
+
       // Slack DM投稿
-      const messageTs = await this.slackDispatcherService.postFactToDM(fact);
+      const messageTs = await this.slackDispatcherService.postFactToDM(fact, threadTs);
 
       // slackMessageId と processedAt を更新
       await this.prisma.fact.update({

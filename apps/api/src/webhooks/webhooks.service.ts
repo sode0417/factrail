@@ -210,6 +210,31 @@ export class WebhooksService {
   }
 
   /**
+   * Slack投稿キューにジョブを追加する
+   * assignParent の後に呼び出すこと（parentId が確定した状態で投稿するため）
+   */
+  private async dispatchToSlack(factId: string): Promise<void> {
+    const fact = await this.prisma.fact.findUnique({
+      where: { id: factId },
+      select: { slackMessageId: true },
+    });
+    if (fact && !fact.slackMessageId) {
+      await this.slackQueue.add(
+        'send-dm',
+        { factId },
+        {
+          attempts: 5,
+          backoff: {
+            type: 'exponential',
+            delay: 1000,
+          },
+        },
+      );
+      this.logger.log(`Slack投稿キューにジョブを追加: Fact ID=${factId}`);
+    }
+  }
+
+  /**
    * Issue イベントを処理
    */
   private async processIssueEvent(
@@ -256,6 +281,7 @@ export class WebhooksService {
     });
 
     await this.assignParent(fact.id, groupId, 'github');
+    await this.dispatchToSlack(fact.id);
 
     return { factId: fact.id };
   }
@@ -312,6 +338,7 @@ export class WebhooksService {
     });
 
     await this.assignParent(fact.id, groupId, 'github');
+    await this.dispatchToSlack(fact.id);
 
     return { factId: fact.id };
   }
@@ -367,6 +394,7 @@ export class WebhooksService {
       });
 
       await this.assignParent(fact.id, groupId, 'github');
+      await this.dispatchToSlack(fact.id);
       factIds.push(fact.id);
     }
 
@@ -375,7 +403,7 @@ export class WebhooksService {
 
   /**
    * Fact を作成または更新（同じ externalId があれば更新）
-   * Fact作成後、Slack投稿キューにジョブを追加
+   * Slack投稿は呼び出し元で assignParent 後に dispatchToSlack を使うこと
    */
   private async upsertFact(
     userId: string,
@@ -429,22 +457,6 @@ export class WebhooksService {
         groupType: data.groupType,
       },
     });
-
-    // Slack投稿されていない場合、キューにジョブを追加
-    if (!fact.slackMessageId) {
-      await this.slackQueue.add(
-        'send-dm',
-        { factId: fact.id },
-        {
-          attempts: 5,
-          backoff: {
-            type: 'exponential',
-            delay: 1000,
-          },
-        },
-      );
-      this.logger.log(`Slack投稿キューにジョブを追加: Fact ID=${fact.id}`);
-    }
 
     return fact;
   }
