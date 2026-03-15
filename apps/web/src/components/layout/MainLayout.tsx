@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, Flex } from '@chakra-ui/react';
+import { Box, Flex, useDisclosure } from '@chakra-ui/react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 
@@ -11,12 +11,14 @@ interface MainLayoutProps {
 }
 
 export function MainLayout({ children, title, subtitle }: MainLayoutProps) {
+  const { isOpen, onOpen, onClose } = useDisclosure();
+
   return (
     <Flex minH="100vh">
-      <Sidebar />
-      <Box ml="260px" flex={1} bg="gray.950">
-        <Header title={title} subtitle={subtitle} />
-        <Box as="main" p={8}>
+      <Sidebar isOpen={isOpen} onClose={onClose} />
+      <Box ml={{ base: 0, lg: '260px' }} flex={1} bg="gray.950">
+        <Header title={title} subtitle={subtitle} onMenuOpen={onOpen} />
+        <Box as="main" p={{ base: 4, md: 6, lg: 8 }}>
           {children}
         </Box>
       </Box>

@@ -181,8 +181,8 @@ function FactsPageContent() {
       <Card bg="gray.800" borderColor="gray.700" borderWidth="1px" mb={6}>
         <CardBody>
           <VStack spacing={4} align="stretch">
-            <Flex gap={4} flexWrap="wrap">
-              <InputGroup maxW="300px">
+            <Flex gap={{ base: 2, md: 4 }} flexWrap="wrap">
+              <InputGroup maxW={{ base: '100%', md: '300px' }}>
                 <InputLeftElement pointerEvents="none">
                   <FiSearch color="gray" />
                 </InputLeftElement>
@@ -197,7 +197,7 @@ function FactsPageContent() {
               </InputGroup>
 
               <Select
-                maxW="200px"
+                maxW={{ base: '100%', sm: '200px' }}
                 bg="gray.900"
                 borderColor="gray.700"
                 value={sourceFilter}

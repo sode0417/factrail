@@ -192,21 +192,24 @@ export default function DashboardPage() {
               {facts.map((fact) => (
                 <Flex
                   key={fact.id}
-                  p={4}
+                  p={{ base: 3, md: 4 }}
                   bg="gray.900"
                   borderRadius="lg"
                   justify="space-between"
-                  align="center"
+                  align={{ base: 'flex-start', md: 'center' }}
+                  direction={{ base: 'column', md: 'row' }}
+                  gap={{ base: 2, md: 0 }}
                 >
-                  <HStack spacing={4}>
+                  <HStack spacing={{ base: 3, md: 4 }}>
                     <Box
                       w={2}
                       h={10}
                       borderRadius="full"
                       bg={`${getSourceColor(fact.source)}.500`}
+                      flexShrink={0}
                     />
                     <Box>
-                      <Text fontWeight="medium">{fact.title}</Text>
+                      <Text fontWeight="medium" fontSize={{ base: 'sm', md: 'md' }}>{fact.title}</Text>
                       <HStack spacing={2} mt={1}>
                         <Badge
                           colorScheme={getSourceColor(fact.source)}
@@ -221,7 +224,7 @@ export default function DashboardPage() {
                       </HStack>
                     </Box>
                   </HStack>
-                  <Text fontSize="sm" color="gray.500">
+                  <Text fontSize={{ base: 'xs', md: 'sm' }} color="gray.500" pl={{ base: 5, md: 0 }}>
                     {formatRelativeTime(fact.occurredAt)}
                   </Text>
                 </Flex>

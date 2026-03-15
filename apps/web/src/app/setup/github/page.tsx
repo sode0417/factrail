@@ -7,6 +7,7 @@ import {
   CardHeader,
   VStack,
   HStack,
+  Flex,
   Text,
   Button,
   Input,
@@ -298,7 +299,7 @@ export default function GitHubSetupPage() {
         {/* Status Card */}
         <Card bg="gray.800" borderColor="gray.700" borderWidth="1px">
           <CardBody>
-            <HStack justify="space-between">
+            <Flex justify="space-between" align={{ base: 'flex-start', md: 'center' }} direction={{ base: 'column', md: 'row' }} gap={{ base: 3, md: 0 }}>
               <HStack spacing={4}>
                 <Box p={3} borderRadius="lg" bg="purple.900">
                   <Icon as={FiGithub} boxSize={6} color="purple.400" />
@@ -324,7 +325,7 @@ export default function GitHubSetupPage() {
                   {isConfigured ? '設定済み' : '未設定'}
                 </Badge>
               )}
-            </HStack>
+            </Flex>
           </CardBody>
         </Card>
 
@@ -356,14 +357,16 @@ export default function GitHubSetupPage() {
                   <Text fontWeight="semibold">Webhook URLをコピー</Text>
                 </HStack>
                 <FormControl>
-                  <HStack>
+                  <Flex gap={2}>
                     <Input
                       value={webhookUrl}
                       isReadOnly
                       bg="gray.900"
                       borderColor="gray.700"
                       fontFamily="mono"
-                      fontSize="sm"
+                      fontSize={{ base: 'xs', md: 'sm' }}
+                      flex={1}
+                      minW="0"
                     />
                     <Tooltip label={hasCopiedUrl ? 'コピーしました' : 'コピー'}>
                       <IconButton
@@ -371,9 +374,10 @@ export default function GitHubSetupPage() {
                         icon={hasCopiedUrl ? <FiCheck /> : <FiCopy />}
                         onClick={onCopyUrl}
                         colorScheme={hasCopiedUrl ? 'green' : 'gray'}
+                        flexShrink={0}
                       />
                     </Tooltip>
-                  </HStack>
+                  </Flex>
                 </FormControl>
               </Box>
 
@@ -398,7 +402,7 @@ export default function GitHubSetupPage() {
                   <Text fontWeight="semibold">Webhook Secretを生成・保存</Text>
                 </HStack>
                 <FormControl>
-                  <HStack mb={2}>
+                  <Flex mb={2} gap={2} flexWrap="wrap">
                     <Input
                       value={isConfigured && !isNewSecret ? '●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●' : webhookSecret}
                       isReadOnly
@@ -407,8 +411,10 @@ export default function GitHubSetupPage() {
                       borderColor="gray.700"
                       fontFamily="mono"
                       fontSize="sm"
+                      flex={1}
+                      minW="0"
                     />
-                    <Button onClick={generateSecret} colorScheme="brand" minW="100px">
+                    <Button onClick={generateSecret} colorScheme="brand" minW="100px" flexShrink={0}>
                       {isConfigured ? '再生成' : '生成'}
                     </Button>
                     {webhookSecret && isNewSecret && (
@@ -432,7 +438,7 @@ export default function GitHubSetupPage() {
                         </Tooltip>
                       </>
                     )}
-                  </HStack>
+                  </Flex>
                   <FormHelperText color="gray.500">
                     {isNewSecret
                       ? '生成したシークレットをコピーしてからサーバーに保存してください'
@@ -476,26 +482,26 @@ export default function GitHubSetupPage() {
                   </Text>
                   <Box bg="gray.900" p={4} borderRadius="lg" fontSize="sm">
                     <VStack align="stretch" spacing={2}>
-                      <HStack>
-                        <Text color="gray.500" minW="120px">
+                      <Flex direction={{ base: 'column', md: 'row' }} gap={{ base: 0, md: 2 }}>
+                        <Text color="gray.500" minW="120px" fontSize="sm">
                           Payload URL:
                         </Text>
-                        <Code colorScheme="brand">{webhookUrl}</Code>
-                      </HStack>
-                      <HStack>
-                        <Text color="gray.500" minW="120px">
+                        <Code colorScheme="brand" fontSize={{ base: 'xs', md: 'sm' }} wordBreak="break-all">{webhookUrl}</Code>
+                      </Flex>
+                      <Flex direction={{ base: 'column', md: 'row' }} gap={{ base: 0, md: 2 }}>
+                        <Text color="gray.500" minW="120px" fontSize="sm">
                           Content type:
                         </Text>
-                        <Code colorScheme="gray">application/json</Code>
-                      </HStack>
-                      <HStack>
-                        <Text color="gray.500" minW="120px">
+                        <Code colorScheme="gray" fontSize="sm">application/json</Code>
+                      </Flex>
+                      <Flex direction={{ base: 'column', md: 'row' }} gap={{ base: 0, md: 2 }}>
+                        <Text color="gray.500" minW="120px" fontSize="sm">
                           Secret:
                         </Text>
-                        <Code colorScheme="orange">
+                        <Code colorScheme="orange" fontSize={{ base: 'xs', md: 'sm' }} wordBreak="break-all">
                           {webhookSecret || '(上で生成したシークレット)'}
                         </Code>
-                      </HStack>
+                      </Flex>
                     </VStack>
                   </Box>
                   <Text fontSize="sm" color="gray.400">
@@ -513,11 +519,11 @@ export default function GitHubSetupPage() {
         {/* Repository Management Card */}
         <Card bg="gray.800" borderColor="gray.700" borderWidth="1px">
           <CardHeader>
-            <HStack justify="space-between">
+            <Flex justify="space-between" align={{ base: 'flex-start', md: 'center' }} direction={{ base: 'column', md: 'row' }} gap={{ base: 3, md: 0 }}>
               <Text fontSize="lg" fontWeight="semibold">
                 リポジトリ管理
               </Text>
-              <HStack spacing={2}>
+              <HStack spacing={2} flexWrap="wrap">
                 <Button
                   size="sm"
                   leftIcon={<FiZap />}
@@ -538,7 +544,7 @@ export default function GitHubSetupPage() {
                   追加
                 </Button>
               </HStack>
-            </HStack>
+            </Flex>
           </CardHeader>
           <CardBody>
             {isLoadingRepos ? (
