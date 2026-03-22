@@ -11,6 +11,8 @@ import { LocalStrategy } from './strategies/local.strategy';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { GithubStrategy } from './strategies/github.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { ApiKeyGuard } from './guards/api-key.guard';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Module({
   imports: [
@@ -37,7 +39,9 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     GoogleStrategy,
     GithubStrategy,
     JwtStrategy,
+    ApiKeyGuard,
+    JwtAuthGuard,
   ],
-  exports: [AuthService],
+  exports: [AuthService, ApiKeyGuard, JwtAuthGuard],
 })
 export class AuthModule {}
