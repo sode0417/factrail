@@ -24,6 +24,7 @@ import {
   FiGithub,
   FiMessageSquare,
   FiActivity,
+  FiExternalLink,
 } from 'react-icons/fi';
 import { IconType } from 'react-icons';
 
@@ -133,6 +134,47 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
         {setupNavItems.map((item) => (
           <NavLink key={item.href} item={item} onClick={onClose} />
         ))}
+      </VStack>
+
+      <Divider my={6} borderColor="gray.800" />
+
+      {/* Services */}
+      <Box px={6} mb={3}>
+        <Text fontSize="xs" fontWeight="semibold" color="gray.500" textTransform="uppercase">
+          Services
+        </Text>
+      </Box>
+      <VStack spacing={1} align="stretch" px={3}>
+        <a href="https://f2a.sode-ai.com" target="_blank" rel="noopener noreferrer">
+          <Flex
+            align="center"
+            px={4}
+            py={3}
+            borderRadius="lg"
+            cursor="pointer"
+            color="gray.400"
+            _hover={{ bg: 'gray.800', color: 'white' }}
+            transition="all 0.2s"
+          >
+            <Text fontWeight="medium" mr={2}>F2A</Text>
+            <Icon as={FiExternalLink} boxSize={3} opacity={0.5} />
+          </Flex>
+        </a>
+        <a href="https://devteam.sode-ai.com" target="_blank" rel="noopener noreferrer">
+          <Flex
+            align="center"
+            px={4}
+            py={3}
+            borderRadius="lg"
+            cursor="pointer"
+            color="gray.400"
+            _hover={{ bg: 'gray.800', color: 'white' }}
+            transition="all 0.2s"
+          >
+            <Text fontWeight="medium" mr={2}>AI Dev Team</Text>
+            <Icon as={FiExternalLink} boxSize={3} opacity={0.5} />
+          </Flex>
+        </a>
       </VStack>
 
       {/* Status Footer */}
