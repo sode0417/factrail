@@ -144,6 +144,9 @@ deploy_nextjs() {
 
   local service_dir="$REPO_ROOT/$dir"
 
+  log "[$name] 依存パッケージをインストール"
+  (cd "$service_dir" && npm install) || { err "[$name] npm install 失敗"; return 1; }
+
   log "[$name] ビルド開始"
   (cd "$service_dir" && eval "$build_cmd") || { err "[$name] ビルド失敗"; return 1; }
   log "[$name] ビルド完了"
@@ -167,6 +170,9 @@ deploy_node() {
   local name="$1" dir="$2" port="$3" build_cmd="$4" start_cmd="$5" log_file="$6" error_log="$7"
 
   local service_dir="$REPO_ROOT/$dir"
+
+  log "[$name] 依存パッケージをインストール"
+  (cd "$service_dir" && npm install) || { err "[$name] npm install 失敗"; return 1; }
 
   log "[$name] ビルド開始"
   (cd "$service_dir" && eval "$build_cmd") || { err "[$name] ビルド失敗"; return 1; }

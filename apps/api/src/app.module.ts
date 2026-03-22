@@ -15,6 +15,7 @@ import { IntegrationsModule } from './integrations/integrations.module';
 import { SettingsModule } from './settings/settings.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { RepositoriesModule } from './repositories/repositories.module';
+import { SlackCollectorModule } from './slack-collector/slack-collector.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { RepositoriesModule } from './repositories/repositories.module';
     IntegrationsModule,
     RepositoriesModule,
     SettingsModule,
+    SlackCollectorModule,
     WebhooksModule,
   ],
   controllers: [AppController],
