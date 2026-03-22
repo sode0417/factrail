@@ -18,12 +18,10 @@ import {
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  FiHome,
   FiDatabase,
   FiSettings,
   FiGithub,
   FiMessageSquare,
-  FiActivity,
   FiExternalLink,
 } from 'react-icons/fi';
 import { IconType } from 'react-icons';
@@ -36,9 +34,7 @@ interface NavItem {
 }
 
 const mainNavItems: NavItem[] = [
-  { name: 'ダッシュボード', href: '/', icon: FiHome },
   { name: 'Facts', href: '/facts', icon: FiDatabase },
-  { name: 'アクティビティ', href: '/activity', icon: FiActivity },
 ];
 
 const setupNavItems: NavItem[] = [

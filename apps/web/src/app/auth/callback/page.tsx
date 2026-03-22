@@ -37,8 +37,8 @@ function CallbackContent() {
           sessionId,
         });
 
-        // ダッシュボードへリダイレクト
-        router.push('/');
+        // Factsページへリダイレクト
+        router.push('/facts');
       } catch (error) {
         console.error('認証処理に失敗しました', error);
         router.push('/login');
