@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { BullModule } from '@nestjs/bull';
+import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
@@ -16,7 +15,6 @@ import { IntegrationsModule } from './integrations/integrations.module';
 import { SettingsModule } from './settings/settings.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { RepositoriesModule } from './repositories/repositories.module';
-import { DispatchersModule } from './dispatchers/dispatchers.module';
 
 @Module({
   imports: [
@@ -43,28 +41,9 @@ import { DispatchersModule } from './dispatchers/dispatchers.module';
     ]),
     // スケジュールタスク（cronジョブ）のグローバル設定
     ScheduleModule.forRoot(),
-    // Redis + Bull Queue のグローバル設定
-    BullModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => {
-        const redisUrl = configService.get('REDIS_URL') || 'redis://localhost:6379';
-
-        return {
-          redis: {
-            url: redisUrl,
-            maxRetriesPerRequest: null,
-            enableReadyCheck: false,
-            // TLS設定（RailwayのRedisはTLSを使用）
-            tls: redisUrl.startsWith('rediss://') ? {} : undefined,
-          },
-        };
-      },
-      inject: [ConfigService],
-    }),
     AuthModule,
     BackupModule,
     CryptoModule,
-    DispatchersModule,
     FactsModule,
     HealthModule,
     IntegrationsModule,
