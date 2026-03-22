@@ -1,0 +1,15 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Deploy to Mac mini
+    runs-on: [self-hosted, deploy]
+    steps:
+      - name: Deploy
+        env:
+          DEPLOY_ROOT: /Users/naoto/Projects/factrail
+        run: $DEPLOY_ROOT/scripts/deploy.sh
