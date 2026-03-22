@@ -1,6 +1,4 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bull';
-import { Queue } from 'bull';
 import { PrismaService } from '../prisma.service';
 import { CreateFactDto, QueryFactsDto, FactsStatsResponseDto } from './dto';
 import { Prisma } from '@prisma/client';
@@ -12,10 +10,7 @@ import { randomUUID } from 'crypto';
  */
 @Injectable()
 export class FactsService {
-  constructor(
-    private readonly prisma: PrismaService,
-    @InjectQueue('slack-dispatch') private readonly slackQueue: Queue,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * 記録を検索する（カーソルベースページネーション）
@@ -24,7 +19,7 @@ export class FactsService {
    * @returns ページングされた記録のリスト
    */
   async findAll(userId: string, query: QueryFactsDto) {
-    const { source, type, from, to, limit = 50, cursor, grouped } = query;
+    const { source, type, from, to, limit = 50, cursor, grouped, projectId, categoryId } = query;
 
     // 検索条件を組み立て
     const where: Prisma.FactWhereInput = {
@@ -37,6 +32,14 @@ export class FactsService {
 
     if (type) {
       where.type = type;
+    }
+
+    if (projectId) {
+      where.projectId = projectId;
+    }
+
+    if (categoryId) {
+      where.categoryId = categoryId;
     }
 
     // 発生日時の範囲で絞り込み
@@ -77,6 +80,8 @@ export class FactsService {
         createdAt: true,
         groupId: true,
         groupType: true,
+        projectId: true,
+        categoryId: true,
         ...(grouped === 'true' && {
           _count: { select: { children: true } },
         }),
@@ -138,6 +143,8 @@ export class FactsService {
         createdAt: true,
         groupId: true,
         groupType: true,
+        projectId: true,
+        categoryId: true,
       },
     });
 
@@ -190,21 +197,10 @@ export class FactsService {
         type: dto.type,
         metadata: dto.metadata || Prisma.JsonNull,
         parentId: dto.parentId,
+        projectId: dto.projectId,
+        categoryId: dto.categoryId,
       },
     });
-
-    // Slack投稿キューに追加（非同期）
-    await this.slackQueue.add(
-      'send-dm',
-      { factId: fact.id },
-      {
-        attempts: 5, // 最大5回リトライ
-        backoff: {
-          type: 'exponential',
-          delay: 1000, // 初回1秒、以降指数的に増加
-        },
-      },
-    );
 
     return { data: fact };
   }

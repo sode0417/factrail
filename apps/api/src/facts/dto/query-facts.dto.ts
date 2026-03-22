@@ -56,4 +56,18 @@ export class QueryFactsDto {
   @IsOptional()
   @IsString()
   grouped?: string;
+
+  /**
+   * F2AプロジェクトIDでフィルタリング（オプション）
+   */
+  @IsOptional()
+  @IsString()
+  projectId?: string;
+
+  /**
+   * F2AカテゴリIDでフィルタリング（オプション）
+   */
+  @IsOptional()
+  @IsString()
+  categoryId?: string;
 }

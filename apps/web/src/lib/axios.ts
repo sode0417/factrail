@@ -65,4 +65,10 @@ apiClient.interceptors.response.use(
   },
 );
 
+// F2A API クライアント（SSO Cookie 認証）
+export const f2aClient = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_F2A_API_URL || 'http://localhost:8001',
+  withCredentials: true,
+});
+
 export default apiClient;

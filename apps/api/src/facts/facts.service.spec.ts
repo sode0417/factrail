@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
-import { getQueueToken } from '@nestjs/bull';
 import { FactsService } from './facts.service';
 import { PrismaService } from '../prisma.service';
 import { CreateFactDto, QueryFactsDto } from './dto';
@@ -8,7 +7,6 @@ import { CreateFactDto, QueryFactsDto } from './dto';
 describe('FactsService', () => {
   let service: FactsService;
   let prisma: PrismaService;
-  let slackQueue: any;
 
   const mockPrismaService = {
     fact: {
@@ -20,10 +18,6 @@ describe('FactsService', () => {
     },
   };
 
-  const mockSlackQueue = {
-    add: jest.fn(),
-  };
-
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -32,16 +26,11 @@ describe('FactsService', () => {
           provide: PrismaService,
           useValue: mockPrismaService,
         },
-        {
-          provide: getQueueToken('slack-dispatch'),
-          useValue: mockSlackQueue,
-        },
       ],
     }).compile();
 
     service = module.get<FactsService>(FactsService);
     prisma = module.get<PrismaService>(PrismaService);
-    slackQueue = module.get(getQueueToken('slack-dispatch'));
   });
 
   afterEach(() => {
@@ -103,6 +92,8 @@ describe('FactsService', () => {
           createdAt: true,
           groupId: true,
           groupType: true,
+          projectId: true,
+          categoryId: true,
         },
       });
     });
@@ -370,7 +361,6 @@ describe('FactsService', () => {
 
     it('新しい記録を作成できること', async () => {
       mockPrismaService.fact.create.mockResolvedValue(mockCreatedFact);
-      mockSlackQueue.add.mockResolvedValue({});
 
       const result = await service.create(userId, createDto);
 
@@ -396,7 +386,6 @@ describe('FactsService', () => {
         externalId: 'custom-ext-id',
       };
       mockPrismaService.fact.create.mockResolvedValue(mockCreatedFact);
-      mockSlackQueue.add.mockResolvedValue({});
 
       await service.create(userId, dtoWithExternalId);
 
@@ -411,7 +400,6 @@ describe('FactsService', () => {
 
     it('externalIdが指定されていない場合はmanual-UUIDを生成すること', async () => {
       mockPrismaService.fact.create.mockResolvedValue(mockCreatedFact);
-      mockSlackQueue.add.mockResolvedValue({});
 
       await service.create(userId, createDto);
 
@@ -425,7 +413,6 @@ describe('FactsService', () => {
         occurredAt: '2024-06-01T12:00:00Z',
       };
       mockPrismaService.fact.create.mockResolvedValue(mockCreatedFact);
-      mockSlackQueue.add.mockResolvedValue({});
 
       await service.create(userId, dtoWithOccurredAt);
 
@@ -440,7 +427,6 @@ describe('FactsService', () => {
 
     it('occurredAtが指定されていない場合は現在時刻を使用すること', async () => {
       mockPrismaService.fact.create.mockResolvedValue(mockCreatedFact);
-      mockSlackQueue.add.mockResolvedValue({});
 
       const beforeCreate = new Date();
       await service.create(userId, createDto);
@@ -453,25 +439,6 @@ describe('FactsService', () => {
       expect(occurredAt.getTime()).toBeLessThanOrEqual(afterCreate.getTime());
     });
 
-    it('Slackキューに投稿を追加すること', async () => {
-      mockPrismaService.fact.create.mockResolvedValue(mockCreatedFact);
-      mockSlackQueue.add.mockResolvedValue({});
-
-      await service.create(userId, createDto);
-
-      expect(slackQueue.add).toHaveBeenCalledWith(
-        'send-dm',
-        { factId: mockCreatedFact.id },
-        {
-          attempts: 5,
-          backoff: {
-            type: 'exponential',
-            delay: 1000,
-          },
-        },
-      );
-    });
-
     it('rawとmetadataが指定されている場合はそれを使用すること', async () => {
       const dtoWithExtra = {
         ...createDto,
@@ -479,7 +446,6 @@ describe('FactsService', () => {
         metadata: { tag: 'important' },
       };
       mockPrismaService.fact.create.mockResolvedValue(mockCreatedFact);
-      mockSlackQueue.add.mockResolvedValue({});
 
       await service.create(userId, dtoWithExtra);
 

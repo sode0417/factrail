@@ -25,7 +25,7 @@ import { MainLayout } from '@/components/layout';
 import { DateFilter } from '@/components/facts';
 import { FiSearch, FiExternalLink, FiRefreshCw, FiMessageSquare, FiChevronDown, FiChevronRight, FiSend } from 'react-icons/fi';
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
-import apiClient from '@/lib/axios';
+import apiClient, { f2aClient } from '@/lib/axios';
 import { formatRelativeTime } from '@/lib/formatRelativeTime';
 import { useDateFilter } from '@/hooks/useDateFilter';
 
@@ -42,7 +42,23 @@ interface Fact {
   createdAt: string;
   groupId?: string | null;
   groupType?: string | null;
+  projectId?: string | null;
+  categoryId?: string | null;
   childCount?: number;
+}
+
+interface F2ACategory {
+  id: string;
+  name: string;
+  slug: string;
+  color: string;
+}
+
+interface F2AProject {
+  id: string;
+  title: string;
+  status: string;
+  category_id: string | null;
 }
 
 interface FactsResponse {
@@ -101,6 +117,16 @@ function FactsPageContent() {
   const [commentTexts, setCommentTexts] = useState<Record<string, string>>({});
   const [sendingCommentId, setSendingCommentId] = useState<string | null>(null);
 
+  // F2A カテゴリ/プロジェクト
+  const [categories, setCategories] = useState<F2ACategory[]>([]);
+  const [projects, setProjects] = useState<F2AProject[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState('');
+  const [selectedProjectId, setSelectedProjectId] = useState('');
+
+  // フィルタ用カテゴリ/プロジェクト
+  const [filterCategoryId, setFilterCategoryId] = useState('');
+  const [filterProjectId, setFilterProjectId] = useState('');
+
   const {
     from,
     to,
@@ -111,6 +137,23 @@ function FactsPageContent() {
     clearFilter,
     apiParams,
   } = useDateFilter();
+
+  // F2A カテゴリ/プロジェクト取得
+  useEffect(() => {
+    const fetchF2AData = async () => {
+      try {
+        const [catRes, projRes] = await Promise.all([
+          f2aClient.get<{ data: F2ACategory[] }>('/api/categories'),
+          f2aClient.get<{ data: F2AProject[] }>('/api/projects'),
+        ]);
+        setCategories(catRes.data.data);
+        setProjects(projRes.data.data);
+      } catch (error) {
+        console.error('Failed to fetch F2A data:', error);
+      }
+    };
+    fetchF2AData();
+  }, []);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
     messagesEndRef.current?.scrollIntoView({ behavior });
@@ -130,6 +173,8 @@ function FactsPageContent() {
         if (apiParams.from) params.append('from', apiParams.from);
         if (apiParams.to) params.append('to', apiParams.to);
         if (grouped) params.append('grouped', 'true');
+        if (filterCategoryId) params.append('categoryId', filterCategoryId);
+        if (filterProjectId) params.append('projectId', filterProjectId);
 
         const response = await apiClient.get<FactsResponse>(
           `/api/facts?${params.toString()}`,
@@ -143,7 +188,7 @@ function FactsPageContent() {
         setIsBackgroundUpdate(false);
       }
     },
-    [sourceFilter, apiParams.from, apiParams.to, grouped],
+    [sourceFilter, apiParams.from, apiParams.to, grouped, filterCategoryId, filterProjectId],
   );
 
   const toggleExpand = useCallback(async (factId: string) => {
@@ -180,6 +225,8 @@ function FactsPageContent() {
         source: 'manual',
         title: text,
         type: 'memo',
+        ...(selectedProjectId && { projectId: selectedProjectId }),
+        ...(selectedCategoryId && { categoryId: selectedCategoryId }),
       });
       setMemoText('');
       await fetchFacts(false);
@@ -194,7 +241,7 @@ function FactsPageContent() {
     } finally {
       setIsSending(false);
     }
-  }, [memoText, isSending, fetchFacts, toast]);
+  }, [memoText, isSending, fetchFacts, toast, selectedProjectId, selectedCategoryId]);
 
   // スレッドコメント送信
   const handleSendComment = useCallback(async (parentId: string) => {
@@ -305,6 +352,34 @@ function FactsPageContent() {
                   <option value="manual">Manual</option>
                 </Select>
 
+                <Select
+                  maxW={{ base: '100%', sm: '160px' }}
+                  bg="gray.900"
+                  borderColor="gray.700"
+                  value={filterCategoryId}
+                  onChange={(e) => setFilterCategoryId(e.target.value)}
+                >
+                  <option value="">すべてのカテゴリ</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </Select>
+
+                {projects.length > 0 && (
+                  <Select
+                    maxW={{ base: '100%', sm: '200px' }}
+                    bg="gray.900"
+                    borderColor="gray.700"
+                    value={filterProjectId}
+                    onChange={(e) => setFilterProjectId(e.target.value)}
+                  >
+                    <option value="">すべてのプロジェクト</option>
+                    {projects.map((proj) => (
+                      <option key={proj.id} value={proj.id}>{proj.title}</option>
+                    ))}
+                  </Select>
+                )}
+
                 <Button
                   leftIcon={<Icon as={FiMessageSquare} />}
                   variant={grouped ? 'solid' : 'outline'}
@@ -414,6 +489,18 @@ function FactsPageContent() {
                               <Badge colorScheme="gray" variant="outline">
                                 {fact.type}
                               </Badge>
+                              {fact.categoryId && (() => {
+                                const cat = categories.find((c) => c.id === fact.categoryId);
+                                return cat ? (
+                                  <Badge bg={cat.color} color="white" fontSize="xs">{cat.name}</Badge>
+                                ) : null;
+                              })()}
+                              {fact.projectId && (() => {
+                                const proj = projects.find((p) => p.id === fact.projectId);
+                                return proj ? (
+                                  <Badge colorScheme="cyan" variant="subtle" fontSize="xs">{proj.title}</Badge>
+                                ) : null;
+                              })()}
                               <Text fontSize="xs" color="gray.500">
                                 {formatRelativeTime(fact.occurredAt)} (
                                 {formatDate(fact.occurredAt)})
@@ -591,6 +678,52 @@ function FactsPageContent() {
           borderRadius="lg"
           p={3}
         >
+          <Flex gap={2} mb={2} flexWrap="wrap">
+            <Select
+              size="xs"
+              maxW="160px"
+              bg="gray.900"
+              borderColor="gray.700"
+              value={selectedCategoryId}
+              onChange={(e) => setSelectedCategoryId(e.target.value)}
+            >
+              <option value="">カテゴリなし</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>{cat.name}</option>
+              ))}
+            </Select>
+            {projects.length > 0 && (
+              <Select
+                size="xs"
+                maxW="200px"
+                bg="gray.900"
+                borderColor="gray.700"
+                value={selectedProjectId}
+                onChange={(e) => setSelectedProjectId(e.target.value)}
+              >
+                <option value="">プロジェクトなし</option>
+                {projects.map((proj) => (
+                  <option key={proj.id} value={proj.id}>{proj.title}</option>
+                ))}
+              </Select>
+            )}
+            {(selectedCategoryId || selectedProjectId) && (
+              <HStack spacing={1}>
+                {selectedCategoryId && (() => {
+                  const cat = categories.find((c) => c.id === selectedCategoryId);
+                  return cat ? (
+                    <Badge size="sm" bg={cat.color} color="white" fontSize="xs">{cat.name}</Badge>
+                  ) : null;
+                })()}
+                {selectedProjectId && (() => {
+                  const proj = projects.find((p) => p.id === selectedProjectId);
+                  return proj ? (
+                    <Badge size="sm" colorScheme="cyan" variant="subtle" fontSize="xs">{proj.title}</Badge>
+                  ) : null;
+                })()}
+              </HStack>
+            )}
+          </Flex>
           <Flex gap={3} align="flex-end">
             <Textarea
               placeholder="メモを入力... (Ctrl+Enter で送信)"

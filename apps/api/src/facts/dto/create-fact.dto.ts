@@ -79,4 +79,18 @@ export class CreateFactDto {
   @IsOptional()
   @IsUUID()
   parentId?: string;
+
+  /**
+   * F2AプロジェクトID
+   */
+  @IsOptional()
+  @IsUUID()
+  projectId?: string;
+
+  /**
+   * F2AカテゴリID
+   */
+  @IsOptional()
+  @IsUUID()
+  categoryId?: string;
 }
