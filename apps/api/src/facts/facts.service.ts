@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
-import { CreateFactDto, QueryFactsDto, FactsStatsResponseDto } from './dto';
+import { CreateFactDto, UpdateFactDto, QueryFactsDto, FactsStatsResponseDto } from './dto';
 import { Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
 
@@ -227,5 +227,59 @@ export class FactsService {
     return {
       todayCount,
     };
+  }
+
+  /**
+   * 記録を更新する（manual / comment のみ）
+   */
+  async update(userId: string, id: string, dto: UpdateFactDto) {
+    const fact = await this.prisma.fact.findFirst({
+      where: { id, userId },
+    });
+
+    if (!fact) {
+      throw new NotFoundException(`記録が見つかりません: ID "${id}"`);
+    }
+
+    if (fact.source !== 'manual' && fact.source !== 'comment') {
+      throw new ForbiddenException('外部ソースの記録は編集できません');
+    }
+
+    const data: Record<string, unknown> = {};
+    if (dto.title !== undefined) data.title = dto.title;
+    if (dto.summary !== undefined) data.summary = dto.summary;
+    if (dto.projectId !== undefined) data.projectId = dto.projectId;
+    if (dto.categoryId !== undefined) data.categoryId = dto.categoryId;
+
+    if (Object.keys(data).length === 0) {
+      return { data: fact };
+    }
+
+    const updated = await this.prisma.fact.update({
+      where: { id },
+      data,
+    });
+
+    return { data: updated };
+  }
+
+  /**
+   * 記録を削除する（manual / comment のみ、子 Fact も削除）
+   */
+  async remove(userId: string, id: string) {
+    const fact = await this.prisma.fact.findFirst({
+      where: { id, userId },
+    });
+
+    if (!fact) {
+      throw new NotFoundException(`記録が見つかりません: ID "${id}"`);
+    }
+
+    if (fact.source !== 'manual' && fact.source !== 'comment') {
+      throw new ForbiddenException('外部ソースの記録は削除できません');
+    }
+
+    await this.prisma.fact.deleteMany({ where: { parentId: id } });
+    await this.prisma.fact.delete({ where: { id } });
   }
 }

@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { FactsController } from './facts.controller';
 import { FactsService } from './facts.service';
-import { CreateFactDto, QueryFactsDto } from './dto';
+import { CreateFactDto, UpdateFactDto, QueryFactsDto } from './dto';
 
 describe('FactsController', () => {
   let controller: FactsController;
@@ -12,6 +12,8 @@ describe('FactsController', () => {
     findOne: jest.fn(),
     findChildren: jest.fn(),
     create: jest.fn(),
+    update: jest.fn(),
+    remove: jest.fn(),
     getStats: jest.fn(),
   };
 
@@ -226,6 +228,29 @@ describe('FactsController', () => {
 
       expect(result).toEqual(mockCreatedFact);
       expect(service.create).toHaveBeenCalledWith('user-123', fullDto);
+    });
+  });
+
+  describe('update', () => {
+    it('記録を更新できること', async () => {
+      const updateDto: UpdateFactDto = { title: 'Updated Title' };
+      const mockUpdated = { data: { id: 'fact-1', title: 'Updated Title' } };
+      mockFactsService.update.mockResolvedValue(mockUpdated);
+
+      const result = await controller.update(mockRequest, 'fact-1', updateDto);
+
+      expect(result).toEqual(mockUpdated);
+      expect(service.update).toHaveBeenCalledWith('user-123', 'fact-1', updateDto);
+    });
+  });
+
+  describe('remove', () => {
+    it('記録を削除できること', async () => {
+      mockFactsService.remove.mockResolvedValue(undefined);
+
+      await controller.remove(mockRequest, 'fact-1');
+
+      expect(service.remove).toHaveBeenCalledWith('user-123', 'fact-1');
     });
   });
 });
