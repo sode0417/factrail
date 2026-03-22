@@ -2,6 +2,8 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -12,7 +14,7 @@ import {
   Request,
 } from '@nestjs/common';
 import { FactsService } from './facts.service';
-import { CreateFactDto, QueryFactsDto } from './dto';
+import { CreateFactDto, UpdateFactDto, QueryFactsDto } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 /**
@@ -72,5 +74,20 @@ export class FactsController {
   @HttpCode(HttpStatus.CREATED)
   create(@Request() req, @Body() createFactDto: CreateFactDto) {
     return this.factsService.create(req.user.id, createFactDto);
+  }
+
+  @Patch(':id')
+  update(
+    @Request() req,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateFactDto: UpdateFactDto,
+  ) {
+    return this.factsService.update(req.user.id, id, updateFactDto);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  remove(@Request() req, @Param('id', ParseUUIDPipe) id: string) {
+    return this.factsService.remove(req.user.id, id);
   }
 }

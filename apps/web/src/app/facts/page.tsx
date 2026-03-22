@@ -20,10 +20,16 @@ import {
   IconButton,
   Textarea,
   useToast,
+  AlertDialog,
+  AlertDialogBody,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogContent,
+  AlertDialogOverlay,
 } from '@chakra-ui/react';
 import { MainLayout } from '@/components/layout';
 import { DateFilter } from '@/components/facts';
-import { FiSearch, FiExternalLink, FiRefreshCw, FiMessageSquare, FiChevronDown, FiChevronRight, FiSend } from 'react-icons/fi';
+import { FiSearch, FiExternalLink, FiRefreshCw, FiMessageSquare, FiChevronDown, FiChevronRight, FiSend, FiEdit2, FiTrash2, FiCheck, FiX } from 'react-icons/fi';
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import apiClient, { f2aClient } from '@/lib/axios';
 import { formatRelativeTime } from '@/lib/formatRelativeTime';
@@ -126,6 +132,21 @@ function FactsPageContent() {
   // フィルタ用カテゴリ/プロジェクト
   const [filterCategoryId, setFilterCategoryId] = useState('');
   const [filterProjectId, setFilterProjectId] = useState('');
+
+  // インライン編集
+  const [editingFactId, setEditingFactId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<{
+    title: string;
+    summary: string;
+    projectId: string | null;
+    categoryId: string | null;
+  }>({ title: '', summary: '', projectId: null, categoryId: null });
+  const [isSaving, setIsSaving] = useState(false);
+
+  // 削除確認
+  const [deletingFact, setDeletingFact] = useState<Fact | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const cancelDeleteRef = useRef<HTMLButtonElement>(null);
 
   const {
     from,
@@ -284,6 +305,97 @@ function FactsPageContent() {
       handleSendMemo();
     }
   }, [handleSendMemo]);
+
+  // インライン編集開始
+  const startEditing = useCallback((fact: Fact) => {
+    setEditingFactId(fact.id);
+    setEditForm({
+      title: fact.title,
+      summary: fact.summary || '',
+      projectId: fact.projectId ?? null,
+      categoryId: fact.categoryId ?? null,
+    });
+  }, []);
+
+  // 編集保存
+  const handleSaveEdit = useCallback(async (factId: string, parentId?: string) => {
+    if (isSaving) return;
+    setIsSaving(true);
+    try {
+      const res = await apiClient.patch(`/api/facts/${factId}`, {
+        title: editForm.title,
+        summary: editForm.summary || null,
+        projectId: editForm.projectId,
+        categoryId: editForm.categoryId,
+      });
+      const updated = res.data.data;
+
+      if (parentId) {
+        // 子 Fact の更新
+        setChildrenMap((prev) => ({
+          ...prev,
+          [parentId]: (prev[parentId] || []).map((c) => (c.id === factId ? { ...c, ...updated } : c)),
+        }));
+      } else {
+        setFacts((prev) => prev.map((f) => (f.id === factId ? { ...f, ...updated } : f)));
+      }
+
+      setEditingFactId(null);
+    } catch (error) {
+      console.error('Failed to update fact:', error);
+      toast({ title: '更新に失敗しました', status: 'error', duration: 5000, isClosable: true });
+    } finally {
+      setIsSaving(false);
+    }
+  }, [editForm, isSaving, toast]);
+
+  // 削除実行
+  const handleDelete = useCallback(async () => {
+    if (!deletingFact || isDeleting) return;
+    setIsDeleting(true);
+    try {
+      await apiClient.delete(`/api/facts/${deletingFact.id}`);
+
+      // 親 Fact かどうかで state 更新を分岐
+      const isParent = facts.some((f) => f.id === deletingFact.id);
+      if (isParent) {
+        setFacts((prev) => prev.filter((f) => f.id !== deletingFact.id));
+        setChildrenMap((prev) => {
+          const next = { ...prev };
+          delete next[deletingFact.id];
+          return next;
+        });
+      } else {
+        // 子 Fact の削除 → childrenMap から除去し、親の childCount を更新
+        let affectedParentId: string | null = null;
+        setChildrenMap((prev) => {
+          const next = { ...prev };
+          for (const [parentId, children] of Object.entries(next)) {
+            const filtered = children.filter((c) => c.id !== deletingFact.id);
+            if (filtered.length !== children.length) {
+              next[parentId] = filtered;
+              affectedParentId = parentId;
+            }
+          }
+          return next;
+        });
+        if (affectedParentId) {
+          setFacts((prevFacts) =>
+            prevFacts.map((f) =>
+              f.id === affectedParentId ? { ...f, childCount: (f.childCount ?? 1) - 1 } : f,
+            ),
+          );
+        }
+      }
+
+      setDeletingFact(null);
+    } catch (error) {
+      console.error('Failed to delete fact:', error);
+      toast({ title: '削除に失敗しました', status: 'error', duration: 5000, isClosable: true });
+    } finally {
+      setIsDeleting(false);
+    }
+  }, [deletingFact, isDeleting, facts, toast]);
 
   // 初回ロードとフィルター変更時のフェッチ
   useEffect(() => {
@@ -461,69 +573,164 @@ function FactsPageContent() {
                   >
                     <CardBody pb={grouped ? 0 : undefined}>
                       {/* 親 Fact */}
-                      <Flex justify="space-between" align="flex-start">
-                        <HStack spacing={3} align="flex-start" flex={1}>
-                          <Box
-                            w={1}
-                            minH="50px"
-                            borderRadius="full"
-                            bg={`${getSourceColor(fact.source)}.500`}
-                            flexShrink={0}
+                      {editingFactId === fact.id ? (
+                        /* インライン編集モード */
+                        <VStack spacing={3} align="stretch">
+                          <Input
+                            value={editForm.title}
+                            onChange={(e) => setEditForm((prev) => ({ ...prev, title: e.target.value }))}
+                            bg="gray.900"
+                            borderColor="gray.600"
+                            fontWeight="semibold"
+                            fontSize="lg"
+                            placeholder="タイトル"
                           />
-                          <Box flex={1}>
-                            <Text fontWeight="semibold" fontSize="lg" mb={1}>
-                              {fact.title}
-                            </Text>
-                            {fact.summary && (
-                              <Text fontSize="sm" color="gray.400" mb={2}>
-                                {fact.summary}
-                              </Text>
-                            )}
-                            <HStack spacing={2} flexWrap="wrap">
-                              <Badge
-                                colorScheme={getSourceColor(fact.source)}
-                                variant="subtle"
+                          <Textarea
+                            value={editForm.summary}
+                            onChange={(e) => setEditForm((prev) => ({ ...prev, summary: e.target.value }))}
+                            bg="gray.900"
+                            borderColor="gray.600"
+                            fontSize="sm"
+                            placeholder="サマリー（任意）"
+                            rows={2}
+                            resize="none"
+                          />
+                          <HStack spacing={2}>
+                            <Select
+                              size="sm"
+                              maxW="180px"
+                              bg="gray.900"
+                              borderColor="gray.600"
+                              value={editForm.categoryId ?? ''}
+                              onChange={(e) => setEditForm((prev) => ({ ...prev, categoryId: e.target.value || null }))}
+                            >
+                              <option value="">カテゴリなし</option>
+                              {categories.map((cat) => (
+                                <option key={cat.id} value={cat.id}>{cat.name}</option>
+                              ))}
+                            </Select>
+                            {projects.length > 0 && (
+                              <Select
+                                size="sm"
+                                maxW="220px"
+                                bg="gray.900"
+                                borderColor="gray.600"
+                                value={editForm.projectId ?? ''}
+                                onChange={(e) => setEditForm((prev) => ({ ...prev, projectId: e.target.value || null }))}
                               >
-                                {fact.source}
-                              </Badge>
-                              <Badge colorScheme="gray" variant="outline">
-                                {fact.type}
-                              </Badge>
-                              {fact.categoryId && (() => {
-                                const cat = categories.find((c) => c.id === fact.categoryId);
-                                return cat ? (
-                                  <Badge bg={cat.color} color="white" fontSize="xs">{cat.name}</Badge>
-                                ) : null;
-                              })()}
-                              {fact.projectId && (() => {
-                                const proj = projects.find((p) => p.id === fact.projectId);
-                                return proj ? (
-                                  <Badge colorScheme="cyan" variant="subtle" fontSize="xs">{proj.title}</Badge>
-                                ) : null;
-                              })()}
-                              <Text fontSize="xs" color="gray.500">
-                                {formatRelativeTime(fact.occurredAt)} (
-                                {formatDate(fact.occurredAt)})
+                                <option value="">プロジェクトなし</option>
+                                {projects.map((proj) => (
+                                  <option key={proj.id} value={proj.id}>{proj.title}</option>
+                                ))}
+                              </Select>
+                            )}
+                          </HStack>
+                          <HStack spacing={2}>
+                            <IconButton
+                              aria-label="保存"
+                              icon={<FiCheck />}
+                              colorScheme="green"
+                              size="sm"
+                              onClick={() => handleSaveEdit(fact.id)}
+                              isLoading={isSaving}
+                              isDisabled={!editForm.title.trim()}
+                            />
+                            <IconButton
+                              aria-label="キャンセル"
+                              icon={<FiX />}
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setEditingFactId(null)}
+                            />
+                          </HStack>
+                        </VStack>
+                      ) : (
+                        /* 通常表示モード */
+                        <Flex justify="space-between" align="flex-start">
+                          <HStack spacing={3} align="flex-start" flex={1}>
+                            <Box
+                              w={1}
+                              minH="50px"
+                              borderRadius="full"
+                              bg={`${getSourceColor(fact.source)}.500`}
+                              flexShrink={0}
+                            />
+                            <Box flex={1}>
+                              <Text fontWeight="semibold" fontSize="lg" mb={1}>
+                                {fact.title}
                               </Text>
-                            </HStack>
-                          </Box>
-                        </HStack>
+                              {fact.summary && (
+                                <Text fontSize="sm" color="gray.400" mb={2}>
+                                  {fact.summary}
+                                </Text>
+                              )}
+                              <HStack spacing={2} flexWrap="wrap">
+                                <Badge
+                                  colorScheme={getSourceColor(fact.source)}
+                                  variant="subtle"
+                                >
+                                  {fact.source}
+                                </Badge>
+                                <Badge colorScheme="gray" variant="outline">
+                                  {fact.type}
+                                </Badge>
+                                {fact.categoryId && (() => {
+                                  const cat = categories.find((c) => c.id === fact.categoryId);
+                                  return cat ? (
+                                    <Badge bg={cat.color} color="white" fontSize="xs">{cat.name}</Badge>
+                                  ) : null;
+                                })()}
+                                {fact.projectId && (() => {
+                                  const proj = projects.find((p) => p.id === fact.projectId);
+                                  return proj ? (
+                                    <Badge colorScheme="cyan" variant="subtle" fontSize="xs">{proj.title}</Badge>
+                                  ) : null;
+                                })()}
+                                <Text fontSize="xs" color="gray.500">
+                                  {formatRelativeTime(fact.occurredAt)} (
+                                  {formatDate(fact.occurredAt)})
+                                </Text>
+                              </HStack>
+                            </Box>
+                          </HStack>
 
-                        {fact.sourceUrl && (
-                          <Button
-                            as="a"
-                            href={fact.sourceUrl}
-                            target="_blank"
-                            size="sm"
-                            variant="ghost"
-                            colorScheme="gray"
-                            rightIcon={<Icon as={FiExternalLink} />}
-                            flexShrink={0}
-                          >
-                            開く
-                          </Button>
-                        )}
-                      </Flex>
+                          <HStack spacing={1} flexShrink={0}>
+                            {(fact.source === 'manual' || fact.source === 'comment') && (
+                              <>
+                                <IconButton
+                                  aria-label="編集"
+                                  icon={<FiEdit2 />}
+                                  size="sm"
+                                  variant="ghost"
+                                  colorScheme="gray"
+                                  onClick={() => startEditing(fact)}
+                                />
+                                <IconButton
+                                  aria-label="削除"
+                                  icon={<FiTrash2 />}
+                                  size="sm"
+                                  variant="ghost"
+                                  colorScheme="red"
+                                  onClick={() => setDeletingFact(fact)}
+                                />
+                              </>
+                            )}
+                            {fact.sourceUrl && (
+                              <Button
+                                as="a"
+                                href={fact.sourceUrl}
+                                target="_blank"
+                                size="sm"
+                                variant="ghost"
+                                colorScheme="gray"
+                                rightIcon={<Icon as={FiExternalLink} />}
+                              >
+                                開く
+                              </Button>
+                            )}
+                          </HStack>
+                        </Flex>
+                      )}
 
                       {/* スレッドバー */}
                       {grouped && (
@@ -595,36 +802,87 @@ function FactsPageContent() {
 
                                 {/* 子 Fact 内容 */}
                                 <Box flex={1} pb={idx < children.length - 1 ? 3 : 0}>
-                                  <Flex justify="space-between" align="flex-start">
-                                    <Box flex={1}>
-                                      <Text fontWeight="medium" fontSize="sm" color="gray.200">
-                                        {child.title}
-                                      </Text>
-                                      <HStack spacing={2} mt={1} flexWrap="wrap">
-                                        <Badge colorScheme="gray" variant="outline" fontSize="xs">
-                                          {child.type}
-                                        </Badge>
-                                        <Text fontSize="xs" color="gray.500">
-                                          {formatRelativeTime(child.occurredAt)}
-                                        </Text>
+                                  {editingFactId === child.id ? (
+                                    <VStack spacing={2} align="stretch">
+                                      <Input
+                                        value={editForm.title}
+                                        onChange={(e) => setEditForm((prev) => ({ ...prev, title: e.target.value }))}
+                                        bg="gray.900"
+                                        borderColor="gray.600"
+                                        size="sm"
+                                        placeholder="タイトル"
+                                      />
+                                      <HStack spacing={2}>
+                                        <IconButton
+                                          aria-label="保存"
+                                          icon={<FiCheck />}
+                                          colorScheme="green"
+                                          size="xs"
+                                          onClick={() => handleSaveEdit(child.id, fact.id)}
+                                          isLoading={isSaving}
+                                          isDisabled={!editForm.title.trim()}
+                                        />
+                                        <IconButton
+                                          aria-label="キャンセル"
+                                          icon={<FiX />}
+                                          variant="ghost"
+                                          size="xs"
+                                          onClick={() => setEditingFactId(null)}
+                                        />
                                       </HStack>
-                                    </Box>
-                                    {child.sourceUrl && (
-                                      <Button
-                                        as="a"
-                                        href={child.sourceUrl}
-                                        target="_blank"
-                                        size="xs"
-                                        variant="ghost"
-                                        colorScheme="gray"
-                                        rightIcon={<Icon as={FiExternalLink} boxSize={3} />}
-                                        flexShrink={0}
-                                        ml={2}
-                                      >
-                                        開く
-                                      </Button>
-                                    )}
-                                  </Flex>
+                                    </VStack>
+                                  ) : (
+                                    <Flex justify="space-between" align="flex-start">
+                                      <Box flex={1}>
+                                        <Text fontWeight="medium" fontSize="sm" color="gray.200">
+                                          {child.title}
+                                        </Text>
+                                        <HStack spacing={2} mt={1} flexWrap="wrap">
+                                          <Badge colorScheme="gray" variant="outline" fontSize="xs">
+                                            {child.type}
+                                          </Badge>
+                                          <Text fontSize="xs" color="gray.500">
+                                            {formatRelativeTime(child.occurredAt)}
+                                          </Text>
+                                        </HStack>
+                                      </Box>
+                                      <HStack spacing={0} flexShrink={0} ml={2}>
+                                        {(child.source === 'manual' || child.source === 'comment') && (
+                                          <>
+                                            <IconButton
+                                              aria-label="編集"
+                                              icon={<FiEdit2 />}
+                                              size="xs"
+                                              variant="ghost"
+                                              colorScheme="gray"
+                                              onClick={() => startEditing(child)}
+                                            />
+                                            <IconButton
+                                              aria-label="削除"
+                                              icon={<FiTrash2 />}
+                                              size="xs"
+                                              variant="ghost"
+                                              colorScheme="red"
+                                              onClick={() => setDeletingFact(child)}
+                                            />
+                                          </>
+                                        )}
+                                        {child.sourceUrl && (
+                                          <Button
+                                            as="a"
+                                            href={child.sourceUrl}
+                                            target="_blank"
+                                            size="xs"
+                                            variant="ghost"
+                                            colorScheme="gray"
+                                            rightIcon={<Icon as={FiExternalLink} boxSize={3} />}
+                                          >
+                                            開く
+                                          </Button>
+                                        )}
+                                      </HStack>
+                                    </Flex>
+                                  )}
                                 </Box>
                               </Flex>
                             ))}
@@ -752,6 +1010,37 @@ function FactsPageContent() {
           </Flex>
         </Box>
       </Flex>
+
+      {/* 削除確認ダイアログ */}
+      <AlertDialog
+        isOpen={!!deletingFact}
+        leastDestructiveRef={cancelDeleteRef as React.RefObject<HTMLButtonElement>}
+        onClose={() => setDeletingFact(null)}
+      >
+        <AlertDialogOverlay>
+          <AlertDialogContent bg="gray.800" borderColor="gray.700" borderWidth="1px">
+            <AlertDialogHeader fontSize="lg" fontWeight="bold">
+              Fact を削除
+            </AlertDialogHeader>
+            <AlertDialogBody>
+              <Text>「{deletingFact?.title}」を削除しますか？</Text>
+              {deletingFact && (deletingFact.childCount ?? 0) > 0 && (
+                <Text color="orange.300" mt={2} fontSize="sm">
+                  スレッド内の {deletingFact.childCount} 件のコメントも削除されます。
+                </Text>
+              )}
+            </AlertDialogBody>
+            <AlertDialogFooter>
+              <Button ref={cancelDeleteRef} onClick={() => setDeletingFact(null)} variant="ghost">
+                キャンセル
+              </Button>
+              <Button colorScheme="red" onClick={handleDelete} ml={3} isLoading={isDeleting}>
+                削除
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialogOverlay>
+      </AlertDialog>
     </MainLayout>
   );
 }

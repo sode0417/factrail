@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, ForbiddenException } from '@nestjs/common';
 import { FactsService } from './facts.service';
 import { PrismaService } from '../prisma.service';
-import { CreateFactDto, QueryFactsDto } from './dto';
+import { CreateFactDto, UpdateFactDto, QueryFactsDto } from './dto';
 
 describe('FactsService', () => {
   let service: FactsService;
@@ -15,6 +15,8 @@ describe('FactsService', () => {
       create: jest.fn(),
       count: jest.fn(),
       update: jest.fn(),
+      delete: jest.fn(),
+      deleteMany: jest.fn(),
     },
   };
 
@@ -183,6 +185,32 @@ describe('FactsService', () => {
       expect(result.data).toHaveLength(50);
       expect(result.meta.hasMore).toBe(true);
       expect(result.meta.nextCursor).toBe('fact-49');
+    });
+
+    it('projectId でフィルタリングできること', async () => {
+      mockPrismaService.fact.findMany.mockResolvedValue([]);
+
+      const query: QueryFactsDto = { projectId: 'proj-1' };
+      await service.findAll(userId, query);
+
+      expect(prisma.fact.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ userId, projectId: 'proj-1' }),
+        }),
+      );
+    });
+
+    it('categoryId でフィルタリングできること', async () => {
+      mockPrismaService.fact.findMany.mockResolvedValue([]);
+
+      const query: QueryFactsDto = { categoryId: 'cat-1' };
+      await service.findAll(userId, query);
+
+      expect(prisma.fact.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ userId, categoryId: 'cat-1' }),
+        }),
+      );
     });
 
     it('次ページがない場合にhasMoreがfalseであること', async () => {
@@ -502,6 +530,140 @@ describe('FactsService', () => {
       const result = await service.getStats(userId);
 
       expect(result.todayCount).toBe(0);
+    });
+  });
+
+  describe('update', () => {
+    const userId = 'user-123';
+    const factId = 'fact-1';
+    const manualFact = {
+      id: factId,
+      source: 'manual',
+      type: 'memo',
+      userId,
+      title: 'Original',
+      summary: null,
+      projectId: null,
+      categoryId: null,
+    };
+
+    it('manual Fact のタイトルを更新できること', async () => {
+      mockPrismaService.fact.findFirst.mockResolvedValue(manualFact);
+      const updatedFact = { ...manualFact, title: 'Updated Title' };
+      mockPrismaService.fact.update.mockResolvedValue(updatedFact);
+
+      const dto: UpdateFactDto = { title: 'Updated Title' };
+      const result = await service.update(userId, factId, dto);
+
+      expect(result.data.title).toBe('Updated Title');
+      expect(mockPrismaService.fact.update).toHaveBeenCalledWith({
+        where: { id: factId },
+        data: { title: 'Updated Title' },
+      });
+    });
+
+    it('comment Fact を更新できること', async () => {
+      const commentFact = { ...manualFact, source: 'comment', type: 'comment' };
+      mockPrismaService.fact.findFirst.mockResolvedValue(commentFact);
+      mockPrismaService.fact.update.mockResolvedValue({ ...commentFact, title: 'New' });
+
+      const result = await service.update(userId, factId, { title: 'New' });
+      expect(result.data.title).toBe('New');
+    });
+
+    it('projectId を null に設定解除できること', async () => {
+      const factWithProject = { ...manualFact, projectId: 'proj-1' };
+      mockPrismaService.fact.findFirst.mockResolvedValue(factWithProject);
+      mockPrismaService.fact.update.mockResolvedValue({ ...factWithProject, projectId: null });
+
+      await service.update(userId, factId, { projectId: null });
+
+      expect(mockPrismaService.fact.update).toHaveBeenCalledWith({
+        where: { id: factId },
+        data: { projectId: null },
+      });
+    });
+
+    it('categoryId を null に設定解除できること', async () => {
+      const factWithCategory = { ...manualFact, categoryId: 'cat-1' };
+      mockPrismaService.fact.findFirst.mockResolvedValue(factWithCategory);
+      mockPrismaService.fact.update.mockResolvedValue({ ...factWithCategory, categoryId: null });
+
+      await service.update(userId, factId, { categoryId: null });
+
+      expect(mockPrismaService.fact.update).toHaveBeenCalledWith({
+        where: { id: factId },
+        data: { categoryId: null },
+      });
+    });
+
+    it('外部ソースの Fact は更新できないこと', async () => {
+      const githubFact = { ...manualFact, source: 'github' };
+      mockPrismaService.fact.findFirst.mockResolvedValue(githubFact);
+
+      await expect(service.update(userId, factId, { title: 'New' })).rejects.toThrow(ForbiddenException);
+    });
+
+    it('存在しない Fact は NotFoundException をスローすること', async () => {
+      mockPrismaService.fact.findFirst.mockResolvedValue(null);
+
+      await expect(service.update(userId, factId, { title: 'New' })).rejects.toThrow(NotFoundException);
+    });
+
+    it('更新フィールドがない場合はそのまま返すこと', async () => {
+      mockPrismaService.fact.findFirst.mockResolvedValue(manualFact);
+
+      const result = await service.update(userId, factId, {});
+
+      expect(result.data).toEqual(manualFact);
+      expect(mockPrismaService.fact.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('remove', () => {
+    const userId = 'user-123';
+    const factId = 'fact-1';
+    const manualFact = {
+      id: factId,
+      source: 'manual',
+      type: 'memo',
+      userId,
+    };
+
+    it('manual Fact を削除できること（子も削除）', async () => {
+      mockPrismaService.fact.findFirst.mockResolvedValue(manualFact);
+      mockPrismaService.fact.deleteMany.mockResolvedValue({ count: 2 });
+      mockPrismaService.fact.delete.mockResolvedValue(manualFact);
+
+      await service.remove(userId, factId);
+
+      expect(mockPrismaService.fact.deleteMany).toHaveBeenCalledWith({ where: { parentId: factId } });
+      expect(mockPrismaService.fact.delete).toHaveBeenCalledWith({ where: { id: factId } });
+    });
+
+    it('comment Fact を削除できること', async () => {
+      const commentFact = { ...manualFact, source: 'comment', type: 'comment' };
+      mockPrismaService.fact.findFirst.mockResolvedValue(commentFact);
+      mockPrismaService.fact.deleteMany.mockResolvedValue({ count: 0 });
+      mockPrismaService.fact.delete.mockResolvedValue(commentFact);
+
+      await service.remove(userId, factId);
+
+      expect(mockPrismaService.fact.deleteMany).toHaveBeenCalledWith({ where: { parentId: factId } });
+      expect(mockPrismaService.fact.delete).toHaveBeenCalledWith({ where: { id: factId } });
+    });
+
+    it('外部ソースの Fact は削除できないこと', async () => {
+      const githubFact = { ...manualFact, source: 'github' };
+      mockPrismaService.fact.findFirst.mockResolvedValue(githubFact);
+
+      await expect(service.remove(userId, factId)).rejects.toThrow(ForbiddenException);
+    });
+
+    it('存在しない Fact は NotFoundException をスローすること', async () => {
+      mockPrismaService.fact.findFirst.mockResolvedValue(null);
+
+      await expect(service.remove(userId, factId)).rejects.toThrow(NotFoundException);
     });
   });
 });
