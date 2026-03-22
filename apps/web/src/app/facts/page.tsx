@@ -17,11 +17,14 @@ import {
   Spinner,
   Icon,
   Divider,
+  IconButton,
+  Textarea,
+  useToast,
 } from '@chakra-ui/react';
 import { MainLayout } from '@/components/layout';
 import { DateFilter } from '@/components/facts';
-import { FiSearch, FiExternalLink, FiRefreshCw, FiMessageSquare, FiChevronDown, FiChevronRight } from 'react-icons/fi';
-import { useState, useEffect, useCallback, Suspense } from 'react';
+import { FiSearch, FiExternalLink, FiRefreshCw, FiMessageSquare, FiChevronDown, FiChevronRight, FiSend } from 'react-icons/fi';
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import apiClient from '@/lib/axios';
 import { formatRelativeTime } from '@/lib/formatRelativeTime';
 import { useDateFilter } from '@/hooks/useDateFilter';
@@ -87,6 +90,13 @@ function FactsPageContent() {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [childrenMap, setChildrenMap] = useState<Record<string, Fact[]>>({});
 
+  // チャット入力
+  const [memoText, setMemoText] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const toast = useToast();
+
   const {
     from,
     to,
@@ -97,6 +107,10 @@ function FactsPageContent() {
     clearFilter,
     apiParams,
   } = useDateFilter();
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
+  }, []);
 
   const fetchFacts = useCallback(
     async (isBackground = false) => {
@@ -116,7 +130,8 @@ function FactsPageContent() {
         const response = await apiClient.get<FactsResponse>(
           `/api/facts?${params.toString()}`,
         );
-        setFacts(response.data.data);
+        // API は occurredAt desc で返すので、チャット表示用に逆順（古い順）にする
+        setFacts([...response.data.data].reverse());
       } catch (error) {
         console.error('Failed to fetch facts:', error);
       } finally {
@@ -150,10 +165,52 @@ function FactsPageContent() {
     }
   }, [childrenMap]);
 
+  // メモ送信
+  const handleSendMemo = useCallback(async () => {
+    const text = memoText.trim();
+    if (!text || isSending) return;
+
+    setIsSending(true);
+    try {
+      await apiClient.post('/api/facts', {
+        source: 'manual',
+        title: text,
+        type: 'memo',
+      });
+      setMemoText('');
+      await fetchFacts(false);
+    } catch (error) {
+      console.error('Failed to create memo:', error);
+      toast({
+        title: 'メモの作成に失敗しました',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsSending(false);
+    }
+  }, [memoText, isSending, fetchFacts, toast]);
+
+  // Ctrl+Enter / Cmd+Enter で送信
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      handleSendMemo();
+    }
+  }, [handleSendMemo]);
+
   // 初回ロードとフィルター変更時のフェッチ
   useEffect(() => {
     fetchFacts();
   }, [fetchFacts]);
+
+  // 初回ロード完了後に最下部へスクロール
+  useEffect(() => {
+    if (!loading && facts.length > 0) {
+      scrollToBottom('instant');
+    }
+  }, [loading, facts.length, scrollToBottom]);
 
   // 30秒ごとのポーリング
   useEffect(() => {
@@ -177,275 +234,323 @@ function FactsPageContent() {
 
   return (
     <MainLayout title="Facts" subtitle="収集されたすべてのファクトを表示">
-      {/* Filters */}
-      <Card bg="gray.800" borderColor="gray.700" borderWidth="1px" mb={6}>
-        <CardBody>
-          <VStack spacing={4} align="stretch">
-            <Flex gap={{ base: 2, md: 4 }} flexWrap="wrap">
-              <InputGroup maxW={{ base: '100%', md: '300px' }}>
-                <InputLeftElement pointerEvents="none">
-                  <FiSearch color="gray" />
-                </InputLeftElement>
-                <Input
-                  placeholder="検索..."
-                  bg="gray.900"
-                  border="none"
-                  _placeholder={{ color: 'gray.500' }}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </InputGroup>
-
-              <Select
-                maxW={{ base: '100%', sm: '200px' }}
-                bg="gray.900"
-                borderColor="gray.700"
-                value={sourceFilter}
-                onChange={(e) => setSourceFilter(e.target.value)}
-              >
-                <option value="">すべてのソース</option>
-                <option value="github">GitHub</option>
-                <option value="slack">Slack</option>
-                <option value="manual">Manual</option>
-              </Select>
-
-              <Button
-                leftIcon={<Icon as={FiMessageSquare} />}
-                variant={grouped ? 'solid' : 'outline'}
-                colorScheme={grouped ? 'brand' : 'gray'}
-                onClick={() => {
-                  setGrouped((v) => !v);
-                  setExpandedIds(new Set());
-                  setChildrenMap({});
-                }}
-              >
-                スレッド表示
-              </Button>
-
-              <Button
-                leftIcon={
-                  <FiRefreshCw
-                    className={isBackgroundUpdate ? 'animate-spin' : ''}
+      <Flex direction="column" h="calc(100vh - 140px)" maxH="calc(100vh - 140px)">
+        {/* Filters */}
+        <Card bg="gray.800" borderColor="gray.700" borderWidth="1px" mb={4} flexShrink={0}>
+          <CardBody py={3}>
+            <VStack spacing={3} align="stretch">
+              <Flex gap={{ base: 2, md: 4 }} flexWrap="wrap">
+                <InputGroup maxW={{ base: '100%', md: '300px' }}>
+                  <InputLeftElement pointerEvents="none">
+                    <FiSearch color="gray" />
+                  </InputLeftElement>
+                  <Input
+                    placeholder="検索..."
+                    bg="gray.900"
+                    border="none"
+                    _placeholder={{ color: 'gray.500' }}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                   />
-                }
-                variant="outline"
-                colorScheme="gray"
-                onClick={() => fetchFacts(false)}
-                isLoading={loading}
-              >
-                更新
-              </Button>
+                </InputGroup>
+
+                <Select
+                  maxW={{ base: '100%', sm: '200px' }}
+                  bg="gray.900"
+                  borderColor="gray.700"
+                  value={sourceFilter}
+                  onChange={(e) => setSourceFilter(e.target.value)}
+                >
+                  <option value="">すべてのソース</option>
+                  <option value="github">GitHub</option>
+                  <option value="slack">Slack</option>
+                  <option value="manual">Manual</option>
+                </Select>
+
+                <Button
+                  leftIcon={<Icon as={FiMessageSquare} />}
+                  variant={grouped ? 'solid' : 'outline'}
+                  colorScheme={grouped ? 'brand' : 'gray'}
+                  onClick={() => {
+                    setGrouped((v) => !v);
+                    setExpandedIds(new Set());
+                    setChildrenMap({});
+                  }}
+                >
+                  スレッド表示
+                </Button>
+
+                <Button
+                  leftIcon={
+                    <FiRefreshCw
+                      className={isBackgroundUpdate ? 'animate-spin' : ''}
+                    />
+                  }
+                  variant="outline"
+                  colorScheme="gray"
+                  onClick={() => fetchFacts(false)}
+                  isLoading={loading}
+                >
+                  更新
+                </Button>
+              </Flex>
+
+              <DateFilter
+                from={from}
+                to={to}
+                preset={preset}
+                isActive={dateFilterActive}
+                onPreset={applyPreset}
+                onRangeChange={setDateRange}
+                onClear={clearFilter}
+              />
+            </VStack>
+          </CardBody>
+        </Card>
+
+        {/* Messages Area (scrollable) */}
+        <Box
+          ref={scrollContainerRef}
+          flex={1}
+          overflowY="auto"
+          mb={4}
+          sx={{
+            '&::-webkit-scrollbar': { width: '6px' },
+            '&::-webkit-scrollbar-track': { bg: 'transparent' },
+            '&::-webkit-scrollbar-thumb': { bg: 'gray.700', borderRadius: 'full' },
+          }}
+        >
+          {loading ? (
+            <Flex justify="center" py={10}>
+              <Spinner size="xl" color="brand.500" />
             </Flex>
-
-            <DateFilter
-              from={from}
-              to={to}
-              preset={preset}
-              isActive={dateFilterActive}
-              onPreset={applyPreset}
-              onRangeChange={setDateRange}
-              onClear={clearFilter}
-            />
-          </VStack>
-        </CardBody>
-      </Card>
-
-      {/* Facts List */}
-      {loading ? (
-        <Flex justify="center" py={10}>
-          <Spinner size="xl" color="brand.500" />
-        </Flex>
-      ) : filteredFacts.length === 0 ? (
-        <Card bg="gray.800" borderColor="gray.700" borderWidth="1px">
-          <CardBody>
+          ) : filteredFacts.length === 0 ? (
             <Flex justify="center" align="center" py={10}>
               <Text color="gray.500">Factsが見つかりませんでした</Text>
             </Flex>
-          </CardBody>
-        </Card>
-      ) : (
-        <VStack spacing={3} align="stretch">
-          {filteredFacts.map((fact) => {
-            const hasChildren = grouped && fact.childCount !== undefined && fact.childCount > 0;
-            const isExpanded = expandedIds.has(fact.id);
-            const children = childrenMap[fact.id];
+          ) : (
+            <VStack spacing={3} align="stretch">
+              {filteredFacts.map((fact) => {
+                const hasChildren = grouped && fact.childCount !== undefined && fact.childCount > 0;
+                const isExpanded = expandedIds.has(fact.id);
+                const children = childrenMap[fact.id];
 
-            return (
-              <Card
-                key={fact.id}
-                bg="gray.800"
-                borderColor="gray.700"
-                borderWidth="1px"
-                _hover={{ borderColor: 'gray.600' }}
-                transition="all 0.2s"
-                overflow="hidden"
-              >
-                <CardBody pb={hasChildren ? 0 : undefined}>
-                  {/* 親 Fact */}
-                  <Flex justify="space-between" align="flex-start">
-                    <HStack spacing={3} align="flex-start" flex={1}>
-                      <Box
-                        w={1}
-                        minH="50px"
-                        borderRadius="full"
-                        bg={`${getSourceColor(fact.source)}.500`}
-                        flexShrink={0}
-                      />
-                      <Box flex={1}>
-                        <Text fontWeight="semibold" fontSize="lg" mb={1}>
-                          {fact.title}
-                        </Text>
-                        {fact.summary && (
-                          <Text fontSize="sm" color="gray.400" mb={2}>
-                            {fact.summary}
-                          </Text>
-                        )}
-                        <HStack spacing={2} flexWrap="wrap">
-                          <Badge
-                            colorScheme={getSourceColor(fact.source)}
-                            variant="subtle"
-                          >
-                            {fact.source}
-                          </Badge>
-                          <Badge colorScheme="gray" variant="outline">
-                            {fact.type}
-                          </Badge>
-                          <Text fontSize="xs" color="gray.500">
-                            {formatRelativeTime(fact.occurredAt)} (
-                            {formatDate(fact.occurredAt)})
-                          </Text>
+                return (
+                  <Card
+                    key={fact.id}
+                    bg="gray.800"
+                    borderColor="gray.700"
+                    borderWidth="1px"
+                    _hover={{ borderColor: 'gray.600' }}
+                    transition="all 0.2s"
+                    overflow="hidden"
+                  >
+                    <CardBody pb={hasChildren ? 0 : undefined}>
+                      {/* 親 Fact */}
+                      <Flex justify="space-between" align="flex-start">
+                        <HStack spacing={3} align="flex-start" flex={1}>
+                          <Box
+                            w={1}
+                            minH="50px"
+                            borderRadius="full"
+                            bg={`${getSourceColor(fact.source)}.500`}
+                            flexShrink={0}
+                          />
+                          <Box flex={1}>
+                            <Text fontWeight="semibold" fontSize="lg" mb={1}>
+                              {fact.title}
+                            </Text>
+                            {fact.summary && (
+                              <Text fontSize="sm" color="gray.400" mb={2}>
+                                {fact.summary}
+                              </Text>
+                            )}
+                            <HStack spacing={2} flexWrap="wrap">
+                              <Badge
+                                colorScheme={getSourceColor(fact.source)}
+                                variant="subtle"
+                              >
+                                {fact.source}
+                              </Badge>
+                              <Badge colorScheme="gray" variant="outline">
+                                {fact.type}
+                              </Badge>
+                              <Text fontSize="xs" color="gray.500">
+                                {formatRelativeTime(fact.occurredAt)} (
+                                {formatDate(fact.occurredAt)})
+                              </Text>
+                            </HStack>
+                          </Box>
                         </HStack>
-                      </Box>
-                    </HStack>
 
-                    {fact.sourceUrl && (
-                      <Button
-                        as="a"
-                        href={fact.sourceUrl}
-                        target="_blank"
-                        size="sm"
-                        variant="ghost"
-                        colorScheme="gray"
-                        rightIcon={<Icon as={FiExternalLink} />}
-                        flexShrink={0}
-                      >
-                        開く
-                      </Button>
-                    )}
-                  </Flex>
-
-                  {/* スレッドバー */}
-                  {hasChildren && (
-                    <Box mt={3}>
-                      <Divider borderColor="gray.700" />
-                      <Flex
-                        align="center"
-                        py={2.5}
-                        px={2}
-                        mx={-2}
-                        mt={1}
-                        cursor="pointer"
-                        borderRadius="md"
-                        _hover={{ bg: 'gray.700' }}
-                        onClick={() => toggleExpand(fact.id)}
-                        role="button"
-                        tabIndex={0}
-                      >
-                        <Icon
-                          as={FiMessageSquare}
-                          color="brand.400"
-                          boxSize={4}
-                          mr={2}
-                        />
-                        <Text fontSize="sm" color="brand.400" fontWeight="medium">
-                          {fact.childCount}件の関連イベント
-                        </Text>
-                        <Icon
-                          as={isExpanded ? FiChevronDown : FiChevronRight}
-                          color="gray.500"
-                          boxSize={4}
-                          ml={2}
-                        />
+                        {fact.sourceUrl && (
+                          <Button
+                            as="a"
+                            href={fact.sourceUrl}
+                            target="_blank"
+                            size="sm"
+                            variant="ghost"
+                            colorScheme="gray"
+                            rightIcon={<Icon as={FiExternalLink} />}
+                            flexShrink={0}
+                          >
+                            開く
+                          </Button>
+                        )}
                       </Flex>
-                    </Box>
-                  )}
-                </CardBody>
 
-                {/* スレッド展開（カード内インライン） */}
-                {hasChildren && isExpanded && (
-                  <Box bg="gray.850" borderTop="1px" borderColor="gray.700">
-                    {children ? (
-                      <VStack spacing={0} align="stretch" px={5} py={3}>
-                        {children.map((child, idx) => (
-                          <Flex key={child.id} align="stretch">
-                            {/* タイムライン縦線 + ドット */}
-                            <Flex direction="column" align="center" mr={3} flexShrink={0}>
-                              <Box
-                                w="8px"
-                                h="8px"
-                                borderRadius="full"
-                                bg={`${getSourceColor(child.source)}.500`}
-                                mt="6px"
-                                flexShrink={0}
-                              />
-                              {idx < children.length - 1 && (
-                                <Box
-                                  w="2px"
-                                  flex={1}
-                                  bg="gray.600"
-                                  mt={1}
-                                />
-                              )}
-                            </Flex>
-
-                            {/* 子 Fact 内容 */}
-                            <Box flex={1} pb={idx < children.length - 1 ? 3 : 0}>
-                              <Flex justify="space-between" align="flex-start">
-                                <Box flex={1}>
-                                  <Text fontWeight="medium" fontSize="sm" color="gray.200">
-                                    {child.title}
-                                  </Text>
-                                  <HStack spacing={2} mt={1} flexWrap="wrap">
-                                    <Badge colorScheme="gray" variant="outline" fontSize="xs">
-                                      {child.type}
-                                    </Badge>
-                                    <Text fontSize="xs" color="gray.500">
-                                      {formatRelativeTime(child.occurredAt)}
-                                    </Text>
-                                  </HStack>
-                                </Box>
-                                {child.sourceUrl && (
-                                  <Button
-                                    as="a"
-                                    href={child.sourceUrl}
-                                    target="_blank"
-                                    size="xs"
-                                    variant="ghost"
-                                    colorScheme="gray"
-                                    rightIcon={<Icon as={FiExternalLink} boxSize={3} />}
-                                    flexShrink={0}
-                                    ml={2}
-                                  >
-                                    開く
-                                  </Button>
-                                )}
-                              </Flex>
-                            </Box>
+                      {/* スレッドバー */}
+                      {hasChildren && (
+                        <Box mt={3}>
+                          <Divider borderColor="gray.700" />
+                          <Flex
+                            align="center"
+                            py={2.5}
+                            px={2}
+                            mx={-2}
+                            mt={1}
+                            cursor="pointer"
+                            borderRadius="md"
+                            _hover={{ bg: 'gray.700' }}
+                            onClick={() => toggleExpand(fact.id)}
+                            role="button"
+                            tabIndex={0}
+                          >
+                            <Icon
+                              as={FiMessageSquare}
+                              color="brand.400"
+                              boxSize={4}
+                              mr={2}
+                            />
+                            <Text fontSize="sm" color="brand.400" fontWeight="medium">
+                              {fact.childCount}件の関連イベント
+                            </Text>
+                            <Icon
+                              as={isExpanded ? FiChevronDown : FiChevronRight}
+                              color="gray.500"
+                              boxSize={4}
+                              ml={2}
+                            />
                           </Flex>
-                        ))}
-                      </VStack>
-                    ) : (
-                      <Flex justify="center" py={4}>
-                        <Spinner size="sm" color="gray.500" />
-                      </Flex>
+                        </Box>
+                      )}
+                    </CardBody>
+
+                    {/* スレッド展開（カード内インライン） */}
+                    {hasChildren && isExpanded && (
+                      <Box bg="gray.850" borderTop="1px" borderColor="gray.700">
+                        {children ? (
+                          <VStack spacing={0} align="stretch" px={5} py={3}>
+                            {children.map((child, idx) => (
+                              <Flex key={child.id} align="stretch">
+                                {/* タイムライン縦線 + ドット */}
+                                <Flex direction="column" align="center" mr={3} flexShrink={0}>
+                                  <Box
+                                    w="8px"
+                                    h="8px"
+                                    borderRadius="full"
+                                    bg={`${getSourceColor(child.source)}.500`}
+                                    mt="6px"
+                                    flexShrink={0}
+                                  />
+                                  {idx < children.length - 1 && (
+                                    <Box
+                                      w="2px"
+                                      flex={1}
+                                      bg="gray.600"
+                                      mt={1}
+                                    />
+                                  )}
+                                </Flex>
+
+                                {/* 子 Fact 内容 */}
+                                <Box flex={1} pb={idx < children.length - 1 ? 3 : 0}>
+                                  <Flex justify="space-between" align="flex-start">
+                                    <Box flex={1}>
+                                      <Text fontWeight="medium" fontSize="sm" color="gray.200">
+                                        {child.title}
+                                      </Text>
+                                      <HStack spacing={2} mt={1} flexWrap="wrap">
+                                        <Badge colorScheme="gray" variant="outline" fontSize="xs">
+                                          {child.type}
+                                        </Badge>
+                                        <Text fontSize="xs" color="gray.500">
+                                          {formatRelativeTime(child.occurredAt)}
+                                        </Text>
+                                      </HStack>
+                                    </Box>
+                                    {child.sourceUrl && (
+                                      <Button
+                                        as="a"
+                                        href={child.sourceUrl}
+                                        target="_blank"
+                                        size="xs"
+                                        variant="ghost"
+                                        colorScheme="gray"
+                                        rightIcon={<Icon as={FiExternalLink} boxSize={3} />}
+                                        flexShrink={0}
+                                        ml={2}
+                                      >
+                                        開く
+                                      </Button>
+                                    )}
+                                  </Flex>
+                                </Box>
+                              </Flex>
+                            ))}
+                          </VStack>
+                        ) : (
+                          <Flex justify="center" py={4}>
+                            <Spinner size="sm" color="gray.500" />
+                          </Flex>
+                        )}
+                      </Box>
                     )}
-                  </Box>
-                )}
-              </Card>
-            );
-          })}
-        </VStack>
-      )}
+                  </Card>
+                );
+              })}
+              <div ref={messagesEndRef} />
+            </VStack>
+          )}
+        </Box>
+
+        {/* Chat Input Bar */}
+        <Box
+          flexShrink={0}
+          bg="gray.800"
+          borderWidth="1px"
+          borderColor="gray.700"
+          borderRadius="lg"
+          p={3}
+        >
+          <Flex gap={3} align="flex-end">
+            <Textarea
+              placeholder="メモを入力... (Ctrl+Enter で送信)"
+              bg="gray.900"
+              borderColor="gray.700"
+              _placeholder={{ color: 'gray.500' }}
+              _focus={{ borderColor: 'brand.500', boxShadow: 'none' }}
+              value={memoText}
+              onChange={(e) => setMemoText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              rows={1}
+              minH="40px"
+              maxH="120px"
+              resize="none"
+              overflow="auto"
+            />
+            <IconButton
+              aria-label="メモを送信"
+              icon={<FiSend />}
+              colorScheme="brand"
+              onClick={handleSendMemo}
+              isLoading={isSending}
+              isDisabled={!memoText.trim()}
+              flexShrink={0}
+            />
+          </Flex>
+        </Box>
+      </Flex>
     </MainLayout>
   );
 }

@@ -60,9 +60,11 @@ export class CreateFactDto {
 
   /**
    * 元データのJSON（raw data）
+   * 手動メモ（source: manual）の場合は省略可能
    */
+  @IsOptional()
   @IsObject()
-  raw: Prisma.InputJsonValue;
+  raw?: Prisma.InputJsonValue;
 
   /**
    * ソースへのURL（オプション）
