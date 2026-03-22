@@ -97,6 +97,10 @@ function FactsPageContent() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const toast = useToast();
 
+  // スレッドコメント入力
+  const [commentTexts, setCommentTexts] = useState<Record<string, string>>({});
+  const [sendingCommentId, setSendingCommentId] = useState<string | null>(null);
+
   const {
     from,
     to,
@@ -191,6 +195,40 @@ function FactsPageContent() {
       setIsSending(false);
     }
   }, [memoText, isSending, fetchFacts, toast]);
+
+  // スレッドコメント送信
+  const handleSendComment = useCallback(async (parentId: string) => {
+    const text = (commentTexts[parentId] || '').trim();
+    if (!text || sendingCommentId) return;
+
+    setSendingCommentId(parentId);
+    try {
+      await apiClient.post('/api/facts', {
+        source: 'comment',
+        title: text,
+        type: 'comment',
+        parentId,
+      });
+      setCommentTexts((prev) => ({ ...prev, [parentId]: '' }));
+      // スレッドの children を再取得
+      const response = await apiClient.get<{ data: Fact[] }>(
+        `/api/facts/${parentId}/children`,
+      );
+      setChildrenMap((prev) => ({ ...prev, [parentId]: response.data.data }));
+      // 親の childCount を更新
+      await fetchFacts(true);
+    } catch (error) {
+      console.error('Failed to create comment:', error);
+      toast({
+        title: 'コメントの作成に失敗しました',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setSendingCommentId(null);
+    }
+  }, [commentTexts, sendingCommentId, fetchFacts, toast]);
 
   // Ctrl+Enter / Cmd+Enter で送信
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -331,7 +369,8 @@ function FactsPageContent() {
           ) : (
             <VStack spacing={3} align="stretch">
               {filteredFacts.map((fact) => {
-                const hasChildren = grouped && fact.childCount !== undefined && fact.childCount > 0;
+                const childCount = fact.childCount ?? 0;
+                const hasChildren = grouped && childCount > 0;
                 const isExpanded = expandedIds.has(fact.id);
                 const children = childrenMap[fact.id];
 
@@ -345,7 +384,7 @@ function FactsPageContent() {
                     transition="all 0.2s"
                     overflow="hidden"
                   >
-                    <CardBody pb={hasChildren ? 0 : undefined}>
+                    <CardBody pb={grouped ? 0 : undefined}>
                       {/* 親 Fact */}
                       <Flex justify="space-between" align="flex-start">
                         <HStack spacing={3} align="flex-start" flex={1}>
@@ -400,7 +439,7 @@ function FactsPageContent() {
                       </Flex>
 
                       {/* スレッドバー */}
-                      {hasChildren && (
+                      {grouped && (
                         <Box mt={3}>
                           <Divider borderColor="gray.700" />
                           <Flex
@@ -418,12 +457,12 @@ function FactsPageContent() {
                           >
                             <Icon
                               as={FiMessageSquare}
-                              color="brand.400"
+                              color={hasChildren ? 'brand.400' : 'gray.500'}
                               boxSize={4}
                               mr={2}
                             />
-                            <Text fontSize="sm" color="brand.400" fontWeight="medium">
-                              {fact.childCount}件の関連イベント
+                            <Text fontSize="sm" color={hasChildren ? 'brand.400' : 'gray.500'} fontWeight="medium">
+                              {hasChildren ? `${childCount}件の関連イベント` : 'コメントを追加'}
                             </Text>
                             <Icon
                               as={isExpanded ? FiChevronDown : FiChevronRight}
@@ -437,11 +476,15 @@ function FactsPageContent() {
                     </CardBody>
 
                     {/* スレッド展開（カード内インライン） */}
-                    {hasChildren && isExpanded && (
+                    {grouped && isExpanded && (
                       <Box bg="gray.850" borderTop="1px" borderColor="gray.700">
-                        {children ? (
+                        {hasChildren && !children ? (
+                          <Flex justify="center" py={4}>
+                            <Spinner size="sm" color="gray.500" />
+                          </Flex>
+                        ) : (
                           <VStack spacing={0} align="stretch" px={5} py={3}>
-                            {children.map((child, idx) => (
+                            {children && children.map((child, idx) => (
                               <Flex key={child.id} align="stretch">
                                 {/* タイムライン縦線 + ドット */}
                                 <Flex direction="column" align="center" mr={3} flexShrink={0}>
@@ -498,11 +541,36 @@ function FactsPageContent() {
                                 </Box>
                               </Flex>
                             ))}
+
+                            {/* コメント入力 */}
+                            <Flex mt={children && children.length > 0 ? 3 : 0} gap={2} align="flex-end">
+                              <Input
+                                placeholder="コメントを入力..."
+                                bg="gray.900"
+                                borderColor="gray.700"
+                                _placeholder={{ color: 'gray.500' }}
+                                _focus={{ borderColor: 'brand.500', boxShadow: 'none' }}
+                                size="sm"
+                                value={commentTexts[fact.id] || ''}
+                                onChange={(e) => setCommentTexts((prev) => ({ ...prev, [fact.id]: e.target.value }))}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                                    e.preventDefault();
+                                    handleSendComment(fact.id);
+                                  }
+                                }}
+                              />
+                              <IconButton
+                                aria-label="コメントを送信"
+                                icon={<FiSend />}
+                                colorScheme="brand"
+                                size="sm"
+                                onClick={() => handleSendComment(fact.id)}
+                                isLoading={sendingCommentId === fact.id}
+                                isDisabled={!(commentTexts[fact.id] || '').trim()}
+                              />
+                            </Flex>
                           </VStack>
-                        ) : (
-                          <Flex justify="center" py={4}>
-                            <Spinner size="sm" color="gray.500" />
-                          </Flex>
                         )}
                       </Box>
                     )}

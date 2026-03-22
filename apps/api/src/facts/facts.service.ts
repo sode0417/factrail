@@ -189,6 +189,7 @@ export class FactsService {
         raw: (dto.raw as Prisma.InputJsonValue) || Prisma.JsonNull,
         type: dto.type,
         metadata: dto.metadata || Prisma.JsonNull,
+        parentId: dto.parentId,
       },
     });
 

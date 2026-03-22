@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsDateString, IsObject } from 'class-validator';
+import { IsString, IsOptional, IsDateString, IsObject, IsUUID } from 'class-validator';
 import { Prisma } from '@prisma/client';
 
 /**
@@ -72,4 +72,11 @@ export class CreateFactDto {
   @IsOptional()
   @IsString()
   sourceUrl?: string;
+
+  /**
+   * 親FactのID（スレッド/コメント用）
+   */
+  @IsOptional()
+  @IsUUID()
+  parentId?: string;
 }
