@@ -187,6 +187,32 @@ describe('FactsService', () => {
       expect(result.meta.nextCursor).toBe('fact-49');
     });
 
+    it('projectId でフィルタリングできること', async () => {
+      mockPrismaService.fact.findMany.mockResolvedValue([]);
+
+      const query: QueryFactsDto = { projectId: 'proj-1' };
+      await service.findAll(userId, query);
+
+      expect(prisma.fact.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ userId, projectId: 'proj-1' }),
+        }),
+      );
+    });
+
+    it('categoryId でフィルタリングできること', async () => {
+      mockPrismaService.fact.findMany.mockResolvedValue([]);
+
+      const query: QueryFactsDto = { categoryId: 'cat-1' };
+      await service.findAll(userId, query);
+
+      expect(prisma.fact.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ userId, categoryId: 'cat-1' }),
+        }),
+      );
+    });
+
     it('次ページがない場合にhasMoreがfalseであること', async () => {
       mockPrismaService.fact.findMany.mockResolvedValue(mockFacts);
 
@@ -582,6 +608,15 @@ describe('FactsService', () => {
       mockPrismaService.fact.findFirst.mockResolvedValue(null);
 
       await expect(service.update(userId, factId, { title: 'New' })).rejects.toThrow(NotFoundException);
+    });
+
+    it('更新フィールドがない場合はそのまま返すこと', async () => {
+      mockPrismaService.fact.findFirst.mockResolvedValue(manualFact);
+
+      const result = await service.update(userId, factId, {});
+
+      expect(result.data).toEqual(manualFact);
+      expect(mockPrismaService.fact.update).not.toHaveBeenCalled();
     });
   });
 
