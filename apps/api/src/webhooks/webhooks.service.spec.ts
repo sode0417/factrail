@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UnauthorizedException, Logger } from '@nestjs/common';
-import { getQueueToken } from '@nestjs/bull';
 import { WebhooksService } from './webhooks.service';
 import { SettingsService } from '../settings/settings.service';
 import { PrismaService } from '../prisma.service';
@@ -9,7 +8,6 @@ import * as crypto from 'crypto';
 
 describe('WebhooksService', () => {
   let service: WebhooksService;
-  let slackQueue: any;
 
   const mockSettingsService = {
     getDecryptedValue: jest.fn(),
@@ -27,14 +25,11 @@ describe('WebhooksService', () => {
     },
     repository: {
       update: jest.fn(),
+      findFirst: jest.fn(),
     },
   };
 
   const mockIntegrationsService = {};
-
-  const mockSlackQueue = {
-    add: jest.fn(),
-  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -52,15 +47,10 @@ describe('WebhooksService', () => {
           provide: IntegrationsService,
           useValue: mockIntegrationsService,
         },
-        {
-          provide: getQueueToken('slack-dispatch'),
-          useValue: mockSlackQueue,
-        },
       ],
     }).compile();
 
     service = module.get<WebhooksService>(WebhooksService);
-    slackQueue = module.get(getQueueToken('slack-dispatch'));
 
     // Disable logging during tests
     jest.spyOn(Logger.prototype, 'log').mockImplementation();
@@ -153,7 +143,7 @@ describe('WebhooksService', () => {
       mockPrismaService.integration.findFirst.mockResolvedValue(mockIntegration);
       mockPrismaService.fact.upsert.mockResolvedValue(mockFact);
       mockPrismaService.fact.findFirst.mockResolvedValue(null); // assignParent: 親なし
-      mockSlackQueue.add.mockResolvedValue({});
+      mockPrismaService.repository.findFirst.mockResolvedValue(null);
     });
 
     describe('issues', () => {
@@ -417,7 +407,7 @@ describe('WebhooksService', () => {
       mockPrismaService.fact.upsert.mockResolvedValue(newFact);
       mockPrismaService.fact.findFirst.mockResolvedValue(parentFact);
       mockPrismaService.fact.update.mockResolvedValue({});
-      mockSlackQueue.add.mockResolvedValue({});
+      mockPrismaService.repository.findFirst.mockResolvedValue(null);
 
       await service.processGitHubEvent('issues', issuePayload);
 
@@ -443,7 +433,7 @@ describe('WebhooksService', () => {
       mockPrismaService.integration.findFirst.mockResolvedValue(mockIntegration);
       mockPrismaService.fact.upsert.mockResolvedValue(newFact);
       mockPrismaService.fact.findFirst.mockResolvedValue(null);
-      mockSlackQueue.add.mockResolvedValue({});
+      mockPrismaService.repository.findFirst.mockResolvedValue(null);
 
       await service.processGitHubEvent('issues', issuePayload);
 
@@ -471,7 +461,7 @@ describe('WebhooksService', () => {
       mockPrismaService.integration.findFirst.mockResolvedValue(mockIntegration);
       mockPrismaService.fact.upsert.mockResolvedValue(newFact);
       mockPrismaService.fact.findFirst.mockResolvedValue(null);
-      mockSlackQueue.add.mockResolvedValue({});
+      mockPrismaService.repository.findFirst.mockResolvedValue(null);
 
       await service.processGitHubEvent('push', pushPayload);
 
@@ -500,104 +490,6 @@ describe('WebhooksService', () => {
       metadata: { key: 'value' },
       raw: { original: 'data' },
     };
-
-    it('Slackメッセージが未送信の場合はキューに追加すること', async () => {
-      const mockFact = {
-        id: 'fact-1',
-        ...factData,
-        userId,
-        slackMessageId: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      mockPrismaService.fact.upsert.mockResolvedValue(mockFact);
-      mockSlackQueue.add.mockResolvedValue({});
-
-      // Use the service to trigger upsertFact indirectly through processGitHubEvent
-      const mockIntegration = {
-        id: 'int-1',
-        userId,
-        provider: 'github',
-        accountId: 'test',
-        user: { id: userId },
-        repositories: [],
-      };
-      mockPrismaService.integration.findFirst.mockResolvedValue(mockIntegration);
-
-      const issuePayload = {
-        action: 'opened',
-        issue: {
-          number: 123,
-          title: 'Test',
-          html_url: 'https://github.com/test/repo/issues/123',
-          user: { login: 'testuser' },
-          created_at: '2024-01-01T00:00:00Z',
-          updated_at: '2024-01-01T00:00:00Z',
-        },
-        repository: {
-          full_name: 'test/repo',
-          html_url: 'https://github.com/test/repo',
-        },
-        sender: { login: 'testuser' },
-      };
-
-      await service.processGitHubEvent('issues', issuePayload);
-
-      expect(slackQueue.add).toHaveBeenCalledWith(
-        'send-dm',
-        { factId: 'fact-1' },
-        {
-          attempts: 5,
-          backoff: {
-            type: 'exponential',
-            delay: 1000,
-          },
-        },
-      );
-    });
-
-    it('Slackメッセージが既に送信済みの場合はキューに追加しないこと', async () => {
-      const mockFact = {
-        id: 'fact-1',
-        ...factData,
-        userId,
-        slackMessageId: 'slack-msg-123',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      mockPrismaService.fact.upsert.mockResolvedValue(mockFact);
-
-      const mockIntegration = {
-        id: 'int-1',
-        userId,
-        provider: 'github',
-        accountId: 'test',
-        user: { id: userId },
-        repositories: [],
-      };
-      mockPrismaService.integration.findFirst.mockResolvedValue(mockIntegration);
-
-      const issuePayload = {
-        action: 'opened',
-        issue: {
-          number: 123,
-          title: 'Test',
-          html_url: 'https://github.com/test/repo/issues/123',
-          user: { login: 'testuser' },
-          created_at: '2024-01-01T00:00:00Z',
-          updated_at: '2024-01-01T00:00:00Z',
-        },
-        repository: {
-          full_name: 'test/repo',
-          html_url: 'https://github.com/test/repo',
-        },
-        sender: { login: 'testuser' },
-      };
-
-      await service.processGitHubEvent('issues', issuePayload);
-
-      expect(slackQueue.add).not.toHaveBeenCalled();
-    });
   });
 
   describe('findUserIdForGitHubEvent (repository owner matching)', () => {
