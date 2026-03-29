@@ -16,6 +16,7 @@ import { SettingsModule } from './settings/settings.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { RepositoriesModule } from './repositories/repositories.module';
 import { SlackCollectorModule } from './slack-collector/slack-collector.module';
+import { GoogleCalendarCollectorModule } from './google-calendar-collector/google-calendar-collector.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { SlackCollectorModule } from './slack-collector/slack-collector.module';
     RepositoriesModule,
     SettingsModule,
     SlackCollectorModule,
+    GoogleCalendarCollectorModule,
     WebhooksModule,
   ],
   controllers: [AppController],
