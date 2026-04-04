@@ -8,6 +8,7 @@ import {
   Icon,
 } from '@chakra-ui/react';
 import { FiExternalLink } from 'react-icons/fi';
+import { MarkdownContent } from './MarkdownContent';
 import type { Fact } from '@/types/fact';
 
 interface SlackFactDetailProps {
@@ -40,9 +41,7 @@ export function SlackFactDetail({ fact }: SlackFactDetailProps) {
             borderLeft="3px solid"
             borderColor="green.500"
           >
-            <Text fontSize="sm" color="gray.200" whiteSpace="pre-wrap">
-              {content}
-            </Text>
+            <MarkdownContent content={content} />
           </Box>
         </Box>
       )}

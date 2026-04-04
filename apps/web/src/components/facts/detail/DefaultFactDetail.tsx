@@ -9,6 +9,7 @@ import {
   Code,
 } from '@chakra-ui/react';
 import { FiExternalLink } from 'react-icons/fi';
+import { MarkdownContent } from './MarkdownContent';
 import type { Fact } from '@/types/fact';
 
 interface DefaultFactDetailProps {
@@ -25,9 +26,7 @@ export function DefaultFactDetail({ fact }: DefaultFactDetailProps) {
             内容
           </Text>
           <Box bg="gray.750" borderRadius="md" p={3}>
-            <Text fontSize="sm" color="gray.200" whiteSpace="pre-wrap">
-              {fact.content}
-            </Text>
+            <MarkdownContent content={fact.content} />
           </Box>
         </Box>
       )}

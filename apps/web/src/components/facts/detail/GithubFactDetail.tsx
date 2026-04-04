@@ -10,6 +10,7 @@ import {
   Code,
 } from '@chakra-ui/react';
 import { FiGitCommit, FiGitBranch, FiExternalLink } from 'react-icons/fi';
+import { MarkdownContent } from './MarkdownContent';
 import type { Fact } from '@/types/fact';
 
 interface GithubFactDetailProps {
@@ -28,6 +29,7 @@ export function GithubFactDetail({ fact }: GithubFactDetailProps) {
   const headCommit = metadata.head_commit as CommitEntry | undefined;
   const ref = metadata.ref as string | undefined;
   const repo = metadata.repository as string | undefined;
+  const body = (fact.content || fact.summary) ?? '';
 
   const allCommits = commits.length > 0
     ? commits
@@ -48,6 +50,28 @@ export function GithubFactDetail({ fact }: GithubFactDetailProps) {
             <Text fontSize="sm" color="gray.500">{repo}</Text>
           )}
         </HStack>
+      )}
+
+      {/* Issue / PR 本文 */}
+      {body && (
+        <Box>
+          <Text fontSize="xs" color="gray.500" fontWeight="bold" mb={2} textTransform="uppercase" letterSpacing="wider">
+            本文
+          </Text>
+          <Box
+            bg="gray.850"
+            borderRadius="md"
+            p={3}
+            maxH="400px"
+            overflowY="auto"
+            sx={{
+              '&::-webkit-scrollbar': { width: '4px' },
+              '&::-webkit-scrollbar-thumb': { bg: 'gray.700', borderRadius: 'full' },
+            }}
+          >
+            <MarkdownContent content={body} />
+          </Box>
+        </Box>
       )}
 
       {/* コミット一覧 */}

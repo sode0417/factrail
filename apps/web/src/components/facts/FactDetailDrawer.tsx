@@ -18,7 +18,7 @@ import {
   Code,
 } from '@chakra-ui/react';
 import { FiExternalLink } from 'react-icons/fi';
-import { getSourceColor, getSourceLabel, formatDate } from '@/lib/factUtils';
+import { getSourceColor, getSourceLabel, formatDate, stripMarkdown } from '@/lib/factUtils';
 import { formatRelativeTime } from '@/lib/formatRelativeTime';
 import { BrowserFactDetail } from './detail/BrowserFactDetail';
 import { GithubFactDetail } from './detail/GithubFactDetail';
@@ -73,9 +73,9 @@ export function FactDetailDrawer({
             <Text fontSize="lg" fontWeight="bold" color="gray.100" pr={6}>
               {fact.title}
             </Text>
-            {fact.summary && (
-              <Text fontSize="sm" color="gray.400">
-                {fact.summary}
+            {fact.summary && !['github', 'slack'].includes(fact.source) && (
+              <Text fontSize="sm" color="gray.400" noOfLines={3}>
+                {stripMarkdown(fact.summary)}
               </Text>
             )}
             <HStack spacing={2} flexWrap="wrap">

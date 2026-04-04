@@ -32,6 +32,36 @@ export function getSourceLabel(source: string): string {
   }
 }
 
+/**
+ * Markdown 記法を除去してプレーンテキストに変換する。
+ * カードのサマリー表示用。
+ */
+export function stripMarkdown(text: string): string {
+  return text
+    // 見出し（## など）
+    .replace(/^#{1,6}\s+/gm, '')
+    // 画像 ![alt](url)
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+    // リンク [text](url)
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    // 太字・斜体
+    .replace(/(\*{1,3}|_{1,3})(.+?)\1/g, '$2')
+    // インラインコード
+    .replace(/`([^`]+)`/g, '$1')
+    // コードブロック
+    .replace(/```[\s\S]*?```/g, '')
+    // 水平線
+    .replace(/^[-*_]{3,}\s*$/gm, '')
+    // リストマーカー
+    .replace(/^[\s]*[-*+]\s+/gm, '')
+    .replace(/^[\s]*\d+\.\s+/gm, '')
+    // チェックボックス
+    .replace(/\[[ x]\]\s*/gi, '')
+    // 余分な空行を詰める
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 export function formatDate(dateString: string): string {
   const date = new Date(dateString);
   return date.toLocaleDateString('ja-JP', {

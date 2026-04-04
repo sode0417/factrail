@@ -15,7 +15,7 @@ import {
 } from '@chakra-ui/react';
 import { FiExternalLink, FiMessageSquare, FiChevronDown, FiChevronRight, FiEdit2, FiTrash2 } from 'react-icons/fi';
 import { formatRelativeTime } from '@/lib/formatRelativeTime';
-import { getSourceColor, formatDate } from '@/lib/factUtils';
+import { getSourceColor, formatDate, stripMarkdown } from '@/lib/factUtils';
 import { FactCardEditForm } from './FactCardEditForm';
 import { FactThread } from './FactThread';
 import type { Fact, F2ACategory, F2AProject } from '@/types/fact';
@@ -118,8 +118,8 @@ export function FactCard({
                   {fact.title}
                 </Text>
                 {fact.summary && (
-                  <Text fontSize="sm" color="gray.400" mb={2}>
-                    {fact.summary}
+                  <Text fontSize="sm" color="gray.400" mb={2} noOfLines={2}>
+                    {stripMarkdown(fact.summary)}
                   </Text>
                 )}
                 <HStack spacing={2} flexWrap="wrap">
