@@ -16,8 +16,12 @@ import {
   Link,
   Icon,
   Code,
+  Flex,
+  Spinner,
 } from '@chakra-ui/react';
 import { FiExternalLink } from 'react-icons/fi';
+import { useState, useEffect } from 'react';
+import apiClient from '@/lib/axios';
 import { getSourceColor, getSourceLabel, formatDate, stripMarkdown } from '@/lib/factUtils';
 import { formatRelativeTime } from '@/lib/formatRelativeTime';
 import { BrowserFactDetail } from './detail/BrowserFactDetail';
@@ -57,10 +61,37 @@ export function FactDetailDrawer({
   categories,
   projects,
 }: FactDetailDrawerProps) {
+  const [detailCache, setDetailCache] = useState<Record<string, Fact>>({});
+
+  // ドロワーが開かれたとき、全文を取得
+  useEffect(() => {
+    if (!isOpen || !fact || detailCache[fact.id]) return;
+
+    let cancelled = false;
+
+    apiClient
+      .get<{ data: Fact }>(`/api/facts/${fact.id}`)
+      .then((res) => {
+        if (!cancelled) {
+          setDetailCache((prev) => ({ ...prev, [fact.id]: res.data.data }));
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to fetch fact detail:', err);
+        if (!cancelled) {
+          setDetailCache((prev) => ({ ...prev, [fact.id]: fact }));
+        }
+      });
+
+    return () => { cancelled = true; };
+  }, [isOpen, fact, detailCache]);
+
   if (!fact) return null;
 
-  const category = fact.categoryId ? categories.find((c) => c.id === fact.categoryId) : null;
-  const project = fact.projectId ? projects.find((p) => p.id === fact.projectId) : null;
+  const displayFact = detailCache[fact.id] ?? fact;
+  const loading = isOpen && !detailCache[fact.id];
+  const category = displayFact.categoryId ? categories.find((c) => c.id === displayFact.categoryId) : null;
+  const project = displayFact.projectId ? projects.find((p) => p.id === displayFact.projectId) : null;
 
   return (
     <Drawer isOpen={isOpen} onClose={onClose} placement="right" size="md">
@@ -71,23 +102,23 @@ export function FactDetailDrawer({
         <DrawerHeader pb={2}>
           <VStack align="stretch" spacing={2}>
             <Text fontSize="lg" fontWeight="bold" color="gray.100" pr={6}>
-              {fact.title}
+              {displayFact.title}
             </Text>
-            {fact.summary && !['github', 'slack'].includes(fact.source) && (
+            {displayFact.summary && !['github', 'slack'].includes(displayFact.source) && (
               <Text fontSize="sm" color="gray.400" noOfLines={3}>
-                {stripMarkdown(fact.summary)}
+                {stripMarkdown(displayFact.summary)}
               </Text>
             )}
             <HStack spacing={2} flexWrap="wrap">
-              <Badge colorScheme={getSourceColor(fact.source)} variant="subtle">
-                {getSourceLabel(fact.source)}
+              <Badge colorScheme={getSourceColor(displayFact.source)} variant="subtle">
+                {getSourceLabel(displayFact.source)}
               </Badge>
               <Badge colorScheme="gray" variant="outline">
-                {fact.type}
+                {displayFact.type}
               </Badge>
-              {fact.sourceUrl && (
+              {displayFact.sourceUrl && (
                 <Link
-                  href={fact.sourceUrl}
+                  href={displayFact.sourceUrl}
                   isExternal
                   display="flex"
                   alignItems="center"
@@ -98,7 +129,7 @@ export function FactDetailDrawer({
               )}
             </HStack>
             <Text fontSize="xs" color="gray.500">
-              {formatRelativeTime(fact.occurredAt)} ({formatDate(fact.occurredAt)})
+              {formatRelativeTime(displayFact.occurredAt)} ({formatDate(displayFact.occurredAt)})
             </Text>
           </VStack>
         </DrawerHeader>
@@ -106,7 +137,13 @@ export function FactDetailDrawer({
         <Divider borderColor="gray.700" />
 
         <DrawerBody py={4}>
-          <SourceDetail fact={fact} />
+          {loading ? (
+            <Flex justify="center" py={8}>
+              <Spinner size="md" color="gray.500" />
+            </Flex>
+          ) : (
+            <SourceDetail fact={displayFact} />
+          )}
         </DrawerBody>
 
         <Divider borderColor="gray.700" />
@@ -125,9 +162,9 @@ export function FactDetailDrawer({
                 </Badge>
               )}
             </HStack>
-            {fact.externalId && (
+            {displayFact.externalId && (
               <Code fontSize="xs" color="gray.600" bg="transparent">
-                {fact.externalId}
+                {displayFact.externalId}
               </Code>
             )}
           </VStack>
