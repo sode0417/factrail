@@ -366,7 +366,7 @@ function FactsPageContent() {
                   childFacts={childrenMap[fact.id]}
                   childrenLoading={expandedIds.has(fact.id) && !childrenMap[fact.id] && (fact.childCount ?? 0) > 0}
                   onToggleExpand={() => toggleExpand(fact.id)}
-                  onClickDetail={() => handleOpenDetail(fact)}
+                  onClickDetail={handleOpenDetail}
                   editingFactId={editingFactId}
                   editForm={editForm}
                   onEditFormChange={setEditForm}

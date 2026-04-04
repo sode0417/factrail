@@ -9,7 +9,7 @@ import {
   Icon,
   Code,
 } from '@chakra-ui/react';
-import { FiGitCommit, FiGitBranch, FiExternalLink } from 'react-icons/fi';
+import { FiGitCommit, FiGitBranch } from 'react-icons/fi';
 import { MarkdownContent } from './MarkdownContent';
 import type { Fact } from '@/types/fact';
 
@@ -113,24 +113,6 @@ export function GithubFactDetail({ fact }: GithubFactDetailProps) {
         </Box>
       )}
 
-      {/* ソース URL */}
-      {fact.sourceUrl && (
-        <Box>
-          <Link
-            href={fact.sourceUrl}
-            isExternal
-            fontSize="sm"
-            color="purple.300"
-            _hover={{ color: 'purple.200' }}
-            display="flex"
-            alignItems="center"
-            gap={1}
-          >
-            <Icon as={FiExternalLink} boxSize={3} />
-            GitHub で表示
-          </Link>
-        </Box>
-      )}
     </VStack>
   );
 }

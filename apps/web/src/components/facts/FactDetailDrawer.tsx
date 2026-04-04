@@ -13,7 +13,7 @@ import {
   Text,
   Badge,
   Divider,
-  Link,
+  Button,
   Icon,
   Code,
   Flex,
@@ -109,28 +109,33 @@ export function FactDetailDrawer({
                 {stripMarkdown(displayFact.summary)}
               </Text>
             )}
-            <HStack spacing={2} flexWrap="wrap">
-              <Badge colorScheme={getSourceColor(displayFact.source)} variant="subtle" fontSize="sm" px={2} py={0.5}>
-                {getSourceLabel(displayFact.source)}
-              </Badge>
-              <Badge colorScheme="gray" variant="outline" fontSize="sm" px={2} py={0.5}>
-                {displayFact.type}
-              </Badge>
+            <HStack spacing={2} flexWrap="wrap" justify="space-between">
+              <HStack spacing={2} flexWrap="wrap">
+                <Badge colorScheme={getSourceColor(displayFact.source)} variant="subtle" fontSize="sm" px={2} py={0.5}>
+                  {getSourceLabel(displayFact.source)}
+                </Badge>
+                <Badge colorScheme="gray" variant="outline" fontSize="sm" px={2} py={0.5}>
+                  {displayFact.type}
+                </Badge>
+                <Text fontSize="sm" color="gray.500">
+                  {formatRelativeTime(displayFact.occurredAt)} ({formatDate(displayFact.occurredAt)})
+                </Text>
+              </HStack>
               {displayFact.sourceUrl && (
-                <Link
+                <Button
+                  as="a"
                   href={displayFact.sourceUrl}
-                  isExternal
-                  display="flex"
-                  alignItems="center"
-                  gap={1}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  size="sm"
+                  variant="outline"
+                  colorScheme={getSourceColor(displayFact.source)}
+                  rightIcon={<Icon as={FiExternalLink} boxSize={3} />}
                 >
-                  <Icon as={FiExternalLink} boxSize={4} color="gray.400" />
-                </Link>
+                  {getSourceLabel(displayFact.source)} で表示
+                </Button>
               )}
             </HStack>
-            <Text fontSize="sm" color="gray.500">
-              {formatRelativeTime(displayFact.occurredAt)} ({formatDate(displayFact.occurredAt)})
-            </Text>
           </VStack>
         </DrawerHeader>
 

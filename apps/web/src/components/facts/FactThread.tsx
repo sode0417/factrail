@@ -36,6 +36,7 @@ interface FactThreadProps {
   onCancelEdit: () => void;
   isSaving: boolean;
   onDelete: (fact: Fact) => void;
+  onClickDetail: (fact: Fact) => void;
   categories: F2ACategory[];
   projects: F2AProject[];
 }
@@ -56,6 +57,7 @@ export function FactThread({
   onCancelEdit,
   isSaving,
   onDelete,
+  onClickDetail,
   categories,
   projects,
 }: FactThreadProps) {
@@ -104,7 +106,12 @@ export function FactThread({
                   />
                 ) : (
                   <Flex justify="space-between" align="flex-start">
-                    <Box flex={1}>
+                    <Box
+                      flex={1}
+                      cursor="pointer"
+                      onClick={() => onClickDetail(child)}
+                      _hover={{ opacity: 0.8 }}
+                    >
                       <Text fontWeight="medium" fontSize="sm" color="gray.200">
                         {child.title}
                       </Text>

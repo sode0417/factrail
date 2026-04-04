@@ -28,7 +28,7 @@ interface FactCardProps {
   childFacts: Fact[] | undefined;
   childrenLoading: boolean;
   onToggleExpand: () => void;
-  onClickDetail: () => void;
+  onClickDetail: (fact: Fact) => void;
   // 編集
   editingFactId: string | null;
   editForm: EditFormState;
@@ -103,7 +103,7 @@ export function FactCard({
               align="flex-start"
               flex={1}
               cursor="pointer"
-              onClick={onClickDetail}
+              onClick={() => onClickDetail(fact)}
               _hover={{ opacity: 0.9 }}
             >
               <Box
@@ -245,6 +245,7 @@ export function FactCard({
           onCancelEdit={onCancelEdit}
           isSaving={isSaving}
           onDelete={onDelete}
+          onClickDetail={onClickDetail}
           categories={categories}
           projects={projects}
         />
