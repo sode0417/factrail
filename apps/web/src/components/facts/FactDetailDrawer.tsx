@@ -94,26 +94,26 @@ export function FactDetailDrawer({
   const project = displayFact.projectId ? projects.find((p) => p.id === displayFact.projectId) : null;
 
   return (
-    <Drawer isOpen={isOpen} onClose={onClose} placement="right" size="md">
+    <Drawer isOpen={isOpen} onClose={onClose} placement="right" size="xl">
       <DrawerOverlay />
       <DrawerContent bg="gray.800" borderColor="gray.700" borderLeftWidth="1px">
-        <DrawerCloseButton />
+        <DrawerCloseButton size="lg" />
 
-        <DrawerHeader pb={2}>
-          <VStack align="stretch" spacing={2}>
-            <Text fontSize="lg" fontWeight="bold" color="gray.100" pr={6}>
+        <DrawerHeader pb={3} px={6} pt={5}>
+          <VStack align="stretch" spacing={3}>
+            <Text fontSize="xl" fontWeight="bold" color="gray.100" pr={8}>
               {displayFact.title}
             </Text>
             {displayFact.summary && !['github', 'slack'].includes(displayFact.source) && (
-              <Text fontSize="sm" color="gray.400" noOfLines={3}>
+              <Text fontSize="md" color="gray.400" noOfLines={3}>
                 {stripMarkdown(displayFact.summary)}
               </Text>
             )}
             <HStack spacing={2} flexWrap="wrap">
-              <Badge colorScheme={getSourceColor(displayFact.source)} variant="subtle">
+              <Badge colorScheme={getSourceColor(displayFact.source)} variant="subtle" fontSize="sm" px={2} py={0.5}>
                 {getSourceLabel(displayFact.source)}
               </Badge>
-              <Badge colorScheme="gray" variant="outline">
+              <Badge colorScheme="gray" variant="outline" fontSize="sm" px={2} py={0.5}>
                 {displayFact.type}
               </Badge>
               {displayFact.sourceUrl && (
@@ -124,11 +124,11 @@ export function FactDetailDrawer({
                   alignItems="center"
                   gap={1}
                 >
-                  <Icon as={FiExternalLink} boxSize={3} color="gray.400" />
+                  <Icon as={FiExternalLink} boxSize={4} color="gray.400" />
                 </Link>
               )}
             </HStack>
-            <Text fontSize="xs" color="gray.500">
+            <Text fontSize="sm" color="gray.500">
               {formatRelativeTime(displayFact.occurredAt)} ({formatDate(displayFact.occurredAt)})
             </Text>
           </VStack>
@@ -136,7 +136,7 @@ export function FactDetailDrawer({
 
         <Divider borderColor="gray.700" />
 
-        <DrawerBody py={4}>
+        <DrawerBody py={5} px={6}>
           {loading ? (
             <Flex justify="center" py={8}>
               <Spinner size="md" color="gray.500" />

@@ -10,19 +10,19 @@ interface MarkdownContentProps {
 export function MarkdownContent({ content }: MarkdownContentProps) {
   return (
     <Box
-      fontSize="sm"
+      fontSize="md"
       color="gray.200"
       sx={{
         'h1, h2, h3, h4, h5, h6': {
           fontWeight: 'bold',
-          mt: 3,
-          mb: 1,
+          mt: 4,
+          mb: 2,
           color: 'gray.100',
         },
-        h1: { fontSize: 'lg' },
-        h2: { fontSize: 'md' },
-        h3: { fontSize: 'sm' },
-        p: { mb: 2, lineHeight: 1.7 },
+        h1: { fontSize: 'xl' },
+        h2: { fontSize: 'lg' },
+        h3: { fontSize: 'md' },
+        p: { mb: 3, lineHeight: 1.8 },
         'ul, ol': { pl: 5, mb: 2 },
         li: { mb: 0.5 },
         'li > ul, li > ol': { mt: 0.5 },

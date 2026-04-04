@@ -62,7 +62,7 @@ export function GithubFactDetail({ fact }: GithubFactDetailProps) {
             bg="gray.850"
             borderRadius="md"
             p={3}
-            maxH="400px"
+            maxH="none"
             overflowY="auto"
             sx={{
               '&::-webkit-scrollbar': { width: '4px' },
