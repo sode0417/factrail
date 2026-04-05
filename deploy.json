@@ -6,7 +6,7 @@
       "dir": "apps/api",
       "port": 3001,
       "build_cmd": "pnpm run build",
-      "start_cmd": "node dist/src/main.js",
+      "start_cmd": "pnpm run start",
       "log_file": "~/Library/Logs/factrail-api.log",
       "error_log": "~/Library/Logs/factrail-api.error.log"
     },
