@@ -15,14 +15,6 @@ jobs:
   pnpm-audit:
     name: pnpm Audit
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        app: [api, web]
-      fail-fast: false # 一つが失敗しても他を続行
-
-    defaults:
-      run:
-        working-directory: apps/${{ matrix.app }}
 
     steps:
       - name: Checkout code
@@ -49,14 +41,6 @@ jobs:
   snyk:
     name: Snyk Security Scan
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        app: [api, web]
-      fail-fast: false
-
-    defaults:
-      run:
-        working-directory: apps/${{ matrix.app }}
 
     steps:
       - name: Checkout code
@@ -81,14 +65,14 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          args: --severity-threshold=high --json-file-output=snyk-${{ matrix.app }}.json
+          args: --all-projects --severity-threshold=high --json-file-output=snyk-results.json
 
       - name: Upload Snyk results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: snyk-${{ matrix.app }}
-          path: apps/${{ matrix.app }}/snyk-${{ matrix.app }}.json
+          name: snyk-results
+          path: snyk-results.json
           retention-days: 30
 
   # Trivy - ファイルシステムとIaCスキャン

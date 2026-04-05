@@ -144,9 +144,6 @@ deploy_nextjs() {
 
   local service_dir="$REPO_ROOT/$dir"
 
-  log "[$name] 依存パッケージをインストール"
-  (cd "$service_dir" && npm install) || { err "[$name] npm install 失敗"; return 1; }
-
   log "[$name] ビルド開始"
   (cd "$service_dir" && eval "$build_cmd") || { err "[$name] ビルド失敗"; return 1; }
   log "[$name] ビルド完了"
@@ -170,9 +167,6 @@ deploy_node() {
   local name="$1" dir="$2" port="$3" build_cmd="$4" start_cmd="$5" log_file="$6" error_log="$7"
 
   local service_dir="$REPO_ROOT/$dir"
-
-  log "[$name] 依存パッケージをインストール"
-  (cd "$service_dir" && npm install) || { err "[$name] npm install 失敗"; return 1; }
 
   log "[$name] ビルド開始"
   (cd "$service_dir" && eval "$build_cmd") || { err "[$name] ビルド失敗"; return 1; }
@@ -202,6 +196,10 @@ log "デプロイ開始: $(basename "$REPO_ROOT")"
 # git pull
 log "最新コードを取得"
 (cd "$REPO_ROOT" && git pull origin main --ff-only) || { err "git pull 失敗"; exit 1; }
+
+# 依存パッケージをインストール（pnpm workspace でルートから一括）
+log "依存パッケージをインストール"
+(cd "$REPO_ROOT" && pnpm install --frozen-lockfile) || { err "pnpm install 失敗"; exit 1; }
 
 # サービスをループ
 service_count=$(jq '.services | length' "$DEPLOY_CONFIG")

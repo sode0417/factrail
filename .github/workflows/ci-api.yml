@@ -38,14 +38,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Generate Prisma Client
+        run: pnpm exec prisma generate
+
       - name: TypeScript type check
         run: pnpm exec tsc --noEmit
 
       - name: Run ESLint
         run: pnpm run lint
-
-      - name: Generate Prisma Client
-        run: pnpm exec prisma generate
 
       - name: Build
         run: pnpm run build
