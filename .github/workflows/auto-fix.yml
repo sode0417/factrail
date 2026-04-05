@@ -92,23 +92,29 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'pnpm'
 
       - name: Auto-fix lint issues (API)
         working-directory: apps/api
         run: |
-          npm ci
-          npm run lint -- --fix || true
+          pnpm install --frozen-lockfile
+          pnpm run lint -- --fix || true
         continue-on-error: true
 
       - name: Auto-fix lint issues (Web)
         working-directory: apps/web
         run: |
-          npm ci
-          npm run lint -- --fix || true
+          pnpm install --frozen-lockfile
+          pnpm run lint -- --fix || true
         continue-on-error: true
 
       - name: Commit changes

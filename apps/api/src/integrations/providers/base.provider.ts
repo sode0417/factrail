@@ -126,10 +126,7 @@ export abstract class BaseProvider implements IntegrationProvider {
   /**
    * Webhook 解除のデフォルト実装（非対応）
    */
-  async removeWebhook(
-    _integration: DecryptedIntegration,
-    _webhookId: string,
-  ): Promise<void> {
+  async removeWebhook(_integration: DecryptedIntegration, _webhookId: string): Promise<void> {
     throw new Error(`${this.providerName} は Webhook 解除に対応していません`);
   }
 

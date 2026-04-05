@@ -6,10 +6,10 @@ module.exports = {
     const commands = [];
 
     // ESLint (apps/api のローカルESLintを使用)
-    commands.push(`npx --prefix apps/api eslint --config apps/api/.eslintrc.js ${filePaths} --fix`);
+    commands.push(`pnpm -C apps/api exec eslint --config .eslintrc.js ${filePaths} --fix`);
 
-    // Prettier
-    commands.push(`npx prettier --config apps/api/.prettierrc --write ${filePaths}`);
+    // Prettier (apps/api の prettier を使用)
+    commands.push(`pnpm -C apps/api exec prettier --config .prettierrc --write ${filePaths}`);
 
     return commands;
   },
@@ -17,6 +17,6 @@ module.exports = {
     const filePaths = files.map(file => file.replace(/\\/g, '/')).join(' ');
 
     // ESLint (apps/web のローカルESLintを使用)
-    return [`npx --prefix apps/web eslint --config apps/web/eslint.config.mjs ${filePaths}`];
+    return [`pnpm -C apps/web exec eslint --config eslint.config.mjs ${filePaths}`];
   }
 };

@@ -601,13 +601,17 @@ describe('FactsService', () => {
       const githubFact = { ...manualFact, source: 'github' };
       mockPrismaService.fact.findFirst.mockResolvedValue(githubFact);
 
-      await expect(service.update(userId, factId, { title: 'New' })).rejects.toThrow(ForbiddenException);
+      await expect(service.update(userId, factId, { title: 'New' })).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('存在しない Fact は NotFoundException をスローすること', async () => {
       mockPrismaService.fact.findFirst.mockResolvedValue(null);
 
-      await expect(service.update(userId, factId, { title: 'New' })).rejects.toThrow(NotFoundException);
+      await expect(service.update(userId, factId, { title: 'New' })).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('更新フィールドがない場合はそのまま返すこと', async () => {
@@ -637,7 +641,9 @@ describe('FactsService', () => {
 
       await service.remove(userId, factId);
 
-      expect(mockPrismaService.fact.deleteMany).toHaveBeenCalledWith({ where: { parentId: factId } });
+      expect(mockPrismaService.fact.deleteMany).toHaveBeenCalledWith({
+        where: { parentId: factId },
+      });
       expect(mockPrismaService.fact.delete).toHaveBeenCalledWith({ where: { id: factId } });
     });
 
@@ -649,7 +655,9 @@ describe('FactsService', () => {
 
       await service.remove(userId, factId);
 
-      expect(mockPrismaService.fact.deleteMany).toHaveBeenCalledWith({ where: { parentId: factId } });
+      expect(mockPrismaService.fact.deleteMany).toHaveBeenCalledWith({
+        where: { parentId: factId },
+      });
       expect(mockPrismaService.fact.delete).toHaveBeenCalledWith({ where: { id: factId } });
     });
 

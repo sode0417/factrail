@@ -4,18 +4,38 @@
   "private": true,
   "description": "Fact Trail - Log infrastructure for personal activities",
   "scripts": {
-    "dev:api": "cd apps/api && npm run start:dev",
-    "build:api": "cd apps/api && npm run build",
-    "start:api": "cd apps/api && npm run start",
-    "lint:api": "cd apps/api && npm run lint",
-    "format:api": "cd apps/api && npm run format",
-    "lint:web": "cd apps/web && npm run lint",
-    "audit:api": "cd apps/api && npm audit --audit-level=high",
-    "audit:web": "cd apps/web && npm audit --audit-level=high",
+    "dev:api": "pnpm --filter api start:dev",
+    "build:api": "pnpm --filter api build",
+    "start:api": "pnpm --filter api start",
+    "lint:api": "pnpm --filter api lint",
+    "format:api": "pnpm --filter api format",
+    "lint:web": "pnpm --filter web lint",
     "prepare": "husky"
   },
   "devDependencies": {
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7"
+  },
+  "pnpm": {
+    "overrides": {
+      "axios": ">=1.13.5",
+      "qs": ">=6.15.0",
+      "multer": ">=2.1.0",
+      "effect": ">=3.20.0",
+      "defu": ">=6.1.5",
+      "lodash": ">=4.18.0",
+      "path-to-regexp@0.1.x": ">=0.1.13"
+    },
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "@prisma/client",
+      "@prisma/engines",
+      "bcrypt",
+      "better-sqlite3",
+      "msgpackr-extract",
+      "prisma",
+      "sharp",
+      "unrs-resolver"
+    ]
   }
 }

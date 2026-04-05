@@ -47,7 +47,9 @@ class RefreshableTestProvider extends BaseProvider {
   }
 }
 
-function createMockIntegration(overrides: Partial<DecryptedIntegration> = {}): DecryptedIntegration {
+function createMockIntegration(
+  overrides: Partial<DecryptedIntegration> = {},
+): DecryptedIntegration {
   return {
     id: 'int-1',
     provider: 'test',
@@ -207,9 +209,9 @@ describe('BaseProvider', () => {
     it('全リトライ失敗時はエラーをスローする', async () => {
       global.fetch = jest.fn().mockRejectedValue(new Error('persistent error'));
 
-      await expect(
-        (provider as any).fetchWithRetry('https://example.com', {}, 1),
-      ).rejects.toThrow('persistent error');
+      await expect((provider as any).fetchWithRetry('https://example.com', {}, 1)).rejects.toThrow(
+        'persistent error',
+      );
       expect(global.fetch).toHaveBeenCalledTimes(2); // 初回 + 1リトライ
     });
   });
