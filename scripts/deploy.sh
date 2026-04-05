@@ -152,7 +152,7 @@ deploy_nextjs() {
 
   log "[$name] 起動: ポート $port"
   (cd "$service_dir" && nohup $start_cmd > /dev/null 2>&1 &)
-  sleep 3
+  sleep 5
 
   if lsof -ti ":$port" &>/dev/null; then
     log "[$name] 起動成功"

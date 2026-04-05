@@ -16,7 +16,7 @@
       "dir": "apps/web",
       "port": 3000,
       "build_cmd": "pnpm run build",
-      "start_cmd": "pnpm exec next start -- -p 3000"
+      "start_cmd": "pnpm run start"
     }
   ]
 }
