@@ -24,7 +24,7 @@
       "effect": ">=3.20.0",
       "defu": ">=6.1.5",
       "lodash": ">=4.18.0",
-      "path-to-regexp@0.1.x": ">=0.1.13"
+      "express>path-to-regexp": "0.1.13"
     },
     "onlyBuiltDependencies": [
       "@nestjs/core",
