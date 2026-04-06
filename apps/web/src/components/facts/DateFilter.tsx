@@ -7,8 +7,11 @@ import {
   Input,
   IconButton,
   Text,
+  useBreakpointValue,
+  Collapse,
+  useDisclosure,
 } from '@chakra-ui/react';
-import { FiX } from 'react-icons/fi';
+import { FiX, FiCalendar } from 'react-icons/fi';
 import { DatePreset } from '@/lib/dateUtils';
 
 interface DateFilterProps {
@@ -36,6 +39,100 @@ export function DateFilter({
   onRangeChange,
   onClear,
 }: DateFilterProps) {
+  const isMobile = useBreakpointValue({ base: true, md: false });
+  const { isOpen: rangeOpen, onToggle: toggleRange } = useDisclosure();
+
+  // Custom range is active (not a preset)
+  const hasCustomRange = isActive && !preset;
+
+  if (isMobile) {
+    return (
+      <Flex
+        direction="column"
+        gap={2}
+        p={2}
+        borderRadius="md"
+        borderWidth="1px"
+        borderColor={isActive ? 'brand.500' : 'gray.700'}
+        bg="gray.900"
+      >
+        <Flex gap={2} align="center" flexWrap="wrap">
+          <ButtonGroup size="xs" isAttached variant="outline">
+            {presets.map((p) => (
+              <Button
+                key={p.key}
+                onClick={() => onPreset(p.key)}
+                variant={preset === p.key ? 'solid' : 'outline'}
+                colorScheme={preset === p.key ? 'brand' : 'gray'}
+              >
+                {p.label}
+              </Button>
+            ))}
+          </ButtonGroup>
+
+          <IconButton
+            aria-label="日付範囲"
+            icon={<FiCalendar />}
+            size="xs"
+            variant={rangeOpen || hasCustomRange ? 'solid' : 'outline'}
+            colorScheme={rangeOpen || hasCustomRange ? 'brand' : 'gray'}
+            onClick={toggleRange}
+          />
+
+          {isActive && (
+            <IconButton
+              aria-label="フィルタをクリア"
+              icon={<FiX />}
+              size="xs"
+              variant="ghost"
+              colorScheme="gray"
+              onClick={onClear}
+            />
+          )}
+        </Flex>
+
+        <Collapse in={rangeOpen || hasCustomRange} animateOpacity>
+          <Flex alignItems="center" gap={2}>
+            <Input
+              type="date"
+              size="xs"
+              flex={1}
+              bg="gray.800"
+              borderColor="gray.600"
+              value={from}
+              onChange={(e) => onRangeChange(e.target.value, to)}
+              sx={{
+                colorScheme: 'dark',
+                '&::-webkit-calendar-picker-indicator': {
+                  filter: 'invert(1)',
+                },
+              }}
+            />
+            <Text color="gray.500" fontSize="xs">
+              ~
+            </Text>
+            <Input
+              type="date"
+              size="xs"
+              flex={1}
+              bg="gray.800"
+              borderColor="gray.600"
+              value={to}
+              onChange={(e) => onRangeChange(from, e.target.value)}
+              sx={{
+                colorScheme: 'dark',
+                '&::-webkit-calendar-picker-indicator': {
+                  filter: 'invert(1)',
+                },
+              }}
+            />
+          </Flex>
+        </Collapse>
+      </Flex>
+    );
+  }
+
+  // Desktop layout (unchanged)
   return (
     <Flex
       gap={3}

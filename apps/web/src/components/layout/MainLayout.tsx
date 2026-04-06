@@ -14,14 +14,21 @@ export function MainLayout({ children, title, subtitle }: MainLayoutProps) {
   const { isOpen, onOpen, onClose } = useDisclosure();
 
   return (
-    <Flex minH="100vh">
+    <Flex h="100vh" overflow="hidden">
       <Sidebar isOpen={isOpen} onClose={onClose} />
-      <Box ml={{ base: 0, lg: '260px' }} flex={1} bg="gray.950">
+      <Flex
+        direction="column"
+        ml={{ base: 0, lg: '260px' }}
+        flex={1}
+        bg="gray.950"
+        h="100vh"
+        overflow="hidden"
+      >
         <Header title={title} subtitle={subtitle} onMenuOpen={onOpen} />
-        <Box as="main" p={{ base: 4, md: 6, lg: 8 }}>
+        <Box as="main" flex={1} overflow="hidden" p={{ base: 2, md: 6, lg: 8 }}>
           {children}
         </Box>
-      </Box>
+      </Flex>
     </Flex>
   );
 }

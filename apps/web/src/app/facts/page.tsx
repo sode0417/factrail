@@ -308,7 +308,7 @@ function FactsPageContent() {
 
   return (
     <MainLayout title="Facts" subtitle="収集されたすべてのファクトを表示">
-      <Flex direction="column" h="calc(100vh - 140px)" maxH="calc(100vh - 140px)">
+      <Flex direction="column" h="100%" overflow="hidden">
         <FactFilters
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -339,8 +339,9 @@ function FactsPageContent() {
         <Box
           ref={scrollContainerRef}
           flex={1}
+          minH={0}
           overflowY="auto"
-          mb={4}
+          mb={2}
           sx={{
             '&::-webkit-scrollbar': { width: '6px' },
             '&::-webkit-scrollbar-track': { bg: 'transparent' },
