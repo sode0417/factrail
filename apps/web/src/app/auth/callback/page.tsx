@@ -49,9 +49,9 @@ function CallbackContent() {
   }, [login, router, searchParams]);
 
   return (
-    <VStack minH="100vh" justify="center" bg="gray.900">
+    <VStack minH="100vh" justify="center" bg="bg.canvas">
       <Spinner size="xl" color="blue.500" />
-      <Text color="gray.400">認証処理中...</Text>
+      <Text color="text.muted">認証処理中...</Text>
     </VStack>
   );
 }
@@ -60,7 +60,7 @@ export default function CallbackPage() {
   return (
     <Suspense
       fallback={
-        <VStack minH="100vh" justify="center" bg="gray.900">
+        <VStack minH="100vh" justify="center" bg="bg.canvas">
           <Spinner size="xl" color="blue.500" />
         </VStack>
       }

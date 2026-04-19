@@ -46,8 +46,8 @@ export function FactCardEditForm({
       <Input
         value={editForm.title}
         onChange={(e) => onEditFormChange({ ...editForm, title: e.target.value })}
-        bg="gray.900"
-        borderColor="gray.600"
+        bg="bg.canvas"
+        borderColor="border.muted"
         fontWeight={isCompact ? 'medium' : 'semibold'}
         fontSize={isCompact ? 'sm' : 'lg'}
         size={isCompact ? 'sm' : 'md'}
@@ -58,8 +58,8 @@ export function FactCardEditForm({
           <Textarea
             value={editForm.summary}
             onChange={(e) => onEditFormChange({ ...editForm, summary: e.target.value })}
-            bg="gray.900"
-            borderColor="gray.600"
+            bg="bg.canvas"
+            borderColor="border.muted"
             fontSize="sm"
             placeholder="サマリー（任意）"
             rows={2}
@@ -69,8 +69,8 @@ export function FactCardEditForm({
             <Select
               size="sm"
               maxW="180px"
-              bg="gray.900"
-              borderColor="gray.600"
+              bg="bg.canvas"
+              borderColor="border.muted"
               value={editForm.categoryId ?? ''}
               onChange={(e) => onEditFormChange({ ...editForm, categoryId: e.target.value || null })}
             >
@@ -83,8 +83,8 @@ export function FactCardEditForm({
               <Select
                 size="sm"
                 maxW="220px"
-                bg="gray.900"
-                borderColor="gray.600"
+                bg="bg.canvas"
+                borderColor="border.muted"
                 value={editForm.projectId ?? ''}
                 onChange={(e) => onEditFormChange({ ...editForm, projectId: e.target.value || null })}
               >
@@ -101,7 +101,9 @@ export function FactCardEditForm({
         <IconButton
           aria-label="保存"
           icon={<FiCheck />}
-          colorScheme="green"
+          bg="accent.default"
+          color="white"
+          _hover={{ bg: 'accent.strong' }}
           size={isCompact ? 'xs' : 'sm'}
           onClick={onSave}
           isLoading={isSaving}

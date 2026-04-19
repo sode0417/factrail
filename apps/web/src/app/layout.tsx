@@ -1,21 +1,25 @@
 import type { Metadata } from 'next';
-import { Inter, JetBrains_Mono } from 'next/font/google';
+import { Noto_Sans_JP, Noto_Serif_JP } from 'next/font/google';
 import { Providers } from './providers';
 import './globals.css';
 
-const inter = Inter({
-  variable: '--font-inter',
+const notoSansJP = Noto_Sans_JP({
+  variable: '--font-sans-jp',
   subsets: ['latin'],
+  weight: ['400', '500', '700'],
+  display: 'swap',
 });
 
-const jetbrainsMono = JetBrains_Mono({
-  variable: '--font-jetbrains-mono',
+const notoSerifJP = Noto_Serif_JP({
+  variable: '--font-serif-jp',
   subsets: ['latin'],
+  weight: ['500', '700'],
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
-  title: 'Factrail - Fact Trail',
-  description: 'A centralized log infrastructure for collecting and normalizing all facts',
+  title: 'Factrail',
+  description: 'Fact Trail — 事実の軌跡を集めて振り返る',
 };
 
 export default function RootLayout({
@@ -25,7 +29,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ja">
-      <body className={`${inter.variable} ${jetbrainsMono.variable}`}>
+      <body className={`${notoSansJP.variable} ${notoSerifJP.variable}`}>
         <Providers>{children}</Providers>
       </body>
     </html>

@@ -53,8 +53,8 @@ export function DateFilter({
         p={2}
         borderRadius="md"
         borderWidth="1px"
-        borderColor={isActive ? 'brand.500' : 'gray.700'}
-        bg="gray.900"
+        borderColor={isActive ? 'brand.500' : 'border.muted'}
+        bg="bg.canvas"
       >
         <Flex gap={2} align="center" flexWrap="wrap">
           <ButtonGroup size="xs" isAttached variant="outline">
@@ -97,8 +97,8 @@ export function DateFilter({
               type="date"
               size="xs"
               flex={1}
-              bg="gray.800"
-              borderColor="gray.600"
+              bg="bg.surface"
+              borderColor="border.muted"
               value={from}
               onChange={(e) => onRangeChange(e.target.value, to)}
               sx={{
@@ -108,15 +108,15 @@ export function DateFilter({
                 },
               }}
             />
-            <Text color="gray.500" fontSize="xs">
+            <Text color="text.muted" fontSize="xs">
               ~
             </Text>
             <Input
               type="date"
               size="xs"
               flex={1}
-              bg="gray.800"
-              borderColor="gray.600"
+              bg="bg.surface"
+              borderColor="border.muted"
               value={to}
               onChange={(e) => onRangeChange(from, e.target.value)}
               sx={{
@@ -141,8 +141,8 @@ export function DateFilter({
       p={3}
       borderRadius="md"
       borderWidth="1px"
-      borderColor={isActive ? 'brand.500' : 'gray.700'}
-      bg="gray.900"
+      borderColor={isActive ? 'brand.500' : 'border.muted'}
+      bg="bg.canvas"
     >
       <ButtonGroup size="sm" isAttached variant="outline">
         {presets.map((p) => (
@@ -162,8 +162,8 @@ export function DateFilter({
           type="date"
           size="sm"
           maxW={{ base: '130px', md: '160px' }}
-          bg="gray.800"
-          borderColor="gray.600"
+          bg="bg.surface"
+          borderColor="border.muted"
           value={from}
           onChange={(e) => onRangeChange(e.target.value, to)}
           sx={{
@@ -173,15 +173,15 @@ export function DateFilter({
             },
           }}
         />
-        <Text color="gray.500" fontSize="sm">
+        <Text color="text.muted" fontSize="sm">
           ~
         </Text>
         <Input
           type="date"
           size="sm"
           maxW={{ base: '130px', md: '160px' }}
-          bg="gray.800"
-          borderColor="gray.600"
+          bg="bg.surface"
+          borderColor="border.muted"
           value={to}
           onChange={(e) => onRangeChange(from, e.target.value)}
           sx={{

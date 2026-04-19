@@ -1,27 +1,13 @@
 'use client';
 
-import {
-  Box,
-  Flex,
-  Icon,
-  Text,
-  VStack,
-  Divider,
-  Badge,
-  Drawer,
-  DrawerOverlay,
-  DrawerContent,
-  DrawerCloseButton,
-  DrawerBody,
-  useBreakpointValue,
-} from '@chakra-ui/react';
+import { Box, Flex, Icon, Text } from '@chakra-ui/react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   FiDatabase,
-  FiSettings,
   FiGithub,
   FiMessageSquare,
+  FiSettings,
 } from 'react-icons/fi';
 import { IconType } from 'react-icons';
 
@@ -29,7 +15,6 @@ interface NavItem {
   name: string;
   href: string;
   icon: IconType;
-  badge?: string;
 }
 
 const mainNavItems: NavItem[] = [
@@ -41,155 +26,108 @@ const setupNavItems: NavItem[] = [
   { name: 'Slack', href: '/setup/slack', icon: FiMessageSquare },
 ];
 
-function NavLink({ item, onClick }: { item: NavItem; onClick?: () => void }) {
+const settingsNavItems: NavItem[] = [
+  { name: '一般', href: '/settings', icon: FiSettings },
+];
+
+function NavLink({ item }: { item: NavItem }) {
   const pathname = usePathname();
   const isActive = pathname === item.href;
 
   return (
-    <Link href={item.href} style={{ width: '100%' }} onClick={onClick}>
+    <Link href={item.href} style={{ width: '100%' }}>
       <Flex
         align="center"
-        px={4}
-        py={3}
-        borderRadius="lg"
+        gap={3}
+        px={3}
+        py="9px"
+        borderRadius="sm"
         cursor="pointer"
-        bg={isActive ? 'brand.500' : 'transparent'}
-        color={isActive ? 'white' : 'gray.400'}
+        bg={isActive ? 'accent.default' : 'transparent'}
+        color={isActive ? 'white' : 'text.default'}
         _hover={{
-          bg: isActive ? 'brand.600' : 'gray.800',
-          color: 'white',
+          bg: isActive ? 'accent.strong' : 'accent.soft',
         }}
-        transition="all 0.2s"
+        transition="background 0.15s ease"
+        fontWeight={500}
+        whiteSpace="nowrap"
+        fontSize="sm"
       >
-        <Icon as={item.icon} boxSize={5} mr={3} />
-        <Text fontWeight={isActive ? 'semibold' : 'medium'}>{item.name}</Text>
-        {item.badge && (
-          <Badge ml="auto" colorScheme="accent" variant="solid" fontSize="xs">
-            {item.badge}
-          </Badge>
-        )}
+        <Icon as={item.icon} boxSize="18px" flexShrink={0} />
+        <Text
+          className="nav-label"
+          opacity={0}
+          transition="opacity 0.18s ease 0.05s"
+        >
+          {item.name}
+        </Text>
       </Flex>
     </Link>
   );
 }
 
-function SidebarContent({ onClose }: { onClose?: () => void }) {
+function NavSection({ label }: { label: string }) {
   return (
-    <>
-      {/* Logo */}
-      <Flex px={6} mb={8} align="center">
-        <Box
-          w={10}
-          h={10}
-          borderRadius="lg"
-          bg="brand.500"
-          display="flex"
-          alignItems="center"
-          justifyContent="center"
-          mr={3}
-        >
-          <Text fontSize="xl" fontWeight="bold" color="white">
-            F
-          </Text>
-        </Box>
-        <Box>
-          <Text
-            fontSize="xl"
-            fontWeight="bold"
-            fontFamily="heading"
-            letterSpacing="-0.5px"
-          >
-            Factrail
-          </Text>
-          <Text fontSize="xs" color="gray.500">
-            Fact Trail
-          </Text>
-        </Box>
-      </Flex>
-
-      {/* Main Navigation */}
-      <VStack spacing={1} align="stretch" px={3}>
-        {mainNavItems.map((item) => (
-          <NavLink key={item.href} item={item} onClick={onClose} />
-        ))}
-      </VStack>
-
-      <Divider my={6} borderColor="gray.800" />
-
-      {/* Setup Section */}
-      <Box px={6} mb={3}>
-        <Flex align="center">
-          <Icon as={FiSettings} boxSize={4} color="gray.500" mr={2} />
-          <Text fontSize="xs" fontWeight="semibold" color="gray.500" textTransform="uppercase">
-            連携設定
-          </Text>
-        </Flex>
-      </Box>
-      <VStack spacing={1} align="stretch" px={3}>
-        {setupNavItems.map((item) => (
-          <NavLink key={item.href} item={item} onClick={onClose} />
-        ))}
-      </VStack>
-
-      {/* Status Footer */}
-      <Box position="absolute" bottom={6} left={0} right={0} px={6}>
-        <Flex
-          p={3}
-          bg="gray.800"
-          borderRadius="lg"
-          align="center"
-          justify="space-between"
-        >
-          <Flex align="center">
-            <Box w={2} h={2} borderRadius="full" bg="green.400" mr={2} />
-            <Text fontSize="sm" color="gray.400">
-              API接続中
-            </Text>
-          </Flex>
-        </Flex>
-      </Box>
-    </>
+    <Text
+      className="nav-section"
+      color="text.muted"
+      fontSize="11px"
+      textTransform="uppercase"
+      letterSpacing="0.08em"
+      px={3}
+      pt="10px"
+      pb="4px"
+      whiteSpace="nowrap"
+      opacity={0}
+      transition="opacity 0.18s ease 0.05s"
+    >
+      {label}
+    </Text>
   );
 }
 
-interface SidebarProps {
-  isOpen?: boolean;
-  onClose?: () => void;
-}
-
-export function Sidebar({ isOpen = false, onClose = () => {} }: SidebarProps) {
-  const isMobile = useBreakpointValue({ base: true, lg: false });
-
-  // デスクトップ: 固定サイドバー
-  if (!isMobile) {
-    return (
-      <Box
-        as="aside"
-        w="260px"
-        h="100vh"
-        bg="gray.900"
-        borderRight="1px"
-        borderColor="gray.800"
-        position="fixed"
-        left={0}
-        top={0}
-        py={6}
-      >
-        <SidebarContent />
-      </Box>
-    );
-  }
-
-  // モバイル: Drawer
+export function Sidebar() {
   return (
-    <Drawer isOpen={isOpen} placement="left" onClose={onClose} size="xs">
-      <DrawerOverlay />
-      <DrawerContent bg="gray.900" py={6}>
-        <DrawerCloseButton color="gray.400" />
-        <DrawerBody p={0}>
-          <SidebarContent onClose={onClose} />
-        </DrawerBody>
-      </DrawerContent>
-    </Drawer>
+    <Box
+      as="aside"
+      bg="bg.surface"
+      borderRight="1px solid"
+      borderColor="border.muted"
+      w="var(--sidebar-w)"
+      position="fixed"
+      left={0}
+      top="var(--topbar-h)"
+      h="calc(100vh - var(--topbar-h))"
+      zIndex={20}
+      overflow="hidden"
+      px="10px"
+      py="18px"
+      display={{ base: 'none', md: 'flex' }}
+      flexDirection="column"
+      gap="14px"
+      transition="width 0.22s ease, box-shadow 0.22s ease, padding 0.22s ease"
+      _hover={{
+        w: 'var(--sidebar-w-expanded)',
+        overflow: 'visible',
+        px: '14px',
+        boxShadow: '8px 0 28px rgba(74,60,20,0.08)',
+        '& .nav-label': { opacity: 1 },
+        '& .nav-section': { opacity: 1 },
+      }}
+    >
+      <Flex direction="column" gap="2px" minW="220px">
+        {mainNavItems.map((item) => (
+          <NavLink key={item.href} item={item} />
+        ))}
+        <NavSection label="連携" />
+        {setupNavItems.map((item) => (
+          <NavLink key={item.href} item={item} />
+        ))}
+        <NavSection label="設定" />
+        {settingsNavItems.map((item) => (
+          <NavLink key={item.href} item={item} />
+        ))}
+      </Flex>
+    </Box>
   );
 }

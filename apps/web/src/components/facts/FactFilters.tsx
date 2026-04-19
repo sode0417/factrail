@@ -1,23 +1,16 @@
 'use client';
 
 import {
-  Card,
-  CardBody,
-  VStack,
+  Box,
   Flex,
-  Input,
-  InputGroup,
-  InputLeftElement,
   Select,
-  Button,
   Icon,
   IconButton,
-  Collapse,
-  useBreakpointValue,
-  useDisclosure,
-  Badge,
+  Text,
+  HStack,
 } from '@chakra-ui/react';
-import { FiSearch, FiRefreshCw, FiMessageSquare, FiFilter, FiChevronDown, FiChevronUp } from 'react-icons/fi';
+import { FiRefreshCw } from 'react-icons/fi';
+import { useState } from 'react';
 import { DateFilter } from './DateFilter';
 import type { F2ACategory, F2AProject } from '@/types/fact';
 import type { DatePreset } from '@/lib/dateUtils';
@@ -33,8 +26,6 @@ interface DateFilterState {
 }
 
 interface FactFiltersProps {
-  searchQuery: string;
-  onSearchChange: (value: string) => void;
   sourceFilter: string;
   onSourceChange: (value: string) => void;
   filterCategoryId: string;
@@ -51,9 +42,39 @@ interface FactFiltersProps {
   dateFilter: DateFilterState;
 }
 
+function ChipStatus({
+  label,
+  value,
+  active,
+}: {
+  label: string;
+  value: string;
+  active: boolean;
+}) {
+  return (
+    <HStack spacing={1.5} color="text.muted" fontSize="12px">
+      <Text as="span" color="text.muted">
+        {label}
+      </Text>
+      <Box
+        as="span"
+        px="10px"
+        py="2px"
+        borderRadius="pill"
+        fontSize="11.5px"
+        fontWeight={600}
+        bg={active ? '#B5D2BB' : 'bg.canvas'}
+        color={active ? '#1F4A30' : 'text.muted'}
+        border="1px solid"
+        borderColor={active ? 'transparent' : 'border.muted'}
+      >
+        {value}
+      </Box>
+    </HStack>
+  );
+}
+
 export function FactFilters({
-  searchQuery,
-  onSearchChange,
   sourceFilter,
   onSourceChange,
   filterCategoryId,
@@ -62,190 +83,129 @@ export function FactFilters({
   onProjectChange,
   categories,
   projects,
-  grouped,
-  onToggleGrouped,
   loading,
   isBackgroundUpdate,
   onRefresh,
   dateFilter,
 }: FactFiltersProps) {
-  const isMobile = useBreakpointValue({ base: true, md: false });
-  const { isOpen: filtersOpen, onToggle: toggleFilters } = useDisclosure();
+  const [expanded, setExpanded] = useState(false);
+  const selectedCategory = categories.find((c) => c.id === filterCategoryId);
+  const selectedProject = projects.find((p) => p.id === filterProjectId);
 
-  // Count active filters for badge
-  const activeFilterCount = [
-    sourceFilter,
-    filterCategoryId,
-    filterProjectId,
-    dateFilter.isActive,
-  ].filter(Boolean).length;
+  const dateLabel = dateFilter.preset
+    ? { today: '今日', thisWeek: '今週', thisMonth: '今月' }[
+        dateFilter.preset as 'today' | 'thisWeek' | 'thisMonth'
+      ] || '期間指定'
+    : dateFilter.isActive
+      ? '期間指定'
+      : 'すべて';
 
-  if (isMobile) {
-    return (
-      <Card bg="gray.800" borderColor="gray.700" borderWidth="1px" mb={2} flexShrink={0}>
-        <CardBody py={2} px={3}>
-          <Flex gap={2} align="center">
-            <InputGroup size="sm" flex={1}>
-              <InputLeftElement pointerEvents="none">
-                <FiSearch color="gray" />
-              </InputLeftElement>
-              <Input
-                placeholder="検索..."
-                bg="gray.900"
-                border="none"
-                _placeholder={{ color: 'gray.500' }}
-                value={searchQuery}
-                onChange={(e) => onSearchChange(e.target.value)}
-              />
-            </InputGroup>
+  const sourceLabel = sourceFilter
+    ? sourceFilter === 'claude-code'
+      ? 'Claude Code'
+      : sourceFilter.charAt(0).toUpperCase() + sourceFilter.slice(1)
+    : 'すべて';
 
-            <IconButton
-              aria-label="フィルター"
-              icon={
-                <Flex align="center" position="relative">
-                  <Icon as={filtersOpen ? FiChevronUp : FiFilter} />
-                  {activeFilterCount > 0 && !filtersOpen && (
-                    <Badge
-                      colorScheme="brand"
-                      borderRadius="full"
-                      position="absolute"
-                      top="-6px"
-                      right="-6px"
-                      fontSize="9px"
-                      minW="14px"
-                      h="14px"
-                      display="flex"
-                      alignItems="center"
-                      justifyContent="center"
-                    >
-                      {activeFilterCount}
-                    </Badge>
-                  )}
-                </Flex>
-              }
-              size="sm"
-              variant={filtersOpen || activeFilterCount > 0 ? 'solid' : 'outline'}
-              colorScheme={filtersOpen || activeFilterCount > 0 ? 'brand' : 'gray'}
-              onClick={toggleFilters}
-            />
-
-            <IconButton
-              aria-label="スレッド表示"
-              icon={<Icon as={FiMessageSquare} />}
-              size="sm"
-              variant={grouped ? 'solid' : 'outline'}
-              colorScheme={grouped ? 'brand' : 'gray'}
-              onClick={onToggleGrouped}
-            />
-
-            <IconButton
-              aria-label="更新"
-              icon={
-                <FiRefreshCw
-                  className={isBackgroundUpdate ? 'animate-spin' : ''}
-                />
-              }
-              size="sm"
-              variant="outline"
-              colorScheme="gray"
-              onClick={onRefresh}
-              isLoading={loading}
-            />
-          </Flex>
-
-          <Collapse in={filtersOpen} animateOpacity>
-            <VStack spacing={2} mt={2} align="stretch">
-              <Flex gap={2} flexWrap="wrap">
-                <Select
-                  size="sm"
-                  flex={1}
-                  minW="120px"
-                  bg="gray.900"
-                  borderColor="gray.700"
-                  value={sourceFilter}
-                  onChange={(e) => onSourceChange(e.target.value)}
-                >
-                  <option value="">すべてのソース</option>
-                  <option value="github">GitHub</option>
-                  <option value="slack">Slack</option>
-                  <option value="manual">Manual</option>
-                  <option value="browser">Browser</option>
-                  <option value="claude-code">Claude Code</option>
-                </Select>
-
-                <Select
-                  size="sm"
-                  flex={1}
-                  minW="120px"
-                  bg="gray.900"
-                  borderColor="gray.700"
-                  value={filterCategoryId}
-                  onChange={(e) => onCategoryChange(e.target.value)}
-                >
-                  <option value="">すべてのカテゴリ</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>{cat.name}</option>
-                  ))}
-                </Select>
-              </Flex>
-
-              {projects.length > 0 && (
-                <Select
-                  size="sm"
-                  bg="gray.900"
-                  borderColor="gray.700"
-                  value={filterProjectId}
-                  onChange={(e) => onProjectChange(e.target.value)}
-                >
-                  <option value="">すべてのプロジェクト</option>
-                  {projects.map((proj) => (
-                    <option key={proj.id} value={proj.id}>{proj.title}</option>
-                  ))}
-                </Select>
-              )}
-
-              <DateFilter
-                from={dateFilter.from}
-                to={dateFilter.to}
-                preset={dateFilter.preset}
-                isActive={dateFilter.isActive}
-                onPreset={dateFilter.applyPreset}
-                onRangeChange={dateFilter.setDateRange}
-                onClear={dateFilter.clearFilter}
-              />
-            </VStack>
-          </Collapse>
-        </CardBody>
-      </Card>
-    );
-  }
-
-  // Desktop layout (unchanged)
   return (
-    <Card bg="gray.800" borderColor="gray.700" borderWidth="1px" mb={4} flexShrink={0}>
-      <CardBody py={3}>
-        <VStack spacing={3} align="stretch">
-          <Flex gap={{ base: 2, md: 4 }} flexWrap="wrap">
-            <InputGroup maxW={{ base: '100%', md: '300px' }}>
-              <InputLeftElement pointerEvents="none">
-                <FiSearch color="gray" />
-              </InputLeftElement>
-              <Input
-                placeholder="検索..."
-                bg="gray.900"
-                border="none"
-                _placeholder={{ color: 'gray.500' }}
-                value={searchQuery}
-                onChange={(e) => onSearchChange(e.target.value)}
+    <Box
+      position="sticky"
+      top="var(--topbar-h)"
+      zIndex={9}
+      bg="bg.canvas"
+      pt="10px"
+      pb="8px"
+      role="group"
+    >
+      <Box
+        position="relative"
+        bg="bg.surface-2"
+        border="1px solid"
+        borderColor="border.muted"
+        borderRadius="md"
+        boxShadow={
+          expanded
+            ? '0 4px 14px rgba(74,60,20,0.08)'
+            : '0 1px 2px rgba(74,60,20,0.04)'
+        }
+        minH={expanded ? '120px' : '44px'}
+        px="22px"
+        py={expanded ? '16px' : '10px'}
+        transition="min-height 0.22s ease, padding 0.22s ease, box-shadow 0.22s ease"
+        onMouseEnter={() => setExpanded(true)}
+        onMouseLeave={() => setExpanded(false)}
+      >
+        {/* Summary state */}
+        <Flex
+          display={expanded ? 'none' : 'flex'}
+          align="center"
+          gap={5}
+          pointerEvents="none"
+        >
+          <ChipStatus
+            label="期間"
+            value={dateLabel}
+            active={dateFilter.isActive || !!dateFilter.preset}
+          />
+          <Box as="span" color="border.muted">
+            ·
+          </Box>
+          <ChipStatus
+            label="ソース"
+            value={sourceLabel}
+            active={!!sourceFilter}
+          />
+          <Box as="span" color="border.muted">
+            ·
+          </Box>
+          <ChipStatus
+            label="カテゴリ"
+            value={selectedCategory ? selectedCategory.name : 'すべて'}
+            active={!!filterCategoryId}
+          />
+          {projects.length > 0 && (
+            <>
+              <Box as="span" color="border.muted">
+                ·
+              </Box>
+              <ChipStatus
+                label="プロジェクト"
+                value={selectedProject ? selectedProject.title : 'すべて'}
+                active={!!filterProjectId}
               />
-            </InputGroup>
+            </>
+          )}
+          <Text
+            ml="auto"
+            fontSize="11px"
+            color="text.muted"
+            display={{ base: 'none', md: 'block' }}
+          >
+            ホバーで編集
+          </Text>
+        </Flex>
+
+        {/* Controls state (on hover) */}
+        <Box display={expanded ? 'block' : 'none'}>
+          <Flex gap={3} wrap="wrap" align="center">
+            <DateFilter
+              from={dateFilter.from}
+              to={dateFilter.to}
+              preset={dateFilter.preset}
+              isActive={dateFilter.isActive}
+              onPreset={dateFilter.applyPreset}
+              onRangeChange={dateFilter.setDateRange}
+              onClear={dateFilter.clearFilter}
+            />
 
             <Select
-              maxW={{ base: '100%', sm: '200px' }}
-              bg="gray.900"
-              borderColor="gray.700"
+              size="sm"
+              maxW="160px"
+              bg="bg.canvas"
+              borderColor="border.muted"
+              borderRadius="sm"
               value={sourceFilter}
               onChange={(e) => onSourceChange(e.target.value)}
+              fontSize="13px"
             >
               <option value="">すべてのソース</option>
               <option value="github">GitHub</option>
@@ -256,68 +216,62 @@ export function FactFilters({
             </Select>
 
             <Select
-              maxW={{ base: '100%', sm: '160px' }}
-              bg="gray.900"
-              borderColor="gray.700"
+              size="sm"
+              maxW="160px"
+              bg="bg.canvas"
+              borderColor="border.muted"
+              borderRadius="sm"
               value={filterCategoryId}
               onChange={(e) => onCategoryChange(e.target.value)}
+              fontSize="13px"
             >
               <option value="">すべてのカテゴリ</option>
               {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
+                </option>
               ))}
             </Select>
 
             {projects.length > 0 && (
               <Select
-                maxW={{ base: '100%', sm: '200px' }}
-                bg="gray.900"
-                borderColor="gray.700"
+                size="sm"
+                maxW="180px"
+                bg="bg.canvas"
+                borderColor="border.muted"
+                borderRadius="sm"
                 value={filterProjectId}
                 onChange={(e) => onProjectChange(e.target.value)}
+                fontSize="13px"
               >
                 <option value="">すべてのプロジェクト</option>
                 {projects.map((proj) => (
-                  <option key={proj.id} value={proj.id}>{proj.title}</option>
+                  <option key={proj.id} value={proj.id}>
+                    {proj.title}
+                  </option>
                 ))}
               </Select>
             )}
 
-            <Button
-              leftIcon={<Icon as={FiMessageSquare} />}
-              variant={grouped ? 'solid' : 'outline'}
-              colorScheme={grouped ? 'brand' : 'gray'}
-              onClick={onToggleGrouped}
-            >
-              スレッド表示
-            </Button>
-
-            <Button
-              leftIcon={
-                <FiRefreshCw
+            <IconButton
+              aria-label="更新"
+              icon={
+                <Icon
+                  as={FiRefreshCw}
                   className={isBackgroundUpdate ? 'animate-spin' : ''}
                 />
               }
-              variant="outline"
-              colorScheme="gray"
+              size="sm"
+              variant="ghost"
+              color="text.muted"
+              _hover={{ bg: 'accent.soft', color: 'accent.strong' }}
               onClick={onRefresh}
               isLoading={loading}
-            >
-              更新
-            </Button>
+              ml="auto"
+            />
           </Flex>
-
-          <DateFilter
-            from={dateFilter.from}
-            to={dateFilter.to}
-            preset={dateFilter.preset}
-            isActive={dateFilter.isActive}
-            onPreset={dateFilter.applyPreset}
-            onRangeChange={dateFilter.setDateRange}
-            onClear={dateFilter.clearFilter}
-          />
-        </VStack>
-      </CardBody>
-    </Card>
+        </Box>
+      </Box>
+    </Box>
   );
 }

@@ -34,19 +34,19 @@ export function BrowserFactDetail({ fact }: BrowserFactDetailProps) {
       {/* 統計バー */}
       <HStack spacing={4} flexWrap="wrap">
         {durationMin != null && (
-          <HStack spacing={1} color="gray.300">
+          <HStack spacing={1} color="text.default">
             <Icon as={FiClock} boxSize={4} />
             <Text fontSize="sm" fontWeight="medium">{durationMin}分</Text>
           </HStack>
         )}
         {visitCount != null && (
-          <HStack spacing={1} color="gray.300">
+          <HStack spacing={1} color="text.default">
             <Icon as={FiFileText} boxSize={4} />
             <Text fontSize="sm" fontWeight="medium">{visitCount}ページ</Text>
           </HStack>
         )}
         {domains.length > 0 && (
-          <HStack spacing={1} color="gray.300">
+          <HStack spacing={1} color="text.default">
             <Icon as={FiGlobe} boxSize={4} />
             <Text fontSize="sm" fontWeight="medium">{domains.length}ドメイン</Text>
           </HStack>
@@ -56,7 +56,7 @@ export function BrowserFactDetail({ fact }: BrowserFactDetailProps) {
       {/* 訪問ページ */}
       {urls.length > 0 && (
         <Box>
-          <Text fontSize="xs" color="gray.500" fontWeight="bold" mb={2} textTransform="uppercase" letterSpacing="wider">
+          <Text fontSize="xs" color="text.muted" fontWeight="bold" mb={2} textTransform="uppercase" letterSpacing="wider">
             訪問ページ
           </Text>
           <VStack spacing={1} align="stretch">
@@ -84,7 +84,7 @@ export function BrowserFactDetail({ fact }: BrowserFactDetailProps) {
       {/* 検索クエリ */}
       {searchQueries.length > 0 && (
         <Box>
-          <Text fontSize="xs" color="gray.500" fontWeight="bold" mb={2} textTransform="uppercase" letterSpacing="wider">
+          <Text fontSize="xs" color="text.muted" fontWeight="bold" mb={2} textTransform="uppercase" letterSpacing="wider">
             検索クエリ
           </Text>
           <HStack spacing={2} flexWrap="wrap">
@@ -101,7 +101,7 @@ export function BrowserFactDetail({ fact }: BrowserFactDetailProps) {
       {/* ドメイン集計 */}
       {domains.length > 0 && (
         <Box>
-          <Text fontSize="xs" color="gray.500" fontWeight="bold" mb={2} textTransform="uppercase" letterSpacing="wider">
+          <Text fontSize="xs" color="text.muted" fontWeight="bold" mb={2} textTransform="uppercase" letterSpacing="wider">
             ドメイン
           </Text>
           <HStack spacing={2} flexWrap="wrap">

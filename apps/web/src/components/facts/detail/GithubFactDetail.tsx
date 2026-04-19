@@ -42,12 +42,12 @@ export function GithubFactDetail({ fact }: GithubFactDetailProps) {
       {/* ブランチ情報 */}
       {ref && (
         <HStack spacing={2}>
-          <Icon as={FiGitBranch} color="gray.400" boxSize={4} />
-          <Code fontSize="sm" bg="gray.700" color="gray.200" px={2} py={0.5} borderRadius="md">
+          <Icon as={FiGitBranch} color="text.muted" boxSize={4} />
+          <Code fontSize="sm" bg="bg.surface-2" color="text.default" px={2} py={0.5} borderRadius="md">
             {ref.replace('refs/heads/', '')}
           </Code>
           {repo && (
-            <Text fontSize="sm" color="gray.500">{repo}</Text>
+            <Text fontSize="sm" color="text.muted">{repo}</Text>
           )}
         </HStack>
       )}
@@ -55,18 +55,18 @@ export function GithubFactDetail({ fact }: GithubFactDetailProps) {
       {/* Issue / PR 本文 */}
       {body && (
         <Box>
-          <Text fontSize="xs" color="gray.500" fontWeight="bold" mb={2} textTransform="uppercase" letterSpacing="wider">
+          <Text fontSize="xs" color="text.muted" fontWeight="bold" mb={2} textTransform="uppercase" letterSpacing="wider">
             本文
           </Text>
           <Box
-            bg="gray.850"
+            bg="bg.surface-2"
             borderRadius="md"
             p={3}
             maxH="none"
             overflowY="auto"
             sx={{
               '&::-webkit-scrollbar': { width: '4px' },
-              '&::-webkit-scrollbar-thumb': { bg: 'gray.700', borderRadius: 'full' },
+              '&::-webkit-scrollbar-thumb': { bg: 'border.muted', borderRadius: 'full' },
             }}
           >
             <MarkdownContent content={body} />
@@ -77,7 +77,7 @@ export function GithubFactDetail({ fact }: GithubFactDetailProps) {
       {/* コミット一覧 */}
       {allCommits.length > 0 && (
         <Box>
-          <Text fontSize="xs" color="gray.500" fontWeight="bold" mb={2} textTransform="uppercase" letterSpacing="wider">
+          <Text fontSize="xs" color="text.muted" fontWeight="bold" mb={2} textTransform="uppercase" letterSpacing="wider">
             コミット
           </Text>
           <VStack spacing={2} align="stretch">
@@ -93,14 +93,14 @@ export function GithubFactDetail({ fact }: GithubFactDetailProps) {
                       color="purple.300"
                       _hover={{ color: 'purple.200' }}
                     >
-                      <Code fontSize="xs" bg="gray.700" color="gray.300" mr={2}>
+                      <Code fontSize="xs" bg="bg.surface-2" color="text.default" mr={2}>
                         {commit.id?.substring(0, 7) ?? '?'}
                       </Code>
                       {commit.message?.split('\n')[0] ?? ''}
                     </Link>
                   ) : (
-                    <Text fontSize="sm" color="gray.200">
-                      <Code fontSize="xs" bg="gray.700" color="gray.300" mr={2}>
+                    <Text fontSize="sm" color="text.default">
+                      <Code fontSize="xs" bg="bg.surface-2" color="text.default" mr={2}>
                         {commit.id?.substring(0, 7) ?? '?'}
                       </Code>
                       {commit.message?.split('\n')[0] ?? ''}

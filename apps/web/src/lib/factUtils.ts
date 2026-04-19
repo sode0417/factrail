@@ -15,6 +15,30 @@ export function getSourceColor(source: string): string {
   }
 }
 
+export function getSourceTagColors(source: string): { bg: string; color: string } {
+  // Unified text color for consistency across all source tags.
+  // Brand is expressed via the bg tint; readability is kept uniform.
+  const color = '#2A2A2A';
+  switch (source) {
+    case 'github':
+      return { bg: '#D8D3C5', color };
+    case 'slack':
+      return { bg: '#E8DAE9', color };
+    case 'claude-code':
+      return { bg: '#F5DDC7', color };
+    case 'f2a':
+      return { bg: '#D6E0E8', color };
+    case 'manual':
+      return { bg: '#E8F1EA', color };
+    case 'browser':
+      return { bg: '#F0E0D0', color };
+    case 'comment':
+      return { bg: '#EFE9D5', color };
+    default:
+      return { bg: '#EFE9D5', color };
+  }
+}
+
 export function getSourceLabel(source: string): string {
   switch (source) {
     case 'github':

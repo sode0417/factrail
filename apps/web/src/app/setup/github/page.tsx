@@ -295,20 +295,21 @@ export default function GitHubSetupPage() {
 
   return (
     <MainLayout title="GitHub連携" subtitle="GitHubリポジトリからのWebhookを設定">
-      <VStack spacing={6} align="stretch" maxW="800px">
+      <Box px={{ base: 3, md: 6, lg: 8 }} maxW="1600px" mx="auto" w="100%">
+      <VStack spacing={6} align="stretch">
         {/* Status Card */}
-        <Card bg="gray.800" borderColor="gray.700" borderWidth="1px">
+        <Card bg="bg.surface" borderColor="border.muted" borderWidth="1px">
           <CardBody>
             <Flex justify="space-between" align={{ base: 'flex-start', md: 'center' }} direction={{ base: 'column', md: 'row' }} gap={{ base: 3, md: 0 }}>
               <HStack spacing={4}>
-                <Box p={3} borderRadius="lg" bg="purple.900">
-                  <Icon as={FiGithub} boxSize={6} color="purple.400" />
+                <Box p={3} borderRadius="lg" bg="bg.surface-2" border="1px solid" borderColor="border.muted">
+                  <Icon as={FiGithub} boxSize={6} color="text.default" />
                 </Box>
                 <Box>
                   <Text fontWeight="semibold" fontSize="lg">
                     GitHub Webhook
                   </Text>
-                  <Text fontSize="sm" color="gray.400">
+                  <Text fontSize="sm" color="text.muted">
                     Issue/PR/Commit イベントを受信
                   </Text>
                 </Box>
@@ -330,7 +331,7 @@ export default function GitHubSetupPage() {
         </Card>
 
         {/* Setup Instructions */}
-        <Card bg="gray.800" borderColor="gray.700" borderWidth="1px">
+        <Card bg="bg.surface" borderColor="border.muted" borderWidth="1px">
           <CardHeader>
             <Text fontSize="lg" fontWeight="semibold">
               セットアップ手順
@@ -350,7 +351,7 @@ export default function GitHubSetupPage() {
                     alignItems="center"
                     justifyContent="center"
                   >
-                    <Text fontSize="sm" fontWeight="bold">
+                    <Text fontSize="sm" fontWeight="bold" color="white">
                       1
                     </Text>
                   </Box>
@@ -361,8 +362,8 @@ export default function GitHubSetupPage() {
                     <Input
                       value={webhookUrl}
                       isReadOnly
-                      bg="gray.900"
-                      borderColor="gray.700"
+                      bg="bg.canvas"
+                      borderColor="border.muted"
                       fontFamily="mono"
                       fontSize={{ base: 'xs', md: 'sm' }}
                       flex={1}
@@ -381,7 +382,7 @@ export default function GitHubSetupPage() {
                 </FormControl>
               </Box>
 
-              <Divider borderColor="gray.700" />
+              <Divider borderColor="border.muted" />
 
               {/* Step 2 */}
               <Box>
@@ -395,7 +396,7 @@ export default function GitHubSetupPage() {
                     alignItems="center"
                     justifyContent="center"
                   >
-                    <Text fontSize="sm" fontWeight="bold">
+                    <Text fontSize="sm" fontWeight="bold" color="white">
                       2
                     </Text>
                   </Box>
@@ -407,8 +408,8 @@ export default function GitHubSetupPage() {
                       value={isConfigured && !isNewSecret ? '●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●' : webhookSecret}
                       isReadOnly
                       placeholder="シークレットを生成してください"
-                      bg="gray.900"
-                      borderColor="gray.700"
+                      bg="bg.canvas"
+                      borderColor="border.muted"
                       fontFamily="mono"
                       fontSize="sm"
                       flex={1}
@@ -439,7 +440,7 @@ export default function GitHubSetupPage() {
                       </>
                     )}
                   </Flex>
-                  <FormHelperText color="gray.500">
+                  <FormHelperText color="text.muted">
                     {isNewSecret
                       ? '生成したシークレットをコピーしてからサーバーに保存してください'
                       : isConfigured
@@ -450,7 +451,7 @@ export default function GitHubSetupPage() {
                 </FormControl>
               </Box>
 
-              <Divider borderColor="gray.700" />
+              <Divider borderColor="border.muted" />
 
               {/* Step 3 */}
               <Box>
@@ -464,38 +465,38 @@ export default function GitHubSetupPage() {
                     alignItems="center"
                     justifyContent="center"
                   >
-                    <Text fontSize="sm" fontWeight="bold">
+                    <Text fontSize="sm" fontWeight="bold" color="white">
                       3
                     </Text>
                   </Box>
                   <Text fontWeight="semibold">GitHubでWebhookを設定</Text>
                 </HStack>
                 <VStack align="stretch" spacing={3} pl={9}>
-                  <Text fontSize="sm" color="gray.400">
+                  <Text fontSize="sm" color="text.muted">
                     1. GitHubリポジトリの Settings → Webhooks へ移動
                   </Text>
-                  <Text fontSize="sm" color="gray.400">
+                  <Text fontSize="sm" color="text.muted">
                     2. 「Add webhook」をクリック
                   </Text>
-                  <Text fontSize="sm" color="gray.400">
+                  <Text fontSize="sm" color="text.muted">
                     3. 以下の設定を入力:
                   </Text>
-                  <Box bg="gray.900" p={4} borderRadius="lg" fontSize="sm">
+                  <Box bg="bg.canvas" p={4} borderRadius="lg" fontSize="sm">
                     <VStack align="stretch" spacing={2}>
                       <Flex direction={{ base: 'column', md: 'row' }} gap={{ base: 0, md: 2 }}>
-                        <Text color="gray.500" minW="120px" fontSize="sm">
+                        <Text color="text.muted" minW="120px" fontSize="sm">
                           Payload URL:
                         </Text>
                         <Code colorScheme="brand" fontSize={{ base: 'xs', md: 'sm' }} wordBreak="break-all">{webhookUrl}</Code>
                       </Flex>
                       <Flex direction={{ base: 'column', md: 'row' }} gap={{ base: 0, md: 2 }}>
-                        <Text color="gray.500" minW="120px" fontSize="sm">
+                        <Text color="text.muted" minW="120px" fontSize="sm">
                           Content type:
                         </Text>
                         <Code colorScheme="gray" fontSize="sm">application/json</Code>
                       </Flex>
                       <Flex direction={{ base: 'column', md: 'row' }} gap={{ base: 0, md: 2 }}>
-                        <Text color="gray.500" minW="120px" fontSize="sm">
+                        <Text color="text.muted" minW="120px" fontSize="sm">
                           Secret:
                         </Text>
                         <Code colorScheme="orange" fontSize={{ base: 'xs', md: 'sm' }} wordBreak="break-all">
@@ -504,10 +505,10 @@ export default function GitHubSetupPage() {
                       </Flex>
                     </VStack>
                   </Box>
-                  <Text fontSize="sm" color="gray.400">
+                  <Text fontSize="sm" color="text.muted">
                     4. イベントで「Let me select individual events」を選択
                   </Text>
-                  <Text fontSize="sm" color="gray.400">
+                  <Text fontSize="sm" color="text.muted">
                     5. Issues, Pull requests, Pushes にチェック
                   </Text>
                 </VStack>
@@ -517,7 +518,7 @@ export default function GitHubSetupPage() {
         </Card>
 
         {/* Repository Management Card */}
-        <Card bg="gray.800" borderColor="gray.700" borderWidth="1px">
+        <Card bg="bg.surface" borderColor="border.muted" borderWidth="1px">
           <CardHeader>
             <Flex justify="space-between" align={{ base: 'flex-start', md: 'center' }} direction={{ base: 'column', md: 'row' }} gap={{ base: 3, md: 0 }}>
               <Text fontSize="lg" fontWeight="semibold">
@@ -550,14 +551,14 @@ export default function GitHubSetupPage() {
             {isLoadingRepos ? (
               <HStack justify="center" py={4}>
                 <Spinner size="sm" />
-                <Text color="gray.400">読み込み中...</Text>
+                <Text color="text.muted">読み込み中...</Text>
               </HStack>
             ) : repositories.length === 0 ? (
-              <Box bg="gray.900" p={4} borderRadius="lg">
-                <Text color="gray.400" fontSize="sm">
+              <Box bg="bg.canvas" p={4} borderRadius="lg">
+                <Text color="text.muted" fontSize="sm">
                   リポジトリが登録されていません。リポジトリを追加すると、登録済みリポジトリからのイベントのみがFactとして記録されます。
                 </Text>
-                <Text color="gray.500" fontSize="xs" mt={2}>
+                <Text color="text.muted" fontSize="xs" mt={2}>
                   リポジトリ未登録の場合、すべてのリポジトリからのイベントが記録されます。
                 </Text>
               </Box>
@@ -566,13 +567,13 @@ export default function GitHubSetupPage() {
                 {repositories.map((repo) => (
                   <HStack
                     key={repo.id}
-                    bg="gray.900"
+                    bg="bg.canvas"
                     p={3}
                     borderRadius="lg"
                     justify="space-between"
                   >
                     <HStack spacing={3}>
-                      <Icon as={FiGithub} color="gray.400" />
+                      <Icon as={FiGithub} color="text.muted" />
                       <Box>
                         <HStack spacing={2}>
                           <Text fontSize="sm" fontWeight="medium">
@@ -585,7 +586,7 @@ export default function GitHubSetupPage() {
                             {repo.isPrivate ? 'Private' : 'Public'}
                           </Badge>
                         </HStack>
-                        <Text fontSize="xs" color="gray.500">
+                        <Text fontSize="xs" color="text.muted">
                           最終イベント: {formatDate(repo.lastEventAt)}
                         </Text>
                       </Box>
@@ -618,11 +619,12 @@ export default function GitHubSetupPage() {
           GitHub設定を開く
         </Button>
       </VStack>
+      </Box>
 
       {/* Add Repository Modal */}
       <Modal isOpen={isOpen} onClose={onClose} size="lg">
         <ModalOverlay />
-        <ModalContent bg="gray.800" borderColor="gray.700" borderWidth="1px">
+        <ModalContent bg="bg.surface" borderColor="border.muted" borderWidth="1px">
           <ModalHeader>リポジトリを追加</ModalHeader>
           <ModalCloseButton />
           <ModalBody pb={6}>
@@ -635,19 +637,19 @@ export default function GitHubSetupPage() {
                   placeholder="リポジトリ名で検索..."
                   value={searchFilter}
                   onChange={(e) => setSearchFilter(e.target.value)}
-                  bg="gray.900"
-                  borderColor="gray.700"
+                  bg="bg.canvas"
+                  borderColor="border.muted"
                 />
               </InputGroup>
 
               {isLoadingAvailable ? (
                 <HStack justify="center" py={8}>
                   <Spinner size="sm" />
-                  <Text color="gray.400">GitHub APIから取得中...</Text>
+                  <Text color="text.muted">GitHub APIから取得中...</Text>
                 </HStack>
               ) : filteredAvailableRepos.length === 0 ? (
                 <Box py={4}>
-                  <Text color="gray.400" fontSize="sm" textAlign="center">
+                  <Text color="text.muted" fontSize="sm" textAlign="center">
                     {searchFilter ? '検索結果がありません' : '追加可能なリポジトリがありません'}
                   </Text>
                 </Box>
@@ -662,14 +664,14 @@ export default function GitHubSetupPage() {
                   {filteredAvailableRepos.map((repo) => (
                     <HStack
                       key={repo.fullName}
-                      bg="gray.900"
+                      bg="bg.canvas"
                       p={3}
                       borderRadius="lg"
                       justify="space-between"
-                      _hover={{ bg: 'gray.750' }}
+                      _hover={{ bg: 'bg.surface-2' }}
                     >
                       <HStack spacing={3}>
-                        <Icon as={FiGithub} color="gray.400" />
+                        <Icon as={FiGithub} color="text.muted" />
                         <Box>
                           <HStack spacing={2}>
                             <Text fontSize="sm" fontWeight="medium">

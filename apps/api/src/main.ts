@@ -37,8 +37,22 @@ async function bootstrap() {
   );
 
   // Enable CORS with credentials support
+  const allowedOrigins = (
+    process.env.ALLOWED_ORIGINS ??
+    process.env.WEB_URL ??
+    'http://localhost:3000'
+  )
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
   app.enableCors({
-    origin: process.env.WEB_URL || 'http://localhost:3000',
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Origin ${origin} not allowed by CORS`));
+      }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   });

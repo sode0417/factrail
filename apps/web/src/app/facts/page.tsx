@@ -16,6 +16,7 @@ import {
   AlertDialogOverlay,
   Button,
 } from '@chakra-ui/react';
+import { DateSeparator, groupFactsByDate } from '@/components/facts/DateSeparator';
 import { MainLayout } from '@/components/layout';
 import { FactCard, FactFilters, FactMemoInput, FactDetailDrawer } from '@/components/facts';
 import type { EditFormState } from '@/components/facts';
@@ -40,7 +41,6 @@ function FactsPageContent() {
   const [memoText, setMemoText] = useState('');
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const toast = useToast();
 
   // スレッドコメント
@@ -308,10 +308,8 @@ function FactsPageContent() {
 
   return (
     <MainLayout title="Facts" subtitle="収集されたすべてのファクトを表示">
-      <Flex direction="column" h="100%" overflow="hidden">
+      <Box px={{ base: 3, md: 6, lg: 8 }} maxW="1600px" mx="auto" w="100%">
         <FactFilters
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
           sourceFilter={sourceFilter}
           onSourceChange={setSourceFilter}
           filterCategoryId={filterCategoryId}
@@ -336,72 +334,68 @@ function FactsPageContent() {
         />
 
         {/* Messages Area */}
-        <Box
-          ref={scrollContainerRef}
-          flex={1}
-          minH={0}
-          overflowY="auto"
-          mb={2}
-          sx={{
-            '&::-webkit-scrollbar': { width: '6px' },
-            '&::-webkit-scrollbar-track': { bg: 'transparent' },
-            '&::-webkit-scrollbar-thumb': { bg: 'gray.700', borderRadius: 'full' },
-          }}
-        >
+        <Box pb="160px">
           {loading ? (
             <Flex justify="center" py={10}>
               <Spinner size="xl" color="brand.500" />
             </Flex>
           ) : filteredFacts.length === 0 ? (
             <Flex justify="center" align="center" py={10}>
-              <Text color="gray.500">Factsが見つかりませんでした</Text>
+              <Text color="text.muted">Factsが見つかりませんでした</Text>
             </Flex>
           ) : (
-            <VStack spacing={3} align="stretch">
-              {filteredFacts.map((fact) => (
-                <FactCard
-                  key={fact.id}
-                  fact={fact}
-                  grouped={grouped}
-                  isExpanded={expandedIds.has(fact.id)}
-                  childFacts={childrenMap[fact.id]}
-                  childrenLoading={expandedIds.has(fact.id) && !childrenMap[fact.id] && (fact.childCount ?? 0) > 0}
-                  onToggleExpand={() => toggleExpand(fact.id)}
-                  onClickDetail={handleOpenDetail}
-                  editingFactId={editingFactId}
-                  editForm={editForm}
-                  onEditFormChange={setEditForm}
-                  onStartEditing={startEditing}
-                  onSaveEdit={handleSaveEdit}
-                  onCancelEdit={() => setEditingFactId(null)}
-                  isSaving={isSaving}
-                  onDelete={setDeletingFact}
-                  commentText={commentTexts[fact.id] || ''}
-                  onCommentChange={(value) => setCommentTexts((prev) => ({ ...prev, [fact.id]: value }))}
-                  onSendComment={() => handleSendComment(fact.id)}
-                  sendingComment={sendingCommentId === fact.id}
-                  categories={categories}
-                  projects={projects}
-                />
+            <VStack spacing={2} align="stretch">
+              {groupFactsByDate(filteredFacts).map((group) => (
+                <Box key={group.label}>
+                  <DateSeparator label={group.label} />
+                  <VStack spacing={2} align="stretch">
+                    {group.items.map((fact) => (
+                      <FactCard
+                        key={fact.id}
+                        fact={fact}
+                        grouped={grouped}
+                        isExpanded={expandedIds.has(fact.id)}
+                        childFacts={childrenMap[fact.id]}
+                        childrenLoading={expandedIds.has(fact.id) && !childrenMap[fact.id] && (fact.childCount ?? 0) > 0}
+                        onToggleExpand={() => toggleExpand(fact.id)}
+                        onClickDetail={handleOpenDetail}
+                        editingFactId={editingFactId}
+                        editForm={editForm}
+                        onEditFormChange={setEditForm}
+                        onStartEditing={startEditing}
+                        onSaveEdit={handleSaveEdit}
+                        onCancelEdit={() => setEditingFactId(null)}
+                        isSaving={isSaving}
+                        onDelete={setDeletingFact}
+                        commentText={commentTexts[fact.id] || ''}
+                        onCommentChange={(value) => setCommentTexts((prev) => ({ ...prev, [fact.id]: value }))}
+                        onSendComment={() => handleSendComment(fact.id)}
+                        sendingComment={sendingCommentId === fact.id}
+                        categories={categories}
+                        projects={projects}
+                      />
+                    ))}
+                  </VStack>
+                </Box>
               ))}
               <div ref={messagesEndRef} />
             </VStack>
           )}
         </Box>
 
-        <FactMemoInput
-          memoText={memoText}
-          onMemoChange={setMemoText}
-          onSend={handleSendMemo}
-          isSending={isSending}
-          selectedCategoryId={selectedCategoryId}
-          onCategoryChange={setSelectedCategoryId}
-          selectedProjectId={selectedProjectId}
-          onProjectChange={setSelectedProjectId}
-          categories={categories}
-          projects={projects}
-        />
-      </Flex>
+      </Box>
+      <FactMemoInput
+        memoText={memoText}
+        onMemoChange={setMemoText}
+        onSend={handleSendMemo}
+        isSending={isSending}
+        selectedCategoryId={selectedCategoryId}
+        onCategoryChange={setSelectedCategoryId}
+        selectedProjectId={selectedProjectId}
+        onProjectChange={setSelectedProjectId}
+        categories={categories}
+        projects={projects}
+      />
 
       {/* 削除確認ダイアログ */}
       <AlertDialog
@@ -410,14 +404,14 @@ function FactsPageContent() {
         onClose={() => setDeletingFact(null)}
       >
         <AlertDialogOverlay>
-          <AlertDialogContent bg="gray.800" borderColor="gray.700" borderWidth="1px">
+          <AlertDialogContent bg="bg.surface" borderColor="border.muted" borderWidth="1px">
             <AlertDialogHeader fontSize="lg" fontWeight="bold">
               Fact を削除
             </AlertDialogHeader>
             <AlertDialogBody>
               <Text>「{deletingFact?.title}」を削除しますか？</Text>
               {deletingFact && (deletingFact.childCount ?? 0) > 0 && (
-                <Text color="orange.300" mt={2} fontSize="sm">
+                <Text color="orange.600" mt={2} fontSize="sm">
                   スレッド内の {deletingFact.childCount} 件のコメントも削除されます。
                 </Text>
               )}
