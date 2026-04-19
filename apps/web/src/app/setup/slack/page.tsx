@@ -270,20 +270,21 @@ export default function SlackSetupPage() {
 
   return (
     <MainLayout title="Slack連携" subtitle="Slack DM/チャンネルへの自動投稿を設定">
-      <VStack spacing={6} align="stretch" maxW="800px">
+      <Box px={{ base: 3, md: 6, lg: 8 }} maxW="1600px" mx="auto" w="100%">
+      <VStack spacing={6} align="stretch">
         {/* Status Card */}
-        <Card bg="gray.800" borderColor="gray.700" borderWidth="1px">
+        <Card bg="bg.surface" borderColor="border.muted" borderWidth="1px">
           <CardBody>
             <Flex justify="space-between" align={{ base: 'flex-start', md: 'center' }} direction={{ base: 'column', md: 'row' }} gap={{ base: 3, md: 0 }}>
               <HStack spacing={4}>
-                <Box p={3} borderRadius="lg" bg="green.900">
-                  <Icon as={FiMessageSquare} boxSize={6} color="green.400" />
+                <Box p={3} borderRadius="lg" bg="bg.surface-2" border="1px solid" borderColor="border.muted">
+                  <Icon as={FiMessageSquare} boxSize={6} color="#4A154B" />
                 </Box>
                 <Box>
                   <Text fontWeight="semibold" fontSize="lg">
                     Slack OAuth
                   </Text>
-                  <Text fontSize="sm" color="gray.400">
+                  <Text fontSize="sm" color="text.muted">
                     {isConnected && connectedAccountName
                       ? `連携中: ${connectedAccountName}`
                       : 'DM/チャンネルへの自動投稿を有効化'}
@@ -307,7 +308,7 @@ export default function SlackSetupPage() {
         </Card>
 
         {/* Setup Instructions */}
-        <Card bg="gray.800" borderColor="gray.700" borderWidth="1px">
+        <Card bg="bg.surface" borderColor="border.muted" borderWidth="1px">
           <CardHeader>
             <Text fontSize="lg" fontWeight="semibold">
               セットアップ手順
@@ -327,26 +328,26 @@ export default function SlackSetupPage() {
                     alignItems="center"
                     justifyContent="center"
                   >
-                    <Text fontSize="sm" fontWeight="bold">
+                    <Text fontSize="sm" fontWeight="bold" color="white">
                       1
                     </Text>
                   </Box>
                   <Text fontWeight="semibold">Slack Appを作成</Text>
                 </HStack>
                 <VStack align="stretch" spacing={3} pl={9}>
-                  <Text fontSize="sm" color="gray.400">
+                  <Text fontSize="sm" color="text.muted">
                     1. Slack API → Your Apps → Create New App
                   </Text>
-                  <Text fontSize="sm" color="gray.400">
+                  <Text fontSize="sm" color="text.muted">
                     2. 「From scratch」を選択
                   </Text>
-                  <Text fontSize="sm" color="gray.400">
+                  <Text fontSize="sm" color="text.muted">
                     3. App名を入力してワークスペースを選択
                   </Text>
                 </VStack>
               </Box>
 
-              <Divider borderColor="gray.700" />
+              <Divider borderColor="border.muted" />
 
               {/* Step 2 */}
               <Box>
@@ -360,17 +361,17 @@ export default function SlackSetupPage() {
                     alignItems="center"
                     justifyContent="center"
                   >
-                    <Text fontSize="sm" fontWeight="bold">
+                    <Text fontSize="sm" fontWeight="bold" color="white">
                       2
                     </Text>
                   </Box>
                   <Text fontWeight="semibold">OAuth & Permissions を設定</Text>
                 </HStack>
                 <VStack align="stretch" spacing={3} pl={9}>
-                  <Text fontSize="sm" color="gray.400">
+                  <Text fontSize="sm" color="text.muted">
                     サイドバーの「OAuth & Permissions」を開き、以下を設定:
                   </Text>
-                  <Box bg="gray.900" p={4} borderRadius="lg">
+                  <Box bg="bg.canvas" p={4} borderRadius="lg">
                     <Text fontSize="sm" fontWeight="semibold" mb={2}>
                       Redirect URLs:
                     </Text>
@@ -378,8 +379,8 @@ export default function SlackSetupPage() {
                       <Input
                         value={redirectUri}
                         isReadOnly
-                        bg="gray.800"
-                        borderColor="gray.700"
+                        bg="bg.surface"
+                        borderColor="border.muted"
                         fontFamily="mono"
                         fontSize={{ base: 'xs', md: 'sm' }}
                         flex={1}
@@ -396,7 +397,7 @@ export default function SlackSetupPage() {
                       </Tooltip>
                     </Flex>
                   </Box>
-                  <Box bg="gray.900" p={4} borderRadius="lg">
+                  <Box bg="bg.canvas" p={4} borderRadius="lg">
                     <Text fontSize="sm" fontWeight="semibold" mb={2}>
                       Bot Token Scopes:
                     </Text>
@@ -408,7 +409,7 @@ export default function SlackSetupPage() {
                 </VStack>
               </Box>
 
-              <Divider borderColor="gray.700" />
+              <Divider borderColor="border.muted" />
 
               {/* Step 3 */}
               <Box>
@@ -422,7 +423,7 @@ export default function SlackSetupPage() {
                     alignItems="center"
                     justifyContent="center"
                   >
-                    <Text fontSize="sm" fontWeight="bold">
+                    <Text fontSize="sm" fontWeight="bold" color="white">
                       3
                     </Text>
                   </Box>
@@ -436,8 +437,8 @@ export default function SlackSetupPage() {
                         value={isClientIdConfigured && !clientId ? '●●●●●●●●●●●●●●●●●●●●' : clientId}
                         onChange={(e) => setClientId(e.target.value)}
                         placeholder="Basic Information → Client ID"
-                        bg="gray.900"
-                        borderColor="gray.700"
+                        bg="bg.canvas"
+                        borderColor="border.muted"
                         isReadOnly={isClientIdConfigured && !clientId}
                         flex={1}
                         minW="0"
@@ -459,7 +460,7 @@ export default function SlackSetupPage() {
                         </Button>
                       )}
                     </Flex>
-                    <FormHelperText color="gray.500">
+                    <FormHelperText color="text.muted">
                       {isClientIdConfigured && !clientId
                         ? 'Client IDは設定済みです。変更する場合は再設定ボタンをクリックしてください'
                         : 'Slack App の Basic Information から取得して保存してください'}
@@ -473,8 +474,8 @@ export default function SlackSetupPage() {
                         value={isClientSecretConfigured && !clientSecret ? '●●●●●●●●●●●●●●●●●●●●' : clientSecret}
                         onChange={(e) => setClientSecret(e.target.value)}
                         placeholder="Basic Information → Client Secret"
-                        bg="gray.900"
-                        borderColor="gray.700"
+                        bg="bg.canvas"
+                        borderColor="border.muted"
                         isReadOnly={isClientSecretConfigured && !clientSecret}
                         flex={1}
                         minW="0"
@@ -496,7 +497,7 @@ export default function SlackSetupPage() {
                         </Button>
                       )}
                     </Flex>
-                    <FormHelperText color="gray.500">
+                    <FormHelperText color="text.muted">
                       {isClientSecretConfigured && !clientSecret
                         ? 'Client Secretは設定済みです。変更する場合は再設定ボタンをクリックしてください'
                         : 'Slack App の Basic Information から取得して保存してください'}
@@ -509,8 +510,8 @@ export default function SlackSetupPage() {
                         value={isChannelIdConfigured && !targetChannelId ? '●●●●●●●●●●●●●●●●●●●●' : targetChannelId}
                         onChange={(e) => setTargetChannelId(e.target.value)}
                         placeholder="例: U1234567890（DM）または C1234567890（チャンネル）"
-                        bg="gray.900"
-                        borderColor="gray.700"
+                        bg="bg.canvas"
+                        borderColor="border.muted"
                         isReadOnly={isChannelIdConfigured && !targetChannelId}
                         flex={1}
                         minW="0"
@@ -532,7 +533,7 @@ export default function SlackSetupPage() {
                         </Button>
                       )}
                     </Flex>
-                    <FormHelperText color="gray.500">
+                    <FormHelperText color="text.muted">
                       {isChannelIdConfigured && !targetChannelId
                         ? '送信先IDは設定済みです（OAuth時に自動設定）。変更する場合は再設定ボタンをクリックしてください'
                         : 'OAuth接続時に自動設定されます（DM）。チャンネルに投稿する場合は、チャンネルを右クリック→「リンクをコピー」から末尾のChannel IDを取得してください'}
@@ -541,7 +542,7 @@ export default function SlackSetupPage() {
                 </VStack>
               </Box>
 
-              <Divider borderColor="gray.700" />
+              <Divider borderColor="border.muted" />
 
               {/* Connect Button */}
               <Box>
@@ -555,7 +556,7 @@ export default function SlackSetupPage() {
                     alignItems="center"
                     justifyContent="center"
                   >
-                    <Text fontSize="sm" fontWeight="bold">
+                    <Text fontSize="sm" fontWeight="bold" color="white">
                       4
                     </Text>
                   </Box>
@@ -572,7 +573,7 @@ export default function SlackSetupPage() {
                     Slackワークスペースに接続
                   </Button>
                   {(!isClientIdConfigured || !isClientSecretConfigured) && (
-                    <Text fontSize="sm" color="gray.500" mt={2}>
+                    <Text fontSize="sm" color="text.muted" mt={2}>
                       Client IDとClient Secretを保存すると接続できます
                     </Text>
                   )}
@@ -594,6 +595,7 @@ export default function SlackSetupPage() {
           Slack API設定を開く
         </Button>
       </VStack>
+      </Box>
     </MainLayout>
   );
 }

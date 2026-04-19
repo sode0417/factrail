@@ -15,7 +15,7 @@ import {
 } from '@chakra-ui/react';
 import { FiExternalLink, FiEdit2, FiTrash2, FiSend } from 'react-icons/fi';
 import { formatRelativeTime } from '@/lib/formatRelativeTime';
-import { getSourceColor } from '@/lib/factUtils';
+import { getSourceTagColors } from '@/lib/factUtils';
 import { FactCardEditForm } from './FactCardEditForm';
 import type { Fact, F2ACategory, F2AProject } from '@/types/fact';
 import type { EditFormState } from './FactCardEditForm';
@@ -62,117 +62,128 @@ export function FactThread({
   projects,
 }: FactThreadProps) {
   return (
-    <Box bg="gray.850" borderTop="1px" borderColor="gray.700">
+    <Box bg="bg.surface-2" borderTop="1px solid" borderColor="border.muted">
       {loading && !childFacts ? (
         <Flex justify="center" py={4}>
-          <Spinner size="sm" color="gray.500" />
+          <Spinner size="sm" color="accent.default" />
         </Flex>
       ) : (
         <VStack spacing={0} align="stretch" px={5} py={3}>
-          {childFacts && childFacts.map((child, idx) => (
-            <Flex key={child.id} align="stretch">
-              {/* タイムライン縦線 + ドット */}
-              <Flex direction="column" align="center" mr={3} flexShrink={0}>
-                <Box
-                  w="8px"
-                  h="8px"
-                  borderRadius="full"
-                  bg={`${getSourceColor(child.source)}.500`}
-                  mt="6px"
-                  flexShrink={0}
-                />
-                {idx < childFacts.length - 1 && (
+          {childFacts && childFacts.map((child, idx) => {
+            const tagColors = getSourceTagColors(child.source);
+            return (
+              <Flex key={child.id} align="stretch">
+                <Flex direction="column" align="center" mr={3} flexShrink={0}>
                   <Box
-                    w="2px"
-                    flex={1}
-                    bg="gray.600"
-                    mt={1}
+                    w="8px"
+                    h="8px"
+                    borderRadius="full"
+                    bg={tagColors.color}
+                    mt="6px"
+                    flexShrink={0}
                   />
-                )}
-              </Flex>
+                  {idx < childFacts.length - 1 && (
+                    <Box w="2px" flex={1} bg="border.muted" mt={1} />
+                  )}
+                </Flex>
 
-              {/* 子 Fact 内容 */}
-              <Box flex={1} pb={idx < childFacts.length - 1 ? 3 : 0}>
-                {editingFactId === child.id ? (
-                  <FactCardEditForm
-                    editForm={editForm}
-                    onEditFormChange={onEditFormChange}
-                    onSave={() => onSaveEdit(child.id, parentId)}
-                    onCancel={onCancelEdit}
-                    isSaving={isSaving}
-                    categories={categories}
-                    projects={projects}
-                    size="compact"
-                  />
-                ) : (
-                  <Flex justify="space-between" align="flex-start">
-                    <Box
-                      flex={1}
-                      cursor="pointer"
-                      onClick={() => onClickDetail(child)}
-                      _hover={{ opacity: 0.8 }}
-                    >
-                      <Text fontWeight="medium" fontSize="sm" color="gray.200">
-                        {child.title}
-                      </Text>
-                      <HStack spacing={2} mt={1} flexWrap="wrap">
-                        <Badge colorScheme="gray" variant="outline" fontSize="xs">
-                          {child.type}
-                        </Badge>
-                        <Text fontSize="xs" color="gray.500">
-                          {formatRelativeTime(child.occurredAt)}
-                        </Text>
-                      </HStack>
-                    </Box>
-                    <HStack spacing={0} flexShrink={0} ml={2}>
-                      {(child.source === 'manual' || child.source === 'comment') && (
-                        <>
-                          <IconButton
-                            aria-label="編集"
-                            icon={<FiEdit2 />}
-                            size="xs"
-                            variant="ghost"
-                            colorScheme="gray"
-                            onClick={() => onStartEditing(child)}
-                          />
-                          <IconButton
-                            aria-label="削除"
-                            icon={<FiTrash2 />}
-                            size="xs"
-                            variant="ghost"
-                            colorScheme="red"
-                            onClick={() => onDelete(child)}
-                          />
-                        </>
-                      )}
-                      {child.sourceUrl && (
-                        <Button
-                          as="a"
-                          href={child.sourceUrl}
-                          target="_blank"
-                          size="xs"
-                          variant="ghost"
-                          colorScheme="gray"
-                          rightIcon={<Icon as={FiExternalLink} boxSize={3} />}
+                <Box flex={1} pb={idx < childFacts.length - 1 ? 3 : 0}>
+                  {editingFactId === child.id ? (
+                    <FactCardEditForm
+                      editForm={editForm}
+                      onEditFormChange={onEditFormChange}
+                      onSave={() => onSaveEdit(child.id, parentId)}
+                      onCancel={onCancelEdit}
+                      isSaving={isSaving}
+                      categories={categories}
+                      projects={projects}
+                      size="compact"
+                    />
+                  ) : (
+                    <Flex justify="space-between" align="flex-start">
+                      <Box
+                        flex={1}
+                        cursor="pointer"
+                        onClick={() => onClickDetail(child)}
+                        _hover={{ opacity: 0.8 }}
+                      >
+                        <Text
+                          fontWeight={500}
+                          fontSize="sm"
+                          color="text.default"
                         >
-                          開く
-                        </Button>
-                      )}
-                    </HStack>
-                  </Flex>
-                )}
-              </Box>
-            </Flex>
-          ))}
+                          {child.title}
+                        </Text>
+                        <HStack spacing={2} mt={1} flexWrap="wrap">
+                          <Badge
+                            bg="bg.canvas"
+                            color="text.muted"
+                            border="1px solid"
+                            borderColor="border.muted"
+                            fontSize="xs"
+                            borderRadius="sm"
+                            fontWeight={500}
+                          >
+                            {child.type}
+                          </Badge>
+                          <Text fontSize="xs" color="text.muted">
+                            {formatRelativeTime(child.occurredAt)}
+                          </Text>
+                        </HStack>
+                      </Box>
+                      <HStack spacing={0} flexShrink={0} ml={2}>
+                        {(child.source === 'manual' || child.source === 'comment') && (
+                          <>
+                            <IconButton
+                              aria-label="編集"
+                              icon={<FiEdit2 />}
+                              size="xs"
+                              variant="ghost"
+                              color="text.muted"
+                              _hover={{ bg: 'accent.soft', color: 'accent.strong' }}
+                              onClick={() => onStartEditing(child)}
+                            />
+                            <IconButton
+                              aria-label="削除"
+                              icon={<FiTrash2 />}
+                              size="xs"
+                              variant="ghost"
+                              color="text.muted"
+                              _hover={{ bg: '#F4D7D3', color: '#7A2F26' }}
+                              onClick={() => onDelete(child)}
+                            />
+                          </>
+                        )}
+                        {child.sourceUrl && (
+                          <Button
+                            as="a"
+                            href={child.sourceUrl}
+                            target="_blank"
+                            size="xs"
+                            variant="ghost"
+                            color="accent.strong"
+                            _hover={{ bg: 'accent.soft' }}
+                            rightIcon={<Icon as={FiExternalLink} boxSize={3} />}
+                          >
+                            開く
+                          </Button>
+                        )}
+                      </HStack>
+                    </Flex>
+                  )}
+                </Box>
+              </Flex>
+            );
+          })}
 
-          {/* コメント入力 */}
           <Flex mt={childFacts && childFacts.length > 0 ? 3 : 0} gap={2} align="flex-end">
             <Input
               placeholder="コメントを入力..."
-              bg="gray.900"
-              borderColor="gray.700"
-              _placeholder={{ color: 'gray.500' }}
-              _focus={{ borderColor: 'brand.500', boxShadow: 'none' }}
+              bg="bg.canvas"
+              borderColor="border.muted"
+              borderRadius="sm"
+              _placeholder={{ color: 'text.muted' }}
+              _focus={{ borderColor: 'accent.default', boxShadow: 'none' }}
               size="sm"
               value={commentText}
               onChange={(e) => onCommentChange(e.target.value)}
@@ -186,7 +197,9 @@ export function FactThread({
             <IconButton
               aria-label="コメントを送信"
               icon={<FiSend />}
-              colorScheme="brand"
+              bg="accent.default"
+              color="white"
+              _hover={{ bg: 'accent.strong' }}
               size="sm"
               onClick={onSendComment}
               isLoading={sendingComment}

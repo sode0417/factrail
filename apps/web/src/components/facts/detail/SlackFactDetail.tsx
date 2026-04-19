@@ -23,7 +23,7 @@ export function SlackFactDetail({ fact }: SlackFactDetailProps) {
   return (
     <VStack spacing={4} align="stretch">
       {channel && (
-        <Text fontSize="sm" color="gray.400">
+        <Text fontSize="sm" color="text.muted">
           #{channel}
         </Text>
       )}
@@ -31,11 +31,11 @@ export function SlackFactDetail({ fact }: SlackFactDetailProps) {
       {/* メッセージ本文 */}
       {content && (
         <Box>
-          <Text fontSize="xs" color="gray.500" fontWeight="bold" mb={2} textTransform="uppercase" letterSpacing="wider">
+          <Text fontSize="xs" color="text.muted" fontWeight="bold" mb={2} textTransform="uppercase" letterSpacing="wider">
             メッセージ
           </Text>
           <Box
-            bg="gray.750"
+            bg="bg.surface-2"
             borderRadius="md"
             p={3}
             borderLeft="3px solid"

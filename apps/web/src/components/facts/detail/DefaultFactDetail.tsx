@@ -22,10 +22,10 @@ export function DefaultFactDetail({ fact }: DefaultFactDetailProps) {
       {/* content */}
       {fact.content && (
         <Box>
-          <Text fontSize="xs" color="gray.500" fontWeight="bold" mb={2} textTransform="uppercase" letterSpacing="wider">
+          <Text fontSize="xs" color="text.muted" fontWeight="bold" mb={2} textTransform="uppercase" letterSpacing="wider">
             内容
           </Text>
-          <Box bg="gray.750" borderRadius="md" p={3}>
+          <Box bg="bg.surface-2" borderRadius="md" p={3}>
             <MarkdownContent content={fact.content} />
           </Box>
         </Box>
@@ -34,23 +34,23 @@ export function DefaultFactDetail({ fact }: DefaultFactDetailProps) {
       {/* metadata */}
       {fact.metadata && Object.keys(fact.metadata).length > 0 && (
         <Box>
-          <Text fontSize="xs" color="gray.500" fontWeight="bold" mb={2} textTransform="uppercase" letterSpacing="wider">
+          <Text fontSize="xs" color="text.muted" fontWeight="bold" mb={2} textTransform="uppercase" letterSpacing="wider">
             メタデータ
           </Text>
           <Box
-            bg="gray.900"
+            bg="bg.canvas"
             borderRadius="md"
             p={3}
             overflowX="auto"
             sx={{
               '&::-webkit-scrollbar': { height: '4px' },
-              '&::-webkit-scrollbar-thumb': { bg: 'gray.700', borderRadius: 'full' },
+              '&::-webkit-scrollbar-thumb': { bg: 'border.muted', borderRadius: 'full' },
             }}
           >
             <Code
               as="pre"
               fontSize="xs"
-              color="gray.300"
+              color="text.default"
               bg="transparent"
               whiteSpace="pre-wrap"
               wordBreak="break-word"

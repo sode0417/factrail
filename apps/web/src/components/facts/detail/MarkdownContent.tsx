@@ -11,13 +11,13 @@ export function MarkdownContent({ content }: MarkdownContentProps) {
   return (
     <Box
       fontSize="md"
-      color="gray.200"
+      color="text.default"
       sx={{
         'h1, h2, h3, h4, h5, h6': {
           fontWeight: 'bold',
           mt: 4,
           mb: 2,
-          color: 'gray.100',
+          color: 'text.default',
         },
         h1: { fontSize: 'xl' },
         h2: { fontSize: 'lg' },
@@ -32,15 +32,15 @@ export function MarkdownContent({ content }: MarkdownContentProps) {
           _hover: { color: 'blue.200' },
         },
         code: {
-          bg: 'gray.700',
-          color: 'gray.300',
+          bg: 'border.muted',
+          color: 'text.muted',
           px: 1.5,
           py: 0.5,
           borderRadius: 'md',
           fontSize: 'xs',
         },
         pre: {
-          bg: 'gray.900',
+          bg: 'bg.canvas',
           p: 3,
           borderRadius: 'md',
           overflowX: 'auto',
@@ -53,14 +53,14 @@ export function MarkdownContent({ content }: MarkdownContentProps) {
         },
         blockquote: {
           borderLeftWidth: '3px',
-          borderColor: 'gray.600',
+          borderColor: 'border.muted',
           pl: 3,
-          color: 'gray.400',
+          color: 'text.muted',
           fontStyle: 'italic',
           mb: 2,
         },
         hr: {
-          borderColor: 'gray.700',
+          borderColor: 'border.muted',
           my: 3,
         },
         table: {
@@ -69,13 +69,13 @@ export function MarkdownContent({ content }: MarkdownContentProps) {
         },
         'th, td': {
           borderWidth: '1px',
-          borderColor: 'gray.700',
+          borderColor: 'border.muted',
           px: 2,
           py: 1,
           fontSize: 'xs',
         },
         th: {
-          bg: 'gray.800',
+          bg: 'bg.surface-2',
           fontWeight: 'bold',
         },
         'input[type="checkbox"]': {

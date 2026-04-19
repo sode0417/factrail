@@ -36,7 +36,7 @@ export function ClaudeCodeFactDetail({ fact }: ClaudeCodeFactDetailProps) {
       {/* セッション情報 */}
       <HStack spacing={3} flexWrap="wrap">
         {durationMinutes != null && (
-          <HStack spacing={1} color="gray.300">
+          <HStack spacing={1} color="text.default">
             <Icon as={FiClock} boxSize={4} />
             <Text fontSize="sm" fontWeight="medium">
               {durationMinutes >= 60
@@ -56,12 +56,12 @@ export function ClaudeCodeFactDetail({ fact }: ClaudeCodeFactDetailProps) {
       {/* 実施内容 */}
       {accomplishments.length > 0 && (
         <Box>
-          <Text fontSize="xs" color="gray.500" fontWeight="bold" mb={2} textTransform="uppercase" letterSpacing="wider">
+          <Text fontSize="xs" color="text.muted" fontWeight="bold" mb={2} textTransform="uppercase" letterSpacing="wider">
             実施内容
           </Text>
           <List spacing={1}>
             {accomplishments.map((item, i) => (
-              <ListItem key={i} fontSize="sm" color="gray.200" display="flex" alignItems="flex-start">
+              <ListItem key={i} fontSize="sm" color="text.default" display="flex" alignItems="flex-start">
                 <ListIcon as={FiCheck} color="green.400" mt={1} />
                 {item}
               </ListItem>
@@ -73,14 +73,14 @@ export function ClaudeCodeFactDetail({ fact }: ClaudeCodeFactDetailProps) {
       {/* コミット */}
       {commits.length > 0 && (
         <Box>
-          <Text fontSize="xs" color="gray.500" fontWeight="bold" mb={2} textTransform="uppercase" letterSpacing="wider">
+          <Text fontSize="xs" color="text.muted" fontWeight="bold" mb={2} textTransform="uppercase" letterSpacing="wider">
             コミット
           </Text>
           <VStack spacing={1} align="stretch">
             {commits.map((commit, i) => (
               <HStack key={i} spacing={2}>
                 <Icon as={FiGitCommit} color="teal.400" boxSize={4} flexShrink={0} />
-                <Code fontSize="xs" bg="gray.700" color="gray.300">{commit}</Code>
+                <Code fontSize="xs" bg="bg.surface-2" color="text.default">{commit}</Code>
               </HStack>
             ))}
           </VStack>
@@ -90,7 +90,7 @@ export function ClaudeCodeFactDetail({ fact }: ClaudeCodeFactDetailProps) {
       {/* 関連 Issue */}
       {allIssues.length > 0 && (
         <Box>
-          <Text fontSize="xs" color="gray.500" fontWeight="bold" mb={2} textTransform="uppercase" letterSpacing="wider">
+          <Text fontSize="xs" color="text.muted" fontWeight="bold" mb={2} textTransform="uppercase" letterSpacing="wider">
             関連 Issue
           </Text>
           <VStack spacing={1} align="stretch">
@@ -105,7 +105,7 @@ export function ClaudeCodeFactDetail({ fact }: ClaudeCodeFactDetailProps) {
                   >
                     {isClosed ? 'closed' : 'ref'}
                   </Badge>
-                  <Text fontSize="sm" color="gray.200">{issue}</Text>
+                  <Text fontSize="sm" color="text.default">{issue}</Text>
                 </HStack>
               );
             })}
@@ -116,12 +116,12 @@ export function ClaudeCodeFactDetail({ fact }: ClaudeCodeFactDetailProps) {
       {/* 次のアクション */}
       {nextActions.length > 0 && (
         <Box>
-          <Text fontSize="xs" color="gray.500" fontWeight="bold" mb={2} textTransform="uppercase" letterSpacing="wider">
+          <Text fontSize="xs" color="text.muted" fontWeight="bold" mb={2} textTransform="uppercase" letterSpacing="wider">
             次のアクション
           </Text>
           <List spacing={1}>
             {nextActions.map((item, i) => (
-              <ListItem key={i} fontSize="sm" color="gray.300" display="flex" alignItems="flex-start">
+              <ListItem key={i} fontSize="sm" color="text.default" display="flex" alignItems="flex-start">
                 <ListIcon as={FiArrowRight} color="teal.400" mt={1} />
                 {item}
               </ListItem>
@@ -133,11 +133,11 @@ export function ClaudeCodeFactDetail({ fact }: ClaudeCodeFactDetailProps) {
       {/* content フォールバック */}
       {fact.content && accomplishments.length === 0 && (
         <Box>
-          <Text fontSize="xs" color="gray.500" fontWeight="bold" mb={2} textTransform="uppercase" letterSpacing="wider">
+          <Text fontSize="xs" color="text.muted" fontWeight="bold" mb={2} textTransform="uppercase" letterSpacing="wider">
             詳細
           </Text>
-          <Box bg="gray.750" borderRadius="md" p={3}>
-            <Text fontSize="sm" color="gray.200" whiteSpace="pre-wrap">
+          <Box bg="bg.surface-2" borderRadius="md" p={3}>
+            <Text fontSize="sm" color="text.default" whiteSpace="pre-wrap">
               {fact.content}
             </Text>
           </Box>

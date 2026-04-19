@@ -18,6 +18,7 @@ import {
   Divider,
   useToast,
 } from '@chakra-ui/react';
+import Image from 'next/image';
 import { FaGoogle, FaGithub } from 'react-icons/fa';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/axios';
@@ -114,26 +115,30 @@ export default function LoginPage() {
   };
 
   return (
-    <Flex minH="100vh" align="center" justify="center" bg="gray.900">
-      <Card bg="gray.800" borderColor="gray.700" borderWidth="1px" maxW="md" w="full">
+    <Flex minH="100vh" align="center" justify="center" bg="bg.canvas" px={4}>
+      <Card bg="bg.surface" borderColor="border.muted" borderWidth="1px" maxW="md" w="full" boxShadow="0 12px 36px rgba(74,60,20,0.08)">
         <CardBody>
           <VStack spacing={6} align="stretch">
-            <Box textAlign="center">
-              <Heading size="lg" mb={2}>
-                {isLogin ? 'Factrailにログイン' : '新規アカウント作成'}
+            <VStack spacing={3} textAlign="center">
+              <Flex align="center" gap={2}>
+                <Image src="/logo/symbol.png" alt="" width={48} height={48} priority style={{ height: 48, width: 'auto' }} />
+                <Image src="/logo/wordmark.png" alt="Factrail" width={160} height={32} priority style={{ height: 32, width: 'auto' }} />
+              </Flex>
+              <Heading size="md" fontFamily="heading" color="text.default">
+                {isLogin ? 'ようこそ' : '新規アカウント作成'}
               </Heading>
-              <Text color="gray.400" fontSize="sm">
+              <Text color="text.muted" fontSize="sm">
                 {isLogin
                   ? 'メールアドレスまたはOAuthでログイン'
                   : 'メールアドレスで新規登録'}
               </Text>
-            </Box>
+            </VStack>
 
             {/* OAuth認証 */}
             <VStack spacing={3}>
               <Button
                 w="full"
-                colorScheme="red"
+                variant="outline"
                 leftIcon={<Icon as={FaGoogle} />}
                 onClick={handleGoogleLogin}
                 size="lg"
@@ -143,7 +148,7 @@ export default function LoginPage() {
 
               <Button
                 w="full"
-                colorScheme="gray"
+                variant="outline"
                 leftIcon={<Icon as={FaGithub} />}
                 onClick={handleGithubLogin}
                 size="lg"
@@ -200,7 +205,7 @@ export default function LoginPage() {
                 <Button
                   type="submit"
                   w="full"
-                  colorScheme="blue"
+                  colorScheme="brand"
                   isLoading={isLoading}
                   size="lg"
                 >
@@ -216,7 +221,7 @@ export default function LoginPage() {
                   アカウントをお持ちでない方は{' '}
                   <Button
                     variant="link"
-                    colorScheme="blue"
+                    colorScheme="brand"
                     onClick={() => setIsLogin(false)}
                   >
                     新規登録
@@ -227,7 +232,7 @@ export default function LoginPage() {
                   既にアカウントをお持ちの方は{' '}
                   <Button
                     variant="link"
-                    colorScheme="blue"
+                    colorScheme="brand"
                     onClick={() => setIsLogin(true)}
                   >
                     ログイン
@@ -236,7 +241,7 @@ export default function LoginPage() {
               )}
             </Text>
 
-            <Text fontSize="xs" color="gray.500" textAlign="center">
+            <Text fontSize="xs" color="text.muted" textAlign="center">
               ログインすることで、利用規約とプライバシーポリシーに同意したものとみなされます
             </Text>
           </VStack>

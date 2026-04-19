@@ -72,7 +72,7 @@ function SlackCallbackContent() {
       {status === 'loading' && (
         <Box textAlign="center" py={12}>
           <Spinner size="xl" color="brand.500" mb={4} />
-          <Text fontSize="lg" color="gray.400">
+          <Text fontSize="lg" color="text.muted">
             Slackとの連携を処理しています...
           </Text>
         </Box>
@@ -86,7 +86,7 @@ function SlackCallbackContent() {
           alignItems="center"
           justifyContent="center"
           textAlign="center"
-          bg="gray.800"
+          bg="bg.surface"
           borderColor="green.500"
           borderWidth="1px"
           borderRadius="lg"
@@ -96,7 +96,7 @@ function SlackCallbackContent() {
           <AlertTitle fontSize="2xl" mb={2}>
             連携成功！
           </AlertTitle>
-          <AlertDescription fontSize="md" color="gray.400">
+          <AlertDescription fontSize="md" color="text.muted">
             Slackワークスペースとの連携が完了しました。
             <br />
             3秒後に設定ページに戻ります...
@@ -112,7 +112,7 @@ function SlackCallbackContent() {
           alignItems="center"
           justifyContent="center"
           textAlign="center"
-          bg="gray.800"
+          bg="bg.surface"
           borderColor="red.500"
           borderWidth="1px"
           borderRadius="lg"
@@ -122,7 +122,7 @@ function SlackCallbackContent() {
           <AlertTitle fontSize="2xl" mb={2}>
             連携エラー
           </AlertTitle>
-          <AlertDescription fontSize="md" color="gray.400" mb={4}>
+          <AlertDescription fontSize="md" color="text.muted" mb={4}>
             {errorMessage}
           </AlertDescription>
           <Button colorScheme="brand" onClick={handleRetry}>
@@ -141,7 +141,7 @@ export default function SlackCallbackPage() {
         fallback={
           <Box textAlign="center" py={12}>
             <Spinner size="xl" color="brand.500" mb={4} />
-            <Text fontSize="lg" color="gray.400">
+            <Text fontSize="lg" color="text.muted">
               読み込み中...
             </Text>
           </Box>
