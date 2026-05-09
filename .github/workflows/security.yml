@@ -14,6 +14,8 @@ jobs:
   # pnpm audit - 依存関係の脆弱性チェック
   pnpm-audit:
     name: pnpm Audit
+    # ドラフト PR では skip (push / schedule / workflow_dispatch では走る)
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
 
     steps:
@@ -40,6 +42,8 @@ jobs:
   # Snyk - 依存関係とコードの脆弱性スキャン
   snyk:
     name: Snyk Security Scan
+    # ドラフト PR では skip
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
 
     steps:
@@ -79,6 +83,8 @@ jobs:
   # Trivy - ファイルシステムとIaCスキャン
   trivy:
     name: Trivy Security Scan
+    # ドラフト PR では skip
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -142,7 +148,10 @@ jobs:
     name: Security Summary
     runs-on: ubuntu-latest
     needs: [pnpm-audit, snyk, trivy]
-    if: always()
+    # ドラフト PR では skip。それ以外は依存 job が失敗していても動く (always)
+    if: |
+      always() &&
+      (github.event_name != 'pull_request' || github.event.pull_request.draft == false)
 
     steps:
       - name: Download all artifacts
