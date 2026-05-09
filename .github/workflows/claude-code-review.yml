@@ -38,23 +38,31 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           show_full_output: true
+          track_progress: true
           prompt: |
-            Review PR #${{ github.event.pull_request.number }} and provide:
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
 
-            1. Code quality feedback
-            2. Security considerations
-            3. Test coverage analysis
-            4. Performance implications
-            5. Suggestions for improvement
+            このPRをレビューし、以下の観点で日本語でフィードバックしてください:
 
-            Focus on:
-            - API changes (apps/api)
-            - Web changes (apps/web)
-            - Database schema changes
-            - CI/CD modifications
+            1. コード品質（可読性・保守性・エラーハンドリング）
+            2. セキュリティ（入力検証・認証認可・機密情報の取扱い）
+            3. テストカバレッジ
+            4. パフォーマンス影響
+            5. 改善提案
 
-            If there are critical issues, clearly mark them as "🔴 CRITICAL".
-            If auto-fixable issues exist, suggest "@claude fix" command.
+            重点:
+            - API 変更 (apps/api)
+            - Web 変更 (apps/web)
+            - DB スキーマ変更
+            - CI/CD 変更
+
+            重大な指摘は "🔴 CRITICAL" を付けてください。
+            自動修正可能な指摘は "@claude fix" コマンドの利用を提案してください。
+
+          # PR レビュー用の最小限ツール許可（公式 pr-review-comprehensive サンプル準拠）
+          claude_args: |
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh api:*),Read,Grep,Glob"
 
           additional_permissions: |
             actions: read
