@@ -1,0 +1,25 @@
+## C-1: start-issue がドラフト PR を作成する記述
+102:gh pr create --draft \
+103:  --title "[Phase 1] <Issue title>" \
+136:- PR タイトルは `[Phase 1] <Issue title>` の形式（Phase 4 で `[Phase 1]` を除去）
+154:[PR #<PR>](https://github.com/sode0417/factrail/pull/<PR>) (Draft, [Phase 1] プレフィックス付き)
+177:- `gh pr create --draft` の本文に `@claude` を生で書かない（claude.yml 二重 trigger 防止）。
+
+## C-2a: verify-issue の Ready 切替条件分岐
+
+## C-3: start-issue の slug 候補提示
+27:- **slug 候補は 2-3 案を提示してユーザー承認** (AskUserQuestion):
+31:  - **判断基準**: 同種 Issue が複数ある場合は識別性重視、単発なら簡潔さ重視
+32:  - 独断で命名すると後で rename になりやすいので、必ず候補提示する
+## C-2a: verify-issue の Ready 切替条件分岐
+
+94:  gh pr ready "$PR"
+114:- Ready 切替時、タイトルから `[Phase 1]` プレフィックスを除去する処理を順序通りに実行（タイトル更新 → `gh pr ready`）。逆だと空コミットが必要になる。
+74:# 未チェック数を count (set -e 環境で grep が 0 hit でも止まらないよう || true)
+75:unchecked=$(grep -c '^- \[ \]' docs/issues/<NNN>-<slug>/test-plan.md || true)
+71:test-plan.md の未チェック項目数を確認し、**全 PASS の場合のみ**自動で PR を Ready に切替:
+74:# 未チェック数を count (set -e 環境で grep が 0 hit でも止まらないよう || true)
+97:  echo "⚠️ test-plan に未チェック項目が $unchecked 件あります。Draft 維持。"
+103:- test-plan に未チェックの `- [ ]` が残っている
+97:  echo "⚠️ test-plan に未チェック項目が $unchecked 件あります。Draft 維持。"
+107:これらの場合は Draft 維持し、`review.md` または PR コメントに保留理由を記録。**AI は「軽微だから OK」と勝手に Ready 切替しない**。

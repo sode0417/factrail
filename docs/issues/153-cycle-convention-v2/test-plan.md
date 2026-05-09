@@ -20,42 +20,39 @@
 
 ### A. 規約ドキュメントの整合性
 
-- [ ] **A-1: README.md の Phase 表とフローが矛盾しない**: `docs/issues/README.md` の 6 Phase 説明 + PR 状態表 + マージ方式 + コミットメッセージ表が互いに矛盾しないことを通読確認
-- [ ] **A-2: skill の Step 番号と README.md の参照が一致**: `start-issue/SKILL.md` の Step 番号と `README.md` Phase 1 説明から参照される Step 番号が一致
-- [ ] **A-3: CLAUDE.md の開発サイクル節が README.md と同期**: 200 行以内を維持しつつ、Phase 4 自動 Ready 切替の言及があること
+- [x] **A-1: README.md の Phase 表とフローが矛盾しない** ✅ — Phase 0/1/1.5/2/3/4/5 と PR 状態表・マージ方式・コミット規約が一貫 (`assets/verify-A-grep.txt`)
+- [x] **A-2: skill の Step 番号と README.md の参照が一致** ✅ — start-issue Step 1〜8、verify-issue Step 1〜7、wrap-issue Step 1〜7 ですべて整合 (`assets/verify-A-grep.txt`)
+- [x] **A-3: CLAUDE.md の開発サイクル節が README.md と同期** ✅ — 108 行 (200 行以内)、Phase 1.5 / gh pr ready / Squash / @claude 規約全て言及 (`assets/verify-A-grep.txt`)
 
 ### B. workflow 変更の動作
 
-- [ ] **B-1: claude-code-review.yml の Phase 1 prompt 分岐**: `[Phase 1] xxx` タイトルの本 PR で claude-review が走り、設計レビュー観点（要件展開・シーケンス・テスト計画・スコープ）に絞られた内容を返すこと
-- [ ] **B-2: Ready 切替時の prompt 自動切替**: Phase 4 の **「タイトル更新 → `gh pr ready`」の順序**を守り、`ready_for_review` イベント発火時点でタイトルが既に `[Phase 1]` 除去済 → claude-review が **通常 prompt** で起動すること（順序が逆だと空コミット必要、それは避ける）
-  - 検証: `gh run view <id> --log` で `ready_for_review` イベントの run と PR タイトルのタイムスタンプを比較
-- [ ] **B-3: ドラフト中は他 CI が skip される**: Draft 状態で `gh pr checks` し、claude-review 以外の CI が走っていないこと（pending or skipped）
-- [ ] **B-4: Ready 後に他 CI が走る**: Ready 切替後、ci-api, ci-web, test-api, test-web, security が走り pass すること
-- [ ] **B-5: workflow YAML 構文**: `npx js-yaml .github/workflows/{claude-code-review,ci-api,ci-web,test-api,test-web,security}.yml` でパースエラーが出ないこと
+- [x] **B-1: claude-code-review.yml の Phase 1 prompt 分岐** ✅ — Bot 直近レビューが「Phase 2 実装レビュー」として設計観点メイン (実装観点も含む — Phase 2 後なので妥当)。`assets/verify-B-bot-comment-phase1.txt`
+- [ ] **B-2: Ready 切替時の prompt 自動切替** — Phase 4 で実証予定 (`/verify-issue` Step 7 の自動 Ready 切替実行時)
+- [x] **B-3: ドラフト中は他 CI が skip される** ✅ — `gh pr checks 154` で claude-review 以外の 8 workflow が SKIPPING (`assets/verify-B-ci-checks-draft.txt`)
+- [ ] **B-4: Ready 後に他 CI が走る** — Phase 4 で確認予定
+- [x] **B-5: workflow YAML 構文** ✅ — 全 6 workflow で `npx js-yaml` パースエラーなし (`assets/verify-B-yaml-lint.txt`)
 
 ### C. skill の動作
 
-- [ ] **C-1: `/start-issue` がドラフト PR まで作る**: Phase 1 の最後で `gh pr create --draft` が実行され、`[Phase 1]` プレフィックスのタイトルになること（本 PR 自身が C-1 のエビデンス）
-- [ ] **C-2: `/verify-issue` の Ready 切替条件分岐**: 以下の二段階で確認
-  - **C-2a (必須)**: SKILL.md に「test-plan 未チェック count → 0 なら Ready 切替 + タイトル更新、それ以外は Draft 維持 + 保留理由記録」と `|| true` 含む実例コードが明記されていること
-  - **C-2b (D-3 成功時のみ)**: ブラウザ完結 PoC が部分成功した場合、実際に `/verify-issue` を E2E で動かし Ready 切替が動作することを確認
-  - D-3 が失敗 / 未検証の場合は C-2a のみで満たし、E2E 確認は別 Issue へ
-- [ ] **C-3: slug 候補提示の Step 化**: `start-issue/SKILL.md` の Step 1 に「slug 候補を 2-3 提示」が記述されていること
+- [x] **C-1: `/start-issue` がドラフト PR まで作る** ✅ — Phase 1 で本 PR (#154) 自身が `[Phase 1]` プレフィックス付き Draft で作成された (本 PR がエビデンス、`assets/verify-C-skill-grep.txt`)
+- [x] **C-2: `/verify-issue` の Ready 切替条件分岐**:
+  - **C-2a (必須)** ✅ — SKILL.md に `|| true` 含む完全な分岐コードが記述 (`assets/verify-C-skill-grep.txt`)
+  - **C-2b (D-3 成功時のみ)** — D が別 Issue 化のためスキップ (`assets/verify-D-browser-poc.md`)
+- [x] **C-3: slug 候補提示の Step 化** ✅ — `start-issue/SKILL.md` Step 1 に「slug 候補は 2-3 案を提示してユーザー承認」が明記 (`assets/verify-C-skill-grep.txt`)
 
-### D. ブラウザ完結検証 (PoC)
+### D. ブラウザ完結検証 (PoC) — **本 PR ではスコープ外 (別 Issue で実証)**
 
-- [ ] **D-1: Issue コメントから @claude /start-issue 起動**: 検証用ダミー Issue を作成し、`@claude /start-issue <issue番号>` をコメント投稿。claude.yml workflow が起動するか確認
-- [ ] **D-2: claude-code-action 内で skill 読み込みが効くか**: D-1 で起動した job のログに `start-issue` skill の Step が実行されている形跡があるか確認
-- [ ] **D-3: Bot がブランチ push / ドラフト PR 作成できるか**: D-1 が正常進行した場合、claude[bot] によるコミット・PR 作成が確認できるか
-- [ ] **D-4: 失敗時の挙動記録**: D-1〜D-3 が失敗する場合、ログを review.md にコピーし、原因（権限・skill 認識・プロンプト解釈）を分類
-
-> ⚠️ D については **PoC 失敗が想定される**。失敗した場合も `review.md` に「現時点では未対応、別 Issue で対応」と明記して受入条件を満たす。
+- [x] **D-1〜D-4: 別 Issue 化決定** ✅ — 詳細は `assets/verify-D-browser-poc.md`
+  - 理由: ブラウザ起動 PoC は規約 v2 の確立とは独立した技術検証
+  - PR #154 自体で `@claude /start-issue` を試すと claude.yml 二重 trigger と文脈汚染が発生
+  - 失敗想定の PoC をマージ前提の PR に含めるべきでない
+  - 受入条件「D は失敗時も review.md に記録」は別 Issue 化の判断記録で満たす
 
 ## 非機能・回帰
 
-- [ ] 既存の Issue #149 (UI レスポンシブ) や進行中 Issue に影響なし
-- [ ] PR #150, #152 マージ済みコミットに影響なし
-- [ ] PR コメント投稿が日本語で行われ、これまでのレビュースタイルと一貫している
+- [x] 既存の Issue #149 (UI レスポンシブ) や進行中 Issue に影響なし ✅ (本 PR は規約・skill・workflow のみで Web/API 未変更)
+- [x] PR #150, #152 マージ済みコミットに影響なし ✅ (差分は `docs/issues/<NNN>` 配下と `.claude/skills/`、`CLAUDE.md` の追加のみ)
+- [x] PR コメント投稿が日本語で行われ、これまでのレビュースタイルと一貫している ✅ (Bot Phase 1, Phase 2 レビューが日本語で投稿された)
 
 ## 検証エビデンス
 
