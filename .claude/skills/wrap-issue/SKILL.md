@@ -71,11 +71,45 @@ review.md で集約した FB 一つひとつを以下の判断軸で分類（`do
 | factrail 固有 | プロジェクト `CLAUDE.md` または `.claude/skills/` |
 | 単発の判断・履歴 | `review.md` に蓄積のみ |
 
-過去の `docs/issues/*/review.md` を grep して再発判定:
+過去の `docs/issues/*/review.md` を複数の角度で grep して再発判定:
+
+### 1. キーワード横断検索（広め）
+
+指摘内容のキーワード（プログラム名、概念名）で過去 review.md を横断検索:
 
 ```bash
-grep -r "<キーワード>" docs/issues/*/review.md 2>/dev/null
+# 例: id-token に関する指摘が過去何件出たか
+grep -rn "id-token" docs/issues/*/review.md 2>/dev/null
+
+# 例: Squash の話題が過去何件出たか
+grep -rn -i "squash" docs/issues/*/review.md 2>/dev/null
 ```
+
+### 2. 指摘パターン検索（絞り込み）
+
+「却下」「誤検知」「再発」などの判定キーワードと組み合わせて、過去の判断と整合するか確認:
+
+```bash
+# 同じ指摘が複数 review.md で却下されているか
+grep -rn -B1 "却下" docs/issues/*/review.md 2>/dev/null | grep -i "<キーワード>"
+
+# 過去に同じ Bot 指摘が来た回数
+grep -rcn "<指摘文の特徴的な文言>" docs/issues/*/review.md 2>/dev/null
+```
+
+### 3. ナレッジ昇華済みかの確認
+
+既にグローバル / プロジェクト規約に取り込まれているかを確認:
+
+```bash
+# CLAUDE.md / instructions.md / docs/issues/README.md に同様のルールが既にあるか
+grep -rn "<キーワード>" CLAUDE.md .claude/instructions.md docs/issues/README.md 2>/dev/null
+
+# グローバル CLAUDE.md (個人) に既にあるか
+grep -n "<キーワード>" ~/.claude/CLAUDE.md 2>/dev/null
+```
+
+**3 件以上ヒット**したら「ルール化候補」と明記する。それ以下なら `review.md` への蓄積のみ。
 
 3 回以上ヒットしたら「ルール化候補」と明記する。
 

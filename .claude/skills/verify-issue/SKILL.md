@@ -1,14 +1,14 @@
 ---
 name: verify-issue
 description: |
-  実装後の検証フェーズで test-plan.md を順に消化する。手動シナリオの確認、自動テストの実行、エビデンス収集を構造化して進める。
-  factrail の開発サイクル Phase 3 を担当。
+  実装後の検証フェーズで test-plan.md を順に消化し、全 PASS なら PR を Ready 切替まで自動で進める。
+  factrail の開発サイクル Phase 3 (検証) と Phase 4 (PR Open) を担当。
   「/verify-issue」「検証を始める」「<NNN> の動作確認」などのリクエスト時に使用。
 ---
 
 # verify-issue スキル
 
-`docs/issues/README.md` の Phase 3（検証）を実行する。Issue 番号を受け取り、`docs/issues/<NNN>-<slug>/test-plan.md` のチェックリストを順に消化する。
+`docs/issues/README.md` の Phase 3（検証）と Phase 4（PR Ready 切替）を実行する。Issue 番号を受け取り、`docs/issues/<NNN>-<slug>/test-plan.md` のチェックリストを順に消化し、全 PASS なら自動でドラフト PR を Ready に切り替える。
 
 ## 入力
 
@@ -66,10 +66,41 @@ cd apps/web && npm run test -- <対象>
 - ❌ 失敗したシナリオと再現手順
 - ⚠️ 保留・確認が必要な項目
 
-すべて ✅ なら Phase 4 (PR 作成) へ進める旨を提示。
+## Step 7: Phase 4 自動 Ready 切替（条件付き）
+
+test-plan.md の未チェック項目数を確認し、**全 PASS の場合のみ**自動で PR を Ready に切替:
+
+```bash
+# 未チェック数を count (set -e 環境で grep が 0 hit でも止まらないよう || true)
+unchecked=$(grep -c '^- \[ \]' docs/issues/<NNN>-<slug>/test-plan.md || true)
+
+# 関連 PR を取得
+PR=$(gh pr list --head "$(git branch --show-current)" --json number --jq '.[0].number')
+title=$(gh pr view "$PR" --json title -q '.title')
+
+if [ "$unchecked" = "0" ]; then
+  # ★ 順序が重要: タイトル更新 → Ready 切替
+  # ready_for_review イベント発火時点でタイトル更新済 → claude-review が通常 prompt で起動
+  new_title=$(echo "$title" | sed 's/^\[Phase 1\] //')
+  gh pr edit "$PR" --title "$new_title"
+  gh pr ready "$PR"
+  echo "✅ PR #$PR を Ready に切替しました (Phase 4 完了)"
+else
+  echo "⚠️ test-plan に未チェック項目が $unchecked 件あります。Draft 維持。"
+  echo "   保留理由を review.md に記録するか、追加検証を実施してください。"
+fi
+```
+
+**Ready 切替しないケース**:
+- test-plan に未チェックの `- [ ]` が残っている
+- 自動テストで failure があった
+- 手動検証で NG / 保留があった
+
+これらの場合は Draft 維持し、`review.md` または PR コメントに保留理由を記録。**AI は「軽微だから OK」と勝手に Ready 切替しない**。
 
 ## 注意点
 
 - `test-plan.md` の項目が網羅的でない場合、検証中に気付いたら追加し、設計と整合させる。
 - スクショは Playwright MCP で取れるが、ルート直下に置かない（`.gitignore` で `/*.png` は除外済み）。必ず `docs/issues/<NNN>-<slug>/assets/` 配下へ。
 - 失敗時に独断でコードを直さない。Phase 2 に戻すかユーザーに判断を委ねる。
+- Ready 切替時、タイトルから `[Phase 1]` プレフィックスを除去する処理を順序通りに実行（タイトル更新 → `gh pr ready`）。逆だと空コミットが必要になる。
