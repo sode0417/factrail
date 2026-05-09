@@ -2,3 +2,12 @@ node_modules/
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Claude Code worktrees (タスク実行用、ローカル限定)
+.worktrees/
+
+# Playwright MCP のログ・スナップショット（一時ファイル）
+.playwright-mcp/
+
+# ルート直下の作業用スクリーンショット（docs/ui-review/<日付>/ に置くこと）
+/*.png
