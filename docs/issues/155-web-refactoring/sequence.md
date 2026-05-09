@@ -23,7 +23,8 @@ flowchart TD
     I -- No --> J[Next.js ビルド確認]
     J --> K{ビルド成功?}
     K -- No --> G
-    K -- Yes --> L[手動動作確認]
+    K -- Yes --> L_cleanup[旧ディレクトリを削除]
+    L_cleanup --> L[手動動作確認]
 ```
 
 ## ファイル移動マッピング
@@ -79,3 +80,18 @@ flowchart TD
 - 認証: 変更なし（app/ のルーティング構成は変更しない）
 - 副作用: import パスの一括更新が必要（`app/` 配下の page.tsx で `@/components/facts`, `@/types/fact`, `@/stores/authStore` 等を参照している箇所）
 - 失敗時: TypeScript コンパイルエラーが検出されるため、不整合は即座に発覚する
+
+## 旧ディレクトリ削除対象
+
+ファイル移動後、以下のディレクトリが空になるため削除する:
+
+| 削除対象 | 理由 |
+| --- | --- |
+| `src/components/facts/` | `features/facts/components/` に全ファイルを移動済み |
+| `src/components/auth/` | `features/auth/components/` に全ファイルを移動済み |
+| `src/hooks/` | `features/facts/hooks/` に全ファイルを移動済み |
+| `src/stores/` | `features/auth/stores/` に全ファイルを移動済み |
+| `src/types/` | `features/facts/types/` に全ファイルを移動済み |
+| `src/utils/` | `lib/oauth.ts` に統合済み |
+
+> **注意**: `src/components/layout/` は移動しないため削除しない。

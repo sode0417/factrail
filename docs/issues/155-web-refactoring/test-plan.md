@@ -19,12 +19,18 @@
 - [ ] **Slack 連携設定**: `/setup/slack` ページが正常に表示される
 - [ ] **OAuth コールバック**: `/auth/callback` のルーティングが正常に機能する
 - [ ] **lint チェック**: `cd apps/web && npm run lint` でエラーが発生しない
+- [ ] **旧パス残存チェック**: 以下のコマンドで結果が 0 件であること
+  ```bash
+  grep -r "@/components/facts\|@/components/auth\|@/hooks/\|@/types/fact\|@/stores/" apps/web/src/app
+  ```
+- [ ] **バレルエクスポート確認**: `features/facts/components/index.ts` 経由の named import（`FactCard`, `FactFilters`, `FactMemoInput`, `FactDetailDrawer`, `EditFormState` 等）がコンパイルエラーなく動作する
+- [ ] **layout 継続動作確認**: `components/layout/`（移動対象外）の import パスが壊れていない（Header, Sidebar, MainLayout が正常に表示される）
 
 ## 非機能・回帰
 
 - [ ] 既存機能が壊れていない (smoke): 全ページが HTTP 200 を返す
 - [ ] `@/` パスエイリアスが正しく解決されている（tsconfig.json の paths 設定が有効）
-- [ ] バレルエクスポート (`index.ts`) が正しく機能している
+- [ ] バレルエクスポート (`index.ts`) が正しく機能している（上記バレル確認と統合）
 
 ## 検証エビデンス
 

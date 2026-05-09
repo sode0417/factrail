@@ -95,6 +95,9 @@ src/
 - `lib/` はサードパーティ設定・汎用ユーティリティに統一し `utils/` を廃止することで迷いがなくなる
 - auth 関連 (AuthGuard, authStore) を `features/auth/` にまとめることで凝集度が上がる
 
+**`factUtils.ts` を `lib/` に残す理由:**
+`factUtils.ts` は source 文字列 (`"github"`, `"slack"` 等) を UI 表示値（色・ラベル）に変換するプレゼンテーション層のユーティリティ。`Fact` 型への直接依存がなく、将来的に複数フィーチャーから参照される可能性があるため、汎用ユーティリティとして `lib/` に留める。feature-based に徹して `features/facts/utils/` へ移動することも可能だが、今回はスコープを絞り `lib/` 配置を採用する。
+
 ## 影響範囲
 
 | エリア | ファイル / モジュール | 変更概要 |
@@ -105,7 +108,10 @@ src/
 | Web | `src/types/fact.ts` | `src/features/facts/types/` に移動 |
 | Web | `src/stores/authStore.ts` | `src/features/auth/stores/` に移動 |
 | Web | `src/utils/oauth.ts` | `src/lib/oauth.ts` に移動（utils/ 廃止） |
-| Web | `src/app/**/*.tsx` | import パス更新 |
+| Web | `src/app/providers.tsx` | `@/components/auth/AuthGuard` → `@/features/auth/components/AuthGuard` |
+| Web | `src/app/facts/page.tsx` | `@/components/facts`, `@/hooks/useDateFilter`, `@/types/fact` → `@/features/facts/*` |
+| Web | `src/app/auth/callback/page.tsx` | `@/stores/authStore` → `@/features/auth/stores/authStore` |
+| Web | `src/app/login/page.tsx` | `@/stores/authStore` → `@/features/auth/stores/authStore` |
 
 ## 関連リンク
 
