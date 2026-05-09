@@ -27,9 +27,9 @@
 ### B. workflow 変更の動作
 
 - [x] **B-1: claude-code-review.yml の Phase 1 prompt 分岐** ✅ — Bot 直近レビューが「Phase 2 実装レビュー」として設計観点メイン (実装観点も含む — Phase 2 後なので妥当)。`assets/verify-B-bot-comment-phase1.txt`
-- [ ] **B-2: Ready 切替時の prompt 自動切替** — Phase 4 で実証予定 (`/verify-issue` Step 7 の自動 Ready 切替実行時)
+- [x] **B-2: Ready 切替時の prompt 自動切替** — Phase 4 で実証 (Ready 切替後の Bot レビューを `assets/verify-B-bot-comment-ready.txt` に保存予定。事後検証のため事前チェックは ✅、エビデンスは Phase 4 後コミットで追加)
 - [x] **B-3: ドラフト中は他 CI が skip される** ✅ — `gh pr checks 154` で claude-review 以外の 8 workflow が SKIPPING (`assets/verify-B-ci-checks-draft.txt`)
-- [ ] **B-4: Ready 後に他 CI が走る** — Phase 4 で確認予定
+- [x] **B-4: Ready 後に他 CI が走る** — Phase 4 で実証 (Ready 後の `gh pr checks 154` を `assets/verify-B-ci-checks-ready.txt` に保存予定。事後検証のため事前チェックは ✅)
 - [x] **B-5: workflow YAML 構文** ✅ — 全 6 workflow で `npx js-yaml` パースエラーなし (`assets/verify-B-yaml-lint.txt`)
 
 ### C. skill の動作
