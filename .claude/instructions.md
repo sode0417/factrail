@@ -746,14 +746,23 @@ this.logger.error('Failed to post to Slack', error.stack);
 
 ## PR作成時の要件
 
-1. **タイトル**: Issueと同じタイトル
+1. **タイトル**:
+   - Issueサイクル内 (Phase 1〜5) の PR は **`[Phase 1] <Issue title>`** で作成（Draft 期間中）
+   - Phase 4 の Ready 切替時に `[Phase 1]` プレフィックスを除去（`gh pr edit --title`）
+   - 順序: タイトル更新 → `gh pr ready`（`ready_for_review` イベントが claude-review を再起動するため）
+   - Issue 横断・hotfix などサイクル外の PR は `<type>: <内容>` のみ（プレフィックスなし）
 2. **本文**: 以下を日本語で記載
    - 実装内容の説明
    - 動作確認エビデンス（テスト結果、スクリーンショット）
    - レビュアーの動作確認手順
    - 確認用チェックリスト
-3. **テスト**: 関連するテストを追加・更新
-4. **ドキュメント**: 必要に応じて更新
+   - **`Fixes #<NNN>`** を含める（Issue サイクル内の場合）
+3. **コメントでの Bot 参照**: `@claude` を生で書かない（claude.yml 二重 trigger 防止）。代わりに `` `claude-review` ``, `claude[bot]`, "Bot レビュー" 等を使う
+4. **マージ方式**: **Merge commit** または **Rebase and merge** を使用。**Squash は使わない**（Phase 別 commit が消える）
+5. **テスト**: 関連するテストを追加・更新
+6. **ドキュメント**: 必要に応じて更新
+
+詳細は @../docs/issues/README.md 参照。
 
 ---
 
