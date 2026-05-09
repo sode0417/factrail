@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Factrail UI Mockups — 2026-04-19 (採用版のみ)</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#f5f5f2;color:#222;font-family:-apple-system,"Noto Sans JP",sans-serif;line-height:1.55}
+  header{padding:40px 48px 20px;max-width:1200px;margin:0 auto}
+  h1{margin:0 0 8px;font-size:28px}
+  p{color:#666;margin:0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:24px;padding:24px 48px;max-width:1200px;margin:0 auto}
+  .card{background:#fff;border:1px solid #e5e5e0;border-radius:12px;overflow:hidden;text-decoration:none;color:inherit;display:flex;flex-direction:column;transition:transform .15s, box-shadow .15s}
+  .card:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,0,0,.08)}
+  .preview{height:280px;border-bottom:1px solid #eee;overflow:hidden;position:relative}
+  .preview iframe{width:1440px;height:900px;transform:scale(.33);transform-origin:0 0;border:0;pointer-events:none}
+  .card-body{padding:16px 18px}
+  .card h3{margin:0 0 4px;font-size:16px}
+  .card .tag{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
+  .card .desc{color:#666;font-size:13px;margin-top:6px}
+  .badges{margin-top:8px;display:flex;gap:4px;flex-wrap:wrap}
+  .badge{font-size:10.5px;padding:2px 6px;background:#f0f0ea;border-radius:3px;color:#555}
+  .note{padding:0 48px 40px;max-width:1200px;margin:0 auto;color:#666;font-size:13px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Factrail UI デザイン案 — 2026-04-19（採用版のみ）</h1>
+  <p>Issue #143 で検討した 6 案のうち、採用方向に進んだ 2 案を保持しています。不採用案 (02〜06, 08, 09) は git 履歴を参照してください。</p>
+</header>
+
+<div class="grid">
+  <a class="card" href="01-natural-green.html">
+    <div class="preview"><iframe src="01-natural-green.html" scrolling="no"></iframe></div>
+    <div class="card-body">
+      <div class="tag">01 — Adopted / Light</div>
+      <h3>Natural Off-white / Green</h3>
+      <div class="desc">ベース=オフホワイト、アクセント=セージグリーン。pillラベル、ワイド・レスポンシブ対応版。最終的にこの配色路線が採用されました。</div>
+      <div class="badges"><span class="badge">bg #F6F3EC</span><span class="badge">accent #4A7C59</span><span class="badge">pill labels</span><span class="badge">responsive</span></div>
+    </div>
+  </a>
+
+  <a class="card" href="07-chat-composer.html">
+    <div class="preview"><iframe src="07-chat-composer.html" scrolling="no"></iframe></div>
+    <div class="card-body">
+      <div class="tag">07 — Adopted / Layout</div>
+      <h3>Chat Composer Layout</h3>
+      <div class="desc">サイドバー + L 字シェルのチャット風レイアウト。最終採用形は v29 (`../mockup-07-v29-logo-transparent.png`)。配色は 01 と統合。</div>
+      <div class="badges"><span class="badge">sidebar</span><span class="badge">L-shape</span><span class="badge">composer</span><span class="badge">final v29</span></div>
+    </div>
+  </a>
+</div>
+
+<p class="note">※ 不採用案 (01b dark, 02 warm-paper, 03 nordic, 04 editorial, 05 mono, 06 techy, 08 timeline, 09 journal) は PR #150 で削除されました。git 履歴で確認可能です。</p>
+</body>
+</html>
