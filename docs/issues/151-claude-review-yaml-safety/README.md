@@ -2,7 +2,7 @@
 
 > GitHub Issue: https://github.com/sode0417/factrail/issues/151
 > ブランチ: `chore/151-claude-review-yaml-safety`
-> ステータス: 設計中
+> ステータス: 検証完了（PR レビュー・マージ待ち）
 
 ## 要件 (Issue から展開)
 

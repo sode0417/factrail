@@ -16,19 +16,18 @@
 
 ## 手動検証
 
-- [ ] **シナリオ 1: workflow validation 通過**: PR ブランチに workflow 変更を push → 一度 fail を確認 → main に cherry-pick → 空コミット push で再走 → claude-review が pass する
-- [ ] **シナリオ 2: 誤指摘の再発防止確認**: claude-review の Bot コメント本文を読み、`id-token: write` および `claude_args: |` についての指摘が**含まれていない**ことを確認
-- [ ] **シナリオ 3: claude_args の引数末尾改行除去**: 以下のいずれかで確認
-  - **主**: ファイル直接確認 `grep -A1 'claude_args:' .github/workflows/claude-code-review.yml` で `|-` が使われていることを目視
-  - **代替**: CI ログで `--allowedTools` の引数値が末尾改行を持たないことを確認（`gh run view <id> --log` で `claude_args` 関連の行）。ログに展開後の値が出ない場合は主の方法のみで OK
-- [ ] **シナリオ 4: 他 workflow 不変**: `git diff main..HEAD .github/workflows/` の対象ファイルが `claude-code-review.yml` のみ
-- [ ] **シナリオ 5: YAML 構文確認** (任意): `npx js-yaml .github/workflows/claude-code-review.yml` でパースエラーが出ないことを確認
+- [x] **シナリオ 1: workflow validation 通過**: PR ブランチに workflow 変更を push → main に cherry-pick → CI 走行 → claude-review が pass ✅
+  - **想定外**: 1 回目で PASS した。main push と PR push のタイミング差で workflow validation が新しい main を先に見たため。シーケンス想定の「fail 1 回 → 空コミット push で再走」は不要だった。タイミング依存なので、再現性のため順序「main push → PR push」に揃えるのが安全（規約改善候補、Issue #153 へ）
+- [x] **シナリオ 2: 誤指摘の再発防止確認**: claude-review の Bot 再レビュー (`8e980a9` 以降) コメントに `id-token: write` 削除提案や `claude_args: |` 指摘が**含まれていない**ことを確認 ✅
+- [x] **シナリオ 3: claude_args の引数末尾改行除去**: ファイル直接確認 `grep -A1 'claude_args:' .github/workflows/claude-code-review.yml` で `|-` を確認 ✅ (`assets/verify-03-grep.txt`)
+- [x] **シナリオ 4: 他 workflow 不変**: `git diff origin/main^..origin/main --stat .github/workflows/` で対象ファイルが `claude-code-review.yml` のみ確認 ✅ (`assets/verify-04-diff.txt`)
+- [x] **シナリオ 5: YAML 構文確認** (任意): `npx js-yaml .github/workflows/claude-code-review.yml` パースエラーなし ✅ (`assets/verify-05-yaml-lint.txt`)
 
 ## 非機能・回帰
 
-- [ ] PR マージ前に main の `claude-code-review.yml` が一時的に PR と一致した状態になるが、ロジックは変わらないため挙動回帰なし
-- [ ] 他のワークフロー（claude.yml, ci-api.yml, ci-web.yml, test-*.yml, security.yml）は変更されない
-- [ ] PR コメント投稿が日本語で行われ、これまでのレビュースタイルと一貫している
+- [x] PR マージ前に main の `claude-code-review.yml` が一時的に PR と一致した状態になるが、ロジックは変わらないため挙動回帰なし ✅
+- [x] 他のワークフロー（claude.yml, ci-api.yml, ci-web.yml, test-*.yml, security.yml）は変更されない ✅ (シナリオ 4 で確認)
+- [x] PR コメント投稿が日本語で行われ、これまでのレビュースタイルと一貫している ✅ (Bot 再レビューも日本語で投稿された)
 
 ## 検証エビデンス
 
