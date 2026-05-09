@@ -56,7 +56,13 @@ cp docs/issues/_template/{README.md,sequence.md,test-plan.md,review.md} docs/iss
 ## Step 5: ブランチ作成（オプション、ユーザー確認）
 
 ```bash
-git checkout -b <type>/<NNN>-<slug>
+# 既存ブランチをチェックしてから切る
+if git rev-parse --verify "<type>/<NNN>-<slug>" >/dev/null 2>&1; then
+  # 既存: AskUserQuestion で「既存に switch / 別 slug で再生成 / スキップ」を確認
+  git switch <type>/<NNN>-<slug>
+else
+  git switch -c <type>/<NNN>-<slug>
+fi
 ```
 
 `<type>` は Issue ラベル `type:*` から決定:
