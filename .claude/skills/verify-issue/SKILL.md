@@ -44,7 +44,7 @@ cd apps/web && npm run test -- <対象>
 
 1. シナリオを声に出してユーザーに読み上げ（実施手順を明確化）
 2. 必要なローカル環境を起動（factrail のローカルデプロイは launchd 管理 → `deploy_local.md` 参照）
-3. ユーザーに操作してもらうか、Playwright MCP が使えるなら自動化
+3. ユーザーに操作してもらうか、Playwright MCP が使えるなら自動化（判定: `mcp__playwright_*__browser_*` ツールが利用可能な状態かを最初に確認。なければユーザーに手動操作を依頼）
 4. エビデンス（スクショ）を `docs/issues/<NNN>-<slug>/assets/` に保存
    - ファイル名: `verify-<シナリオ番号>-<短いラベル>.png` （例: `verify-01-login-success.png`）
 5. AskUserQuestion で「OK / NG / 保留」を確認

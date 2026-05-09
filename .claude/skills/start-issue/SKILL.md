@@ -35,7 +35,12 @@ cp docs/issues/_template/{README.md,sequence.md,test-plan.md,review.md} docs/iss
 
 ## Step 3: README.md を Issue 本文で初期化
 
-- `<NNN>`, `<タイトル>`, Issue URL, ブランチ名予定 (`<type>/<NNN>-<slug>`) を埋める。
+- `<NNN>`, `<タイトル>`, `<ISSUE_URL>`, `<type>`, `<slug>` のプレースホルダを動的に置換:
+  - `<NNN>`: 引数の Issue 番号
+  - `<タイトル>`: `gh issue view` の `title`
+  - `<ISSUE_URL>`: `gh issue view <NNN> --json url -q '.url'`（fork・リネーム耐性）
+  - `<type>`: Issue ラベル `type:*` から決定（Step 5 参照）
+  - `<slug>`: Step 1 で確定した値
 - Issue 本文の「概要」「現状の課題」を `## 要件` セクションに転記（要点のみ。長文はリンク参照に留める）。
 - `## 受入条件` は Issue から推測した叩き台を入れ、ユーザーに承認を取る。
 

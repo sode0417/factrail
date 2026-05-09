@@ -17,8 +17,11 @@
 
 ## アセット
 
-- [`assets/2026-04-19/`](./assets/2026-04-19/) — 初期スクショ + mockup 01〜07 のデザイン探索（全 50 ファイル）
-- [`assets/2026-05-09/`](./assets/2026-05-09/) — mockup-07 v19〜v29 とフェーズ別検証スクショ（全 26 ファイル）
+- [`assets/2026-04-19/`](./assets/2026-04-19/) — 初期 Web スクショ (01-landing 〜 07-facts-mobile) + 採用案 (mockup-01-natural-green-v3, mockups-index) + インタラクティブ mockup HTML (01, 07)
+- [`assets/2026-05-09/`](./assets/2026-05-09/) — 最終採用形のみ (mockup-07-v29-logo-transparent)
+
+採用版ロゴは `apps/web/public/logo/{symbol,wordmark}.png` にリポジトリ本体として存在。
+不採用案・中間試行は PR #150 で削除済み。git 履歴で参照可能。
 
 ## 後続課題
 

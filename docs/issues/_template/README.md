@@ -1,8 +1,12 @@
 # #<NNN> <タイトル>
 
-> GitHub Issue: https://github.com/sode0417/factrail/issues/<NNN>
+> GitHub Issue: <ISSUE_URL>
 > ブランチ: `<type>/<NNN>-<slug>`
 > ステータス: 設計中 / 実装中 / 検証中 / レビュー中 / マージ済み
+
+<!-- /start-issue が <ISSUE_URL>, <NNN>, <タイトル>, <type>, <slug> を gh repo view / gh issue view から動的に置換します -->
+<!-- 手動編集する場合は <ISSUE_URL> を `gh repo view --json url -q '.url'`/issues/<NNN> の値で置き換えてください -->
+
 
 ## 要件 (Issue から展開)
 
