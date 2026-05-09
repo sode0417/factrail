@@ -1,0 +1,49 @@
+npm warn Unknown project config "shamefully-hoist". This will stop working in the next major version of npm.
+{
+  "name": "Claude Code Review",
+  "on": {
+    "pull_request": {
+      "types": [
+        "opened",
+        "synchronize",
+        "ready_for_review",
+        "reopened"
+      ]
+    }
+  },
+  "jobs": {
+    "claude-review": {
+      "runs-on": "ubuntu-latest",
+      "permissions": {
+        "contents": "read",
+        "pull-requests": "write",
+        "issues": "write",
+        "id-token": "write",
+        "actions": "read"
+      },
+      "steps": [
+        {
+          "name": "Checkout repository",
+          "uses": "actions/checkout@v4",
+          "with": {
+            "fetch-depth": 0
+          }
+        },
+        {
+          "name": "Run Claude Code Review",
+          "id": "claude-review",
+          "uses": "anthropics/claude-code-action@v1",
+          "with": {
+            "claude_code_oauth_token": "${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}",
+            "show_full_output": true,
+            "track_progress": true,
+            "prompt": "REPO: ${{ github.repository }}\nPR NUMBER: ${{ github.event.pull_request.number }}\n\nこのPRをレビューし、以下の観点で日本語でフィードバックしてください:\n\n1. コード品質（可読性・保守性・エラーハンドリング）\n2. セキュリティ（入力検証・認証認可・機密情報の取扱い）\n3. テストカバレッジ\n4. パフォーマンス影響\n5. 改善提案\n\n重点:\n- API 変更 (apps/api)\n- Web 変更 (apps/web)\n- DB スキーマ変更\n- CI/CD 変更\n\n重大な指摘は \"🔴 CRITICAL\" を付けてください。\n自動修正可能な指摘は \"@claude fix\" コマンドの利用を提案してください。\n",
+            "claude_args": "--allowedTools \"mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh api:*),Read,Grep,Glob\"",
+            "additional_permissions": "actions: read\n"
+          }
+        }
+      ]
+    }
+  }
+}
+(YAML パースエラーなし: 出力は parsed JSON)

@@ -1,0 +1,22 @@
+# シナリオ 2 検証: 誤指摘の再発防止確認
+
+## 確認方法
+PR #152 の Phase 2 (commit 612e679) push 後、claude-review (Bot) が再レビューを投稿。
+そのコメント本文を grep で確認。
+
+## 確認結果
+
+Bot コメント URL: https://github.com/sode0417/factrail/pull/152#issuecomment-4411891xxx (実 ID は PR 履歴参照)
+
+### 旧指摘の再発有無
+
+| Phase 1 で指摘されていた事項 | Phase 2 後の Bot コメントへの再登場 | 結果 |
+| --- | --- | --- |
+| `id-token: write` を OIDC 不使用なら削除推奨 | なし | ✅ 再発なし (コメント追加で誤検知防止が機能) |
+| `claude_args: \|` の trailing newline | なし | ✅ 再発なし (`\|-` で解消) |
+
+### Bot 再レビューの結論
+- 🔴 CRITICAL: 0 件
+- 💛 任意改善: 2 件 (記法混在の補足、README ステータス更新 — 後者は対応済)
+- 🟢 「Phase 3 (検証 / /verify-issue 151) に進める品質」と評価
+
