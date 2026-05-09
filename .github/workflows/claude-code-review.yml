@@ -42,8 +42,28 @@ jobs:
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
+            PR TITLE: ${{ github.event.pull_request.title }}
+            PR DRAFT: ${{ github.event.pull_request.draft }}
 
-            このPRをレビューし、以下の観点で日本語でフィードバックしてください:
+            ## レビューモードの判定
+
+            PR TITLE が "[Phase 1]" で始まる、または PR DRAFT が true の場合は **設計レビューモード** で評価してください。それ以外は **実装レビューモード** で評価してください。
+
+            ---
+
+            ### 設計レビューモード (Phase 1: docs/issues/<NNN>-<slug>/ のみ変更)
+
+            実装ファイル (apps/api, apps/web, .github/workflows 等) はまだ変更されていない前提です。コード品質・セキュリティ・パフォーマンスのレビューは行わず、以下の **設計観点のみ** で日本語でフィードバックしてください:
+
+            1. **要件展開の正確性**: README.md は Issue の意図と乖離していないか / スコープが過大・過小ではないか
+            2. **シーケンスの妥当性**: sequence.md の Mermaid 図が論理的に通っているか / フォールバック分岐が必要な場面でカバーされているか
+            3. **テスト計画の網羅性**: test-plan.md が受入条件と整合しているか / 自動 vs 手動の分類が適切か / エビデンス取得方法が現実的か
+            4. **影響範囲の正確性**: README.md の影響範囲表に漏れがないか / スコープ外の宣言が妥当か
+            5. **規約整合性**: コミットメッセージ・PR タイトル・マージ方式が docs/issues/README.md の規約に従っているか
+
+            ### 実装レビューモード (Phase 2 以降: 実装ファイルの変更を含む)
+
+            通常の PR レビューとして、以下の観点で日本語でフィードバックしてください:
 
             1. コード品質（可読性・保守性・エラーハンドリング）
             2. セキュリティ（入力検証・認証認可・機密情報の取扱い）
@@ -57,8 +77,16 @@ jobs:
             - DB スキーマ変更
             - CI/CD 変更
 
+            ---
+
+            ## 共通
+
             重大な指摘は "🔴 CRITICAL" を付けてください。
             自動修正可能な指摘は "@claude fix" コマンドの利用を提案してください。
+
+            ## 注意: コメント本文での @claude メンション
+
+            返信コメントを書く際、ユーザーや AI へ向けて Bot を参照する場合は **`@claude` を生で書かない**でください (claude.yml の二重 trigger になります)。代わりに `` `claude-review` ``、`claude[bot]`、"Bot レビュー" 等を使ってください。例外: ユーザーに `@claude fix` の利用を提案する箇所のみ生で書いて OK。
 
           # PR レビュー用の最小限ツール許可（公式 pr-review-comprehensive サンプル準拠）
           claude_args: |-
