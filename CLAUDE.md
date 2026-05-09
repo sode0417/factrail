@@ -51,7 +51,7 @@ GitHub Issue 起点でフェーズを進めます。詳細: @docs/issues/README.
 - 入力バリデーション: `class-validator` を使った DTO 単位の検証
 - Webhook 署名検証: GitHub `X-Hub-Signature-256` 必須
 - OAuth state パラメータ検証
-- 暗号化キー (`ENCRYPTION_KEY`) 変更は全データ復号不能になる ([詳細](.claude/projects/.../project_encryption_key_migration.md))
+- 暗号化キー (`ENCRYPTION_KEY`) 変更は **全暗号化データが復号不能**になる。変更前に必ずデータエクスポート → 復号 → 新キーで再暗号化の手順を踏む
 - レート制限: `@nestjs/throttler`
 - エラーメッセージに機密情報を含めない
 
