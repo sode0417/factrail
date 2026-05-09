@@ -86,6 +86,12 @@ fi
 
 ## Step 6: ブランチを push してドラフト PR を作成
 
+> **プレースホルダ凡例** (本 Step と Step 7 で混在するので明示):
+> - `<NNN>` = GitHub **Issue** 番号（引数で受け取る値）
+> - `<PR>` = GitHub **PR** 番号（`gh pr create` 後に取得する値）
+> - `<slug>` = Step 1 で確定した kebab-case 識別子
+> - `<type>` = `feat` / `fix` / `docs` / `chore`（Step 5 参照）
+
 設計ファイル (README.md, sequence.md, test-plan.md, review.md) をコミットしてブランチを push、ドラフト PR を作成する:
 
 ```bash

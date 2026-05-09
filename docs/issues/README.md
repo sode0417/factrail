@@ -160,6 +160,11 @@ docs/issues/
 
 `permission denied` で main 直接 push が拒否される場合は別 PR (workflow 1 ファイルのみ) を先にマージする運用に切替。
 
+別 PR のブランチ名例:
+- `chore/workflow-<簡潔な slug>` (例: `chore/workflow-claude-review-prompt-split`)
+- 元の Issue から派生する場合: `chore/<NNN>-workflow-<slug>` (例: `chore/153-workflow-prompt-split`)
+- 命名規則: 元 Issue とは別のスコープ（workflow 1 ファイルのみ）であることが分かるよう `workflow-` プレフィックスを推奨
+
 ## 規約: PR/Issue コメントでの Bot 参照
 
 `@claude` メンション付きのコメントを **人間 / AI が投稿すると** `claude.yml` workflow が trigger され、`claude-code-review.yml` の通常レビューと並行して **2 重 review** が走る。これを避けるため:

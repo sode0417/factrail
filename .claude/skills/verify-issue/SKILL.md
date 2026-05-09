@@ -74,8 +74,16 @@ test-plan.md の未チェック項目数を確認し、**全 PASS の場合の�
 # 未チェック数を count (set -e 環境で grep が 0 hit でも止まらないよう || true)
 unchecked=$(grep -c '^- \[ \]' docs/issues/<NNN>-<slug>/test-plan.md || true)
 
-# 関連 PR を取得
-PR=$(gh pr list --head "$(git branch --show-current)" --json number --jq '.[0].number')
+# 関連 PR を取得 (-q で記法統一)
+PR=$(gh pr list --head "$(git branch --show-current)" --json number -q '.[0].number')
+
+# PR 未存在時の guard (まだ push 前など)
+if [ -z "$PR" ]; then
+  echo "⚠️ 現在のブランチに紐付く PR が見つかりません。"
+  echo "   /start-issue でブランチ + ドラフト PR を作成してから再実行してください。"
+  exit 0
+fi
+
 title=$(gh pr view "$PR" --json title -q '.title')
 
 if [ "$unchecked" = "0" ]; then
