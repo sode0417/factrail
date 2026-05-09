@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Factrail — Editorial Dark</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=Inter:wght@400;500;600&family=Noto+Serif+JP:wght@500;700&family=Noto+Sans+JP:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0E1218;
+    --surface:#171C24;
+    --surface-2:#1F252F;
+    --text:#F0EDE3;
+    --text-muted:#8A8577;
+    --border:#2A2F38;
+    --accent:#C9A962;
+    --accent-soft:rgba(201,169,98,.15);
+    --accent-strong:#E0BC72;
+    --ok:#7EAE7E;
+    --err:#B85C5C;
+    --radius:10px;
+    --radius-sm:6px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:"Inter","Noto Sans JP",sans-serif;font-size:14px;line-height:1.55}
+  h1,h2,h3{margin:0;font-family:"Playfair Display","Noto Serif JP",serif;font-weight:500;letter-spacing:.01em}
+  button{font-family:inherit;cursor:pointer;color:inherit}
+  .app{display:grid;grid-template-columns:260px 1fr;min-height:100vh}
+  .sidebar{background:var(--surface);border-right:1px solid var(--border);padding:24px 16px}
+  .brand{display:flex;align-items:center;gap:12px;padding:4px 6px;margin-bottom:24px}
+  .brand-logo{width:36px;height:36px;border-radius:50%;background:transparent;border:1.5px solid var(--accent);color:var(--accent);display:grid;place-items:center;font-family:"Playfair Display";font-size:18px}
+  .brand-name{font-family:"Playfair Display";font-size:20px;letter-spacing:.02em}
+  .brand-sub{font-size:10.5px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.15em}
+  .nav{display:flex;flex-direction:column;gap:1px}
+  .nav-section{color:var(--text-muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.15em;padding:14px 10px 6px;font-weight:500}
+  .nav a{display:flex;align-items:center;gap:10px;padding:10px 12px;color:var(--text);text-decoration:none;font-size:13.5px;border-left:2px solid transparent}
+  .nav a:hover{background:var(--surface-2)}
+  .nav a.active{border-left-color:var(--accent);color:var(--accent-strong);background:var(--accent-soft)}
+  .main{display:grid;grid-template-rows:auto 1fr}
+  .topbar{padding:24px 40px 20px;border-bottom:1px solid var(--border);display:flex;align-items:flex-end;gap:20px;background:var(--surface)}
+  .page-title{font-size:28px;letter-spacing:.01em}
+  .page-sub{color:var(--text-muted);font-size:12px;margin-top:4px;text-transform:uppercase;letter-spacing:.12em}
+  .search{flex:1;max-width:320px;margin-left:auto;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 14px;font-size:13px;display:flex;gap:8px;color:var(--text-muted)}
+  .search input{flex:1;border:0;outline:0;background:transparent;color:var(--text)}
+  .avatar{width:34px;height:34px;border-radius:50%;background:transparent;border:1.5px solid var(--accent);color:var(--accent);display:grid;place-items:center;font-weight:600;font-size:12px;font-family:"Playfair Display"}
+  .bell{width:36px;height:36px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;display:grid;place-items:center;color:var(--text-muted)}
+  .content{padding:28px 40px;max-width:900px;margin:0 auto;width:100%}
+  .filter{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:20px}
+  .field{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 14px;font-size:13px;color:var(--text-muted)}
+  .chip{padding:7px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;font-size:12.5px;color:var(--text);cursor:pointer}
+  .chip.active{background:var(--accent);color:var(--bg);border-color:var(--accent);font-weight:600}
+  .btn{padding:7px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);background:transparent;font-size:13px;color:var(--text)}
+  .btn.primary{background:var(--accent);color:var(--bg);border-color:var(--accent);font-weight:600}
+  .fact{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;margin-bottom:12px;position:relative}
+  .fact:hover{border-color:var(--accent-soft)}
+  .fact-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}
+  .fact h3{font-size:18px;line-height:1.3;font-family:"Playfair Display","Noto Serif JP"}
+  .fact-summary{color:var(--text-muted);margin-top:8px;font-size:13.5px;line-height:1.6}
+  .fact-meta{display:flex;gap:12px;align-items:center;margin-top:12px;font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.1em}
+  .tag{padding:3px 10px;border-radius:2px;font-size:10.5px;font-weight:600;letter-spacing:.12em;border:1px solid var(--border);color:var(--text);background:var(--surface-2)}
+  .tag.github{color:var(--accent-strong);border-color:var(--accent-soft)}
+  .tag.slack{color:#D98FAC;border-color:rgba(217,143,172,.2)}
+  .tag.claude{color:#8FBCCC;border-color:rgba(143,188,204,.2)}
+  .tag.f2a{color:#B0C494;border-color:rgba(176,196,148,.2)}
+  .link{color:var(--accent);text-decoration:none;font-size:12px;text-transform:uppercase;letter-spacing:.12em;font-weight:600;border-bottom:1px solid var(--accent);padding-bottom:2px}
+  .fact-actions{margin-top:14px;padding-top:14px;border-top:1px solid var(--border);color:var(--text-muted);font-size:12px}
+  .composer{position:sticky;bottom:12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;display:flex;gap:10px;margin-top:20px}
+  .composer select{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 10px;font-size:12px;color:var(--text-muted)}
+  .composer textarea{flex:1;border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px;background:var(--surface-2);color:var(--text);resize:none;font-family:inherit}
+  .send{width:40px;height:40px;border-radius:var(--radius-sm);background:var(--accent);color:var(--bg);border:0}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-logo">F</div>
+      <div><div class="brand-name">Factrail</div><div class="brand-sub">Fact Trail</div></div>
+    </div>
+    <nav class="nav">
+      <a class="active" href="#"><span>▣</span> Facts</a>
+      <div class="nav-section">Integrations</div>
+      <a href="#"><span>◇</span> GitHub</a>
+      <a href="#"><span>◇</span> Slack</a>
+      <a href="#"><span>◇</span> F2A</a>
+      <div class="nav-section">Settings</div>
+      <a href="#"><span>⚙</span> 一般</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div>
+        <h1 class="page-title">Facts</h1>
+        <div class="page-sub">Every action, preserved</div>
+      </div>
+      <div class="search">⌕<input placeholder="検索…"/></div>
+      <button class="bell">🔔</button>
+      <div class="avatar">U</div>
+    </header>
+
+    <section class="content">
+      <div class="filter">
+        <div class="field">すべてのソース ▾</div>
+        <div class="field">すべてのカテゴリ ▾</div>
+        <button class="chip">今日</button>
+        <button class="chip active">今週</button>
+        <button class="chip">今月</button>
+        <button class="btn">⟳ 更新</button>
+        <button class="btn primary">スレッド表示</button>
+      </div>
+
+      <article class="fact">
+        <div class="fact-head">
+          <div>
+            <h3>PR #144: 脆弱性修正 axios 1.15.0 / Next.js 16.2.3</h3>
+            <div class="fact-summary">axios と Next.js の脆弱性に対応する依存更新。Copilotレビュー10件対応済み。</div>
+            <div class="fact-meta"><span class="tag github">GitHub</span><span>merged</span><span>·</span><span>2時間前</span></div>
+          </div>
+          <a class="link" href="#">READ →</a>
+        </div>
+      </article>
+
+      <article class="fact">
+        <div class="fact-head">
+          <div>
+            <h3>Slackメッセージ: 今日の進捗共有</h3>
+            <div class="fact-summary">UI刷新の方向性をメンバーと議論。配色はダークテーマ維持で、アクセントカラーを見直す方針。</div>
+            <div class="fact-meta"><span class="tag slack">Slack</span><span>#dev</span><span>·</span><span>5時間前</span></div>
+          </div>
+          <a class="link" href="#">READ →</a>
+        </div>
+      </article>
+
+      <article class="fact">
+        <div class="fact-head">
+          <div>
+            <h3>[factrail] Web UIデザイン刷新を詰める (#143)</h3>
+            <div class="fact-summary">セッション開始 — 配色・タイポ・レイアウトの方針検討。</div>
+            <div class="fact-meta"><span class="tag claude">Claude Code</span><span>session.start</span><span>·</span><span>6時間前</span></div>
+          </div>
+          <a class="link" href="#">READ →</a>
+        </div>
+      </article>
+
+      <article class="fact">
+        <div class="fact-head">
+          <div>
+            <h3>F2Aカテゴリ更新: 個人開発</h3>
+            <div class="fact-summary">個人開発カテゴリに factrail を追加。</div>
+            <div class="fact-meta"><span class="tag f2a">F2A</span><span>category.updated</span><span>·</span><span>12時間前</span></div>
+          </div>
+          <a class="link" href="#">READ →</a>
+        </div>
+      </article>
+
+      <div class="composer">
+        <select><option>カテゴリなし</option></select>
+        <textarea rows="1" placeholder="メモを入力… (Ctrl+Enter で送信)"></textarea>
+        <button class="send">➤</button>
+      </div>
+    </section>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Factrail UI Mockups — 2026-04-19</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#f5f5f2;color:#222;font-family:-apple-system,"Noto Sans JP",sans-serif;line-height:1.55}
+  header{padding:40px 48px 20px;max-width:1200px;margin:0 auto}
+  h1{margin:0 0 8px;font-size:28px}
+  p{color:#666;margin:0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:24px;padding:24px 48px;max-width:1200px;margin:0 auto}
+  .card{background:#fff;border:1px solid #e5e5e0;border-radius:12px;overflow:hidden;text-decoration:none;color:inherit;display:flex;flex-direction:column;transition:transform .15s, box-shadow .15s}
+  .card:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,0,0,.08)}
+  .preview{height:280px;border-bottom:1px solid #eee;overflow:hidden;position:relative}
+  .preview iframe{width:1440px;height:900px;transform:scale(.33);transform-origin:0 0;border:0;pointer-events:none}
+  .card-body{padding:16px 18px}
+  .card h3{margin:0 0 4px;font-size:16px}
+  .card .tag{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
+  .card .desc{color:#666;font-size:13px;margin-top:6px}
+  .badges{margin-top:8px;display:flex;gap:4px;flex-wrap:wrap}
+  .badge{font-size:10.5px;padding:2px 6px;background:#f0f0ea;border-radius:3px;color:#555}
+  .note{padding:0 48px 40px;max-width:1200px;margin:0 auto;color:#666;font-size:13px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Factrail UI デザイン案 — 2026-04-19</h1>
+  <p>Issue #143 — 配色・タイポ・レイアウトのたたき台。6案（ユーザーリクエスト1 + 提案5）を並べています。カードをクリックすると各案を開けます。</p>
+</header>
+
+<div class="grid">
+  <a class="card" href="01-natural-green.html">
+    <div class="preview"><iframe src="01-natural-green.html" scrolling="no"></iframe></div>
+    <div class="card-body">
+      <div class="tag">01 — Selected / Light</div>
+      <h3>Natural Off-white / Green</h3>
+      <div class="desc">ベース=オフホワイト、アクセント=セージグリーン。pillラベル、ワイド・レスポンシブ対応版。</div>
+      <div class="badges"><span class="badge">bg #F6F3EC</span><span class="badge">accent #4A7C59</span><span class="badge">pill labels</span><span class="badge">responsive</span></div>
+    </div>
+  </a>
+
+  <a class="card" href="01b-natural-green-dark.html">
+    <div class="preview"><iframe src="01b-natural-green-dark.html" scrolling="no"></iframe></div>
+    <div class="card-body">
+      <div class="tag">01b — Selected / Dark</div>
+      <h3>Natural Green — Dark</h3>
+      <div class="desc">01のダーク版。ウォームな暗色（ブラウン寄り）+ 明るめセージで自然な夜の雰囲気。</div>
+      <div class="badges"><span class="badge">bg #1A1814</span><span class="badge">accent #7FB08A</span><span class="badge">warm dark</span></div>
+    </div>
+  </a>
+
+  <a class="card" href="02-warm-paper.html">
+    <div class="preview"><iframe src="02-warm-paper.html" scrolling="no"></iframe></div>
+    <div class="card-body">
+      <div class="tag">02 — Proposal</div>
+      <h3>Warm Paper</h3>
+      <div class="desc">手帳・ノート風。クリーム紙＋ブラウン、罫線表現。ファクトを「書き留める」印象を強く。</div>
+      <div class="badges"><span class="badge">bg #F1E9D6</span><span class="badge">accent #8B4513</span><span class="badge">Shippori Mincho</span></div>
+    </div>
+  </a>
+
+  <a class="card" href="03-nordic-minimal.html">
+    <div class="preview"><iframe src="03-nordic-minimal.html" scrolling="no"></iframe></div>
+    <div class="card-body">
+      <div class="tag">03 — Proposal</div>
+      <h3>Nordic Minimal</h3>
+      <div class="desc">ペールブルー＋白の北欧ミニマル。情報密度が高く業務ツールとして読みやすい。</div>
+      <div class="badges"><span class="badge">bg #EEF2F6</span><span class="badge">accent #4A7FAF</span><span class="badge">Inter</span></div>
+    </div>
+  </a>
+
+  <a class="card" href="04-editorial-dark.html">
+    <div class="preview"><iframe src="04-editorial-dark.html" scrolling="no"></iframe></div>
+    <div class="card-body">
+      <div class="tag">04 — Proposal</div>
+      <h3>Editorial Dark</h3>
+      <div class="desc">現状のダーク路線を洗練。深紺＋ゴールド。セリフ見出しでマガジン的なプレミアム感。</div>
+      <div class="badges"><span class="badge">bg #0E1218</span><span class="badge">accent #C9A962</span><span class="badge">Playfair Display</span></div>
+    </div>
+  </a>
+
+  <a class="card" href="05-mono-accent.html">
+    <div class="preview"><iframe src="05-mono-accent.html" scrolling="no"></iframe></div>
+    <div class="card-body">
+      <div class="tag">05 — Proposal</div>
+      <h3>Mono Accent</h3>
+      <div class="desc">純白＋ブラック＋コーラル1色。角なし・大胆なタイポ。モダンスタートアップ寄り。</div>
+      <div class="badges"><span class="badge">bg #FFFFFF</span><span class="badge">accent #FF5C3D</span><span class="badge">Inter 800</span></div>
+    </div>
+  </a>
+
+  <a class="card" href="06-techy-terminal.html">
+    <div class="preview"><iframe src="06-techy-terminal.html" scrolling="no"></iframe></div>
+    <div class="card-body">
+      <div class="tag">06 — Proposal</div>
+      <h3>Techy Terminal</h3>
+      <div class="desc">ベージュ＋モノスペース前面。ターミナル緑アクセント。開発者ツール寄り。</div>
+      <div class="badges"><span class="badge">bg #FAFAF7</span><span class="badge">accent #00875A</span><span class="badge">JetBrains Mono</span></div>
+    </div>
+  </a>
+</div>
+
+<p class="note">※ 各案とも同じ Facts ページのレイアウトで、配色・タイポ・質感のみを変えています。最終決定後にコンポーネント側（Chakra UI テーマ）へ落とし込む想定。</p>
+</body>
+</html>

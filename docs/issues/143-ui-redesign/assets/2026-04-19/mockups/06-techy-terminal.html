@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Factrail — Techy Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FAFAF7;
+    --surface:#FFFFFF;
+    --surface-2:#F1F1EC;
+    --text:#0A0A0A;
+    --text-muted:#707062;
+    --border:#1A1A1A;
+    --border-soft:#D4D4CC;
+    --accent:#00875A;
+    --accent-soft:#D9F1E4;
+    --accent-strong:#00663F;
+    --warn:#D4851B;
+    --err:#C43C3C;
+    --radius:2px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:"JetBrains Mono","Noto Sans JP",monospace;font-size:13px;line-height:1.55}
+  h1,h2,h3{margin:0;font-weight:700;letter-spacing:0}
+  button{font-family:inherit;cursor:pointer;color:inherit}
+  .app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+  .sidebar{background:var(--surface);border-right:1px solid var(--border);padding:16px 12px}
+  .brand{display:flex;align-items:center;gap:10px;padding:6px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:14px}
+  .brand-logo{width:32px;height:32px;background:var(--text);color:var(--accent);display:grid;place-items:center;font-weight:700;font-size:14px}
+  .brand-name{font-size:15px;font-weight:700}
+  .brand-sub{font-size:10.5px;color:var(--text-muted)}
+  .nav{display:flex;flex-direction:column;gap:2px;font-family:"JetBrains Mono",monospace}
+  .nav-section{color:var(--text-muted);font-size:10.5px;padding:12px 6px 6px;font-weight:500}
+  .nav-section::before{content:"// "}
+  .nav a{display:flex;align-items:center;gap:8px;padding:8px;color:var(--text);text-decoration:none;font-size:12.5px;border:1px solid transparent}
+  .nav a:hover{background:var(--surface-2)}
+  .nav a.active{background:var(--accent);color:var(--surface);font-weight:600}
+  .nav a.active::before{content:"> "}
+  .main{display:grid;grid-template-rows:auto 1fr}
+  .topbar{padding:16px 28px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;background:var(--surface)}
+  .page-title{font-size:20px;font-family:"JetBrains Mono",monospace}
+  .page-title::before{content:"$ ";color:var(--accent);font-weight:700}
+  .page-sub{color:var(--text-muted);font-size:11px;margin-top:2px}
+  .search{flex:1;max-width:320px;margin-left:auto;background:var(--surface-2);border:1px solid var(--border-soft);padding:6px 10px;font-size:12px;color:var(--text-muted);display:flex;gap:6px;font-family:"JetBrains Mono",monospace}
+  .search input{flex:1;border:0;outline:0;background:transparent;font-family:inherit;color:var(--text)}
+  .avatar{width:30px;height:30px;border-radius:0;background:var(--text);color:var(--accent);display:grid;place-items:center;font-weight:600;font-size:11px}
+  .bell{width:30px;height:30px;border:1px solid var(--border-soft);background:var(--surface);display:grid;place-items:center;font-size:12px}
+  .content{padding:24px 28px;max-width:920px;margin:0 auto;width:100%}
+  .filter{background:var(--surface);border:1px solid var(--border);padding:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  .filter-label{font-size:10.5px;color:var(--text-muted);margin-right:4px}
+  .field{background:var(--surface-2);border:1px solid var(--border-soft);padding:6px 10px;font-size:12px;color:var(--text);font-family:"JetBrains Mono",monospace}
+  .chip{padding:6px 10px;border:1px solid var(--border-soft);background:var(--surface);font-size:11.5px;color:var(--text);cursor:pointer}
+  .chip.active{background:var(--text);color:var(--accent);border-color:var(--text)}
+  .btn{padding:6px 12px;border:1px solid var(--text);background:var(--surface);font-size:12px;color:var(--text)}
+  .btn.primary{background:var(--accent);color:var(--surface);border-color:var(--accent);font-weight:600}
+  .fact{background:var(--surface);border:1px solid var(--border-soft);padding:16px 20px;margin-bottom:8px;position:relative;font-family:"Noto Sans JP",sans-serif}
+  .fact:hover{border-color:var(--text)}
+  .fact::before{content:"";position:absolute;left:-1px;top:-1px;bottom:-1px;width:3px;background:var(--accent)}
+  .fact-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+  .fact h3{font-size:14.5px;font-weight:600;font-family:"Noto Sans JP"}
+  .fact-summary{color:var(--text-muted);margin-top:6px;font-size:13px}
+  .fact-meta{display:flex;gap:10px;align-items:center;margin-top:10px;font-size:11px;color:var(--text-muted);font-family:"JetBrains Mono",monospace}
+  .tag{padding:2px 6px;font-size:10px;font-weight:600;font-family:"JetBrains Mono",monospace;letter-spacing:.02em}
+  .tag.github{background:var(--text);color:var(--surface)}
+  .tag.slack{background:var(--warn);color:var(--surface)}
+  .tag.claude{background:var(--accent);color:var(--surface)}
+  .tag.f2a{background:var(--surface);color:var(--text);border:1px solid var(--text)}
+  .link{color:var(--accent-strong);text-decoration:none;font-size:11.5px;font-family:"JetBrains Mono",monospace;font-weight:600}
+  .link::before{content:"["} .link::after{content:"]"}
+  .fact-actions{margin-top:12px;padding-top:10px;border-top:1px dashed var(--border-soft);color:var(--text-muted);font-size:11.5px;font-family:"JetBrains Mono",monospace}
+  .composer{position:sticky;bottom:12px;background:var(--surface);border:1px solid var(--border);padding:10px;display:flex;gap:8px;margin-top:16px}
+  .composer select{background:var(--surface-2);border:1px solid var(--border-soft);padding:6px 10px;font-size:11.5px;font-family:"JetBrains Mono",monospace}
+  .composer textarea{flex:1;border:1px solid var(--border-soft);padding:8px 10px;background:var(--surface-2);resize:none;font-family:"JetBrains Mono",monospace;font-size:12.5px}
+  .send{width:36px;height:36px;background:var(--accent);color:var(--surface);border:0;font-family:inherit;font-weight:700}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-logo">F</div>
+      <div><div class="brand-name">factrail</div><div class="brand-sub">v0.1.0</div></div>
+    </div>
+    <nav class="nav">
+      <a class="active" href="#">facts</a>
+      <div class="nav-section">integrations</div>
+      <a href="#">github</a>
+      <a href="#">slack</a>
+      <a href="#">f2a</a>
+      <div class="nav-section">settings</div>
+      <a href="#">general</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div>
+        <h1 class="page-title">facts</h1>
+        <div class="page-sub">— all collected facts</div>
+      </div>
+      <div class="search">⌕<input placeholder="grep..."/></div>
+      <button class="bell">🔔</button>
+      <div class="avatar">UU</div>
+    </header>
+
+    <section class="content">
+      <div class="filter">
+        <span class="filter-label">--source</span>
+        <div class="field">all ▾</div>
+        <span class="filter-label">--category</span>
+        <div class="field">all ▾</div>
+        <button class="chip">today</button>
+        <button class="chip active">week</button>
+        <button class="chip">month</button>
+        <button class="btn">refresh</button>
+        <button class="btn primary">thread</button>
+      </div>
+
+      <article class="fact">
+        <div class="fact-head">
+          <div>
+            <h3>PR #144: 脆弱性修正 axios 1.15.0 / Next.js 16.2.3</h3>
+            <div class="fact-summary">axios と Next.js の脆弱性に対応する依存更新。Copilotレビュー10件対応済み。</div>
+            <div class="fact-meta"><span class="tag github">github</span><span>merged</span><span>·</span><span>2h ago</span></div>
+          </div>
+          <a class="link" href="#">open</a>
+        </div>
+        <div class="fact-actions">$ comment +</div>
+      </article>
+
+      <article class="fact">
+        <div class="fact-head">
+          <div>
+            <h3>Slackメッセージ: 今日の進捗共有</h3>
+            <div class="fact-summary">UI刷新の方向性をメンバーと議論。配色はダークテーマ維持で、アクセントカラーを見直す方針。</div>
+            <div class="fact-meta"><span class="tag slack">slack</span><span>#dev</span><span>·</span><span>5h ago</span></div>
+          </div>
+          <a class="link" href="#">open</a>
+        </div>
+        <div class="fact-actions">$ comment +</div>
+      </article>
+
+      <article class="fact">
+        <div class="fact-head">
+          <div>
+            <h3>[factrail] Web UIデザイン刷新を詰める (#143)</h3>
+            <div class="fact-summary">セッション開始 — 配色・タイポ・レイアウトの方針検討。</div>
+            <div class="fact-meta"><span class="tag claude">claude</span><span>session.start</span><span>·</span><span>6h ago</span></div>
+          </div>
+          <a class="link" href="#">open</a>
+        </div>
+        <div class="fact-actions">$ comment +</div>
+      </article>
+
+      <article class="fact">
+        <div class="fact-head">
+          <div>
+            <h3>F2Aカテゴリ更新: 個人開発</h3>
+            <div class="fact-summary">個人開発カテゴリに factrail を追加。</div>
+            <div class="fact-meta"><span class="tag f2a">f2a</span><span>category.updated</span><span>·</span><span>12h ago</span></div>
+          </div>
+          <a class="link" href="#">open</a>
+        </div>
+      </article>
+
+      <div class="composer">
+        <select><option>—</option></select>
+        <textarea rows="1" placeholder="$ echo 'memo' >> facts"></textarea>
+        <button class="send">➤</button>
+      </div>
+    </section>
+  </div>
+</div>
+</body>
+</html>

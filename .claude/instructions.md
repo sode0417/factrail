@@ -30,6 +30,25 @@
 
 ---
 
+## 開発サイクル（Issue ベース）
+
+factrail の機能開発・改善は GitHub Issue を起点に、6 Phase のサイクルで進める。詳細は [`docs/issues/README.md`](../docs/issues/README.md) 参照。
+
+| Phase | 主体 | アクション | 成果物 |
+| --- | --- | --- | --- |
+| 0. 要件提起 | 人間 | Issue 作成（要件 + 設計サマリー） | GitHub Issue |
+| 1. 詳細設計 | AI 主導 | `/start-issue <NNN>` | `docs/issues/<NNN>-<slug>/` |
+| 2. 実装 | AI | ブランチ `<type>/<NNN>-<slug>` で実装 | コード |
+| 3. 検証 | AI 主導 | `/verify-issue <NNN>` | エビデンス + チェック済 test-plan |
+| 4. PR | AI | `gh pr create` (`Fixes #<NNN>`) | Pull Request |
+| 5. FB 集約 | AI | `/wrap-issue <NNN>` | `review.md` + ナレッジ反映 PR |
+
+**役割分担**: GitHub Issue は人間向け（要件 + 設計サマリー）。`docs/issues/<NNN>-<slug>/` は AI 向け詳細設計（要件展開・シーケンス図・テスト計画・FB ログ）。
+
+軽微な修正（typo・依存更新など）は本サイクルを省略してよい。AI が省略を提案 → ユーザー承認。
+
+---
+
 ## コーディング規約
 
 ### TypeScript

@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Factrail — Chat Composer (A)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Noto+Serif+JP:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FBF5E3;--surface:#F4EEDA;--surface-2:#EFE9D5;
+    --text:#2A2A2A;--text-muted:#7A7366;--border:#E4DFD1;
+    --accent:#4A7C59;--accent-soft:#E8F1EA;--accent-strong:#2F5C3E;
+    --radius:14px;--radius-sm:10px;--radius-pill:999px;
+    --shadow:0 1px 2px rgba(74,60,20,.04),0 2px 8px rgba(74,60,20,.04);
+    --sidebar-w:72px;--sidebar-w-expanded:248px;--max-content:1600px;
+    --topbar-h:64px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:"Noto Sans JP",system-ui,sans-serif;font-size:14px;line-height:1.55}
+  h1,h2,h3{font-family:"Noto Serif JP",serif;font-weight:700;margin:0}
+  button{font-family:inherit;cursor:pointer;color:inherit}
+  /* L-shape: topbar spans full width, sidebar hangs below */
+  .app{display:flex;flex-direction:column;min-height:100vh}
+  .app-body{display:grid;grid-template-columns:var(--sidebar-w) 1fr;flex:1;min-height:0}
+  /* Sidebar: icon-only nav, starts below topbar */
+  .sidebar{background:var(--surface-2);border-right:1px solid var(--border);padding:18px 10px;display:flex;flex-direction:column;gap:14px;position:sticky;top:var(--topbar-h);height:calc(100vh - var(--topbar-h));width:var(--sidebar-w);z-index:20;overflow:hidden;transition:width .22s ease,box-shadow .22s ease}
+  .sidebar:hover{width:var(--sidebar-w-expanded);padding:18px 14px;overflow:visible;box-shadow:8px 0 28px rgba(74,60,20,.08)}
+  .nav{display:flex;flex-direction:column;gap:2px;min-width:220px}
+  .nav-section{color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em;padding:10px 10px 4px;white-space:nowrap;opacity:0;transition:opacity .18s ease .05s}
+  .sidebar:hover .nav-section{opacity:1}
+  .nav a{display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:var(--radius-sm);color:var(--text);text-decoration:none;font-weight:500;white-space:nowrap}
+  .nav a:hover{background:var(--accent-soft)} .nav a.active{background:var(--accent);color:#fff}
+  .nav a span:not(.ico){opacity:0;transition:opacity .18s ease .05s}
+  .sidebar:hover .nav a span:not(.ico){opacity:1}
+  .ico{width:18px;flex-shrink:0;text-align:center}
+
+  .main{display:grid;grid-template-rows:1fr;min-width:0}
+  /* Topbar: full width, L-shape top */
+  .topbar{display:flex;align-items:center;gap:16px;padding:0 clamp(20px,3vw,48px) 0 calc((var(--sidebar-w) - 34px)/2 + 1px);height:var(--topbar-h);border-bottom:1px solid var(--border);background:var(--surface-2);position:sticky;top:0;z-index:30;flex-shrink:0}
+  .topbar-brand{display:flex;align-items:center;gap:8px;padding-right:8px}
+  .brand-symbol{height:40px;width:auto;display:block}
+  .brand-wordmark{height:24px;width:auto;display:block}
+  .crumb-sep{color:var(--text-muted);font-size:16px;margin:0 10px 0 12px}
+  .page-title{font-size:18px;font-family:"Noto Serif JP";font-weight:700}
+  .search{flex:1;max-width:480px;margin-left:auto;background:#FBF5E3;border:1px solid var(--border);border-radius:var(--radius-pill);padding:8px 16px;display:flex;gap:8px}
+  .search input{border:0;outline:0;background:transparent;color:var(--text);width:100%;font-size:13px}
+  .avatar{width:34px;height:34px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px}
+  .bell{width:36px;height:36px;border-radius:50%;border:1px solid var(--border);background:var(--surface);display:grid;place-items:center;color:var(--text-muted)}
+
+  .content{padding:0 clamp(20px,3vw,48px) 170px;max-width:var(--max-content);margin:0 auto;width:100%;transition:padding-bottom .22s ease}
+  .content:has(~ .composer:hover),.content:has(~ .composer.is-active){padding-bottom:270px}
+
+  /* Sticky slim filter bar — floating card with hover-expand */
+  .filter-shell{position:sticky;top:var(--topbar-h);z-index:9;background:var(--bg);padding:10px 0 8px}
+  .filter{position:relative;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:8px 14px;box-shadow:var(--shadow);min-height:44px;transition:min-height .22s ease,padding .22s ease,box-shadow .2s,border-color .2s;cursor:pointer}
+  .filter:hover{min-height:72px;padding:16px 22px;box-shadow:0 10px 28px rgba(74,60,20,.12);border-color:var(--accent-soft)}
+  /* Summary layer (shown when not hovered) */
+  .filter-summary{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text-muted);transition:opacity .18s ease,visibility .18s}
+  .sum-ico{color:var(--accent-strong);font-size:13px;font-weight:700}
+  .sum-label{color:var(--text-muted);font-size:12.5px}
+  .sum-chip{background:#B5D2BB;color:#1F4A30;padding:3px 10px;border-radius:var(--radius-pill);font-weight:700;font-size:12px}
+  .sum-sep{color:var(--border)}
+  .filter-hint{margin-left:auto;font-size:11px;color:var(--text-muted);opacity:.7;white-space:nowrap}
+  /* Controls layer (shown on hover) */
+  .filter-controls{position:absolute;inset:16px 22px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;opacity:0;visibility:hidden;transition:opacity .18s ease,visibility .18s}
+  .filter-controls .chip,.filter-controls .btn{padding:9px 16px;font-size:13px}
+  .filter-controls .field{padding:9px 16px;font-size:13.5px}
+  .filter:hover .filter-summary{opacity:0;visibility:hidden}
+  .filter:hover .filter-controls{opacity:1;visibility:visible}
+  .field{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-pill);padding:5px 12px;font-size:12.5px;color:var(--text-muted)}
+  .chip{padding:5px 12px;border-radius:var(--radius-pill);border:1px solid var(--border);background:var(--surface);font-size:12px;color:var(--text);cursor:pointer;font-weight:500}
+  .chip.active{background:#B5D2BB;border-color:var(--accent);color:#1F4A30;font-weight:700}
+  .chips{display:flex;gap:4px;flex-wrap:wrap}
+  .btn{padding:6px 14px;border-radius:var(--radius-pill);border:1px solid var(--border);background:var(--surface);font-size:12.5px;color:var(--text);font-weight:500}
+
+  /* Date separator — sticky, Slack-like */
+  .date-sep{position:sticky;top:128px;z-index:8;display:flex;align-items:center;gap:12px;margin:8px 0 10px;color:var(--text-muted);font-size:12px;font-weight:600;padding:10px 0;background:var(--bg)}
+  .date-sep::before,.date-sep::after{content:"";flex:1;height:1px;background:var(--border)}
+  .date-sep b{background:var(--surface);border:1px solid var(--border);padding:4px 14px;border-radius:var(--radius-pill);color:var(--accent-strong);font-family:"Noto Serif JP";box-shadow:var(--shadow)}
+
+  .fact{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 22px;margin-bottom:8px;box-shadow:var(--shadow);position:relative;cursor:pointer;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+  .fact::before{content:"";position:absolute;left:0;top:16px;bottom:16px;width:3px;border-radius:2px;background:var(--accent);transition:background .18s ease}
+  .fact:hover{transform:translateY(-2px);box-shadow:0 2px 6px rgba(74,60,20,.08),0 14px 30px rgba(74,60,20,.17);border-color:var(--accent-soft)}
+  .fact:hover::before{background:var(--accent-strong)}
+  .fact-preview{max-height:0;opacity:0;overflow:hidden;transition:max-height .22s ease,opacity .16s ease,margin-top .22s ease;margin-top:0;display:flex;align-items:center;gap:14px;color:var(--text-muted);font-size:12.5px}
+  .fact:hover .fact-preview{max-height:48px;opacity:1;margin-top:12px;padding-top:10px;border-top:1px dashed var(--border)}
+  .preview-action{padding:4px 10px;border-radius:var(--radius-pill);border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:11.5px;cursor:pointer}
+  .preview-action:hover{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-strong)}
+  .preview-stat{display:inline-flex;align-items:center;gap:4px}
+  .fact-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}
+  /* Title row: title + muted inline time + link */
+  .fact-title-row{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .fact h3{font-size:15.5px;font-weight:700;font-family:"Noto Sans JP";line-height:1.45}
+  .fact-time{font-size:11.5px;color:var(--text-muted);font-variant-numeric:tabular-nums;font-weight:400}
+  .fact-time .rel{opacity:.7;margin-left:4px}
+  .fact-meta{display:flex;align-items:center;gap:8px;margin-top:8px;color:var(--text-muted);font-size:12px;flex-wrap:wrap}
+  .tag{padding:3px 10px;border-radius:var(--radius-pill);font-size:11px;font-weight:600}
+  .tag.github{background:#D8D3C5;color:#2E2E2E}
+  .tag.slack{background:#E8DAE9;color:#4A154B}
+  .tag.claude{background:#F5DDC7;color:#6E3A15}
+  .tag.f2a{background:#D6E0E8;color:#1F3A52}
+  .subtag{padding:3px 10px;border-radius:var(--radius-pill);font-size:11px;background:var(--bg);color:var(--text-muted);border:1px solid var(--border)}
+  .fact-summary{color:var(--text-muted);font-size:13.5px;margin-top:6px}
+  .link{color:var(--accent-strong);text-decoration:none;font-weight:600;font-size:12.5px;padding:4px 10px;border-radius:var(--radius-pill);background:var(--accent-soft)}
+
+  /* Backdrop: masks scrolling content before composer */
+  .composer-backdrop{position:fixed;left:0;right:0;bottom:0;height:150px;background:linear-gradient(to bottom,transparent 0,rgba(251,245,227,.7) 28px,var(--bg) 64px,var(--bg) 100%);pointer-events:none;z-index:19;transition:height .22s ease}
+  body:has(.composer:hover) .composer-backdrop,body:has(.composer.is-active) .composer-backdrop{height:250px}
+  /* Chat-style composer — collapsed default, hover/active expands */
+  .composer{position:fixed;bottom:20px;left:calc(var(--sidebar-w) + clamp(20px,3vw,48px));right:clamp(20px,3vw,48px);max-width:calc(var(--max-content) - 2*clamp(20px,3vw,48px));margin:0 auto;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);box-shadow:0 -2px 12px rgba(74,60,20,.04),0 6px 24px rgba(74,60,20,.08);z-index:20;overflow:hidden;transition:box-shadow .22s ease,border-color .22s ease}
+  .composer:hover,.composer.is-active{box-shadow:0 12px 36px rgba(74,60,20,.14);border-color:var(--accent-soft)}
+  .composer-toolbar{display:flex;align-items:center;gap:6px;padding:8px 14px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text);background:#E3D8B2;max-height:0;overflow:hidden;opacity:0;transition:max-height .22s ease,opacity .18s ease,padding .22s ease}
+  .composer:hover .composer-toolbar,.composer.is-active .composer-toolbar{max-height:60px;opacity:1}
+  .tool{padding:5px 10px;border-radius:var(--radius-pill);border:1px solid transparent;background:transparent;color:var(--text);cursor:pointer;font-size:12px;display:inline-flex;align-items:center;gap:4px;font-weight:500}
+  .tool:hover{background:var(--bg);border-color:var(--border)}
+  .tool.cat{border-color:var(--border);background:var(--bg);color:var(--accent-strong);font-weight:600}
+  .tool .ico{font-size:13px}
+  .spacer{flex:1}
+  .kbd{font-size:10.5px;padding:2px 6px;background:var(--surface);border:1px solid var(--border);border-radius:4px;font-family:monospace;color:var(--text-muted)}
+  .composer-body{display:flex;gap:10px;padding:10px 14px;align-items:end}
+  .composer textarea{flex:1;border:0;outline:0;background:transparent;font-family:inherit;font-size:14px;color:var(--text);resize:none;min-height:28px;max-height:28px;padding:4px 0;line-height:1.5;transition:min-height .22s ease,max-height .22s ease,padding .22s ease}
+  .composer:hover textarea,.composer.is-active textarea{min-height:84px;max-height:240px;padding:8px 0;line-height:1.6}
+  .send{width:40px;height:40px;border-radius:50%;background:var(--accent);color:#fff;border:0;display:grid;place-items:center;font-size:15px;flex-shrink:0;transition:width .22s,height .22s,font-size .22s}
+  .composer:hover .send,.composer.is-active .send{width:44px;height:44px;font-size:16px}
+  .send:disabled{opacity:.5}
+
+  /* Drawer — opens on click */
+  .drawer{position:fixed;inset:0;z-index:50;visibility:hidden}
+  .drawer.open{visibility:visible}
+  .drawer-backdrop{position:absolute;inset:0;background:rgba(42,42,42,.35);opacity:0;transition:opacity .22s ease}
+  .drawer.open .drawer-backdrop{opacity:1}
+  .drawer-panel{position:absolute;right:0;top:0;bottom:0;width:min(960px,60vw);max-width:96vw;background:var(--surface);box-shadow:-12px 0 40px rgba(74,60,20,.15);transform:translateX(100%);transition:transform .28s cubic-bezier(.4,.14,.3,1);display:flex;flex-direction:column;overflow:hidden}
+  .drawer.open .drawer-panel{transform:translateX(0)}
+  .drawer-head{display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid var(--border);background:var(--surface-2)}
+  .drawer-head h2{font-size:16px;font-weight:700}
+  .drawer-close{width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text-muted);cursor:pointer;font-size:14px}
+  .drawer-close:hover{background:var(--accent-soft);color:var(--accent-strong)}
+  .drawer-body{flex:1;overflow-y:auto;padding:22px 24px}
+  .drawer-body .d-section{margin-bottom:18px}
+  .drawer-body .d-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+  .drawer-body .d-content{font-size:14px;line-height:1.6}
+  .drawer-body h3{font-size:18px;line-height:1.4;margin-bottom:8px}
+  .d-actions{display:flex;gap:8px;padding:14px 24px;border-top:1px solid var(--border);background:var(--surface-2)}
+  .d-action{flex:1;padding:10px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px;cursor:pointer;font-weight:500}
+  .d-action.primary{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600}
+  .d-action.primary:hover{background:var(--accent-strong)}
+  .d-action:hover{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-strong)}
+  .d-action.primary:hover{color:#fff}
+  .d-comments{margin-top:12px}
+  .d-comment{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:6px;font-size:13px}
+  .d-comment-meta{color:var(--text-muted);font-size:11px;margin-bottom:4px}
+  .d-comment-add{margin-top:8px;border:1px dashed var(--border);background:transparent;padding:8px 12px;border-radius:var(--radius-sm);color:var(--text-muted);font-size:12.5px;cursor:pointer;width:100%;text-align:left}
+  .d-comment-add:hover{border-color:var(--accent);color:var(--accent-strong);background:var(--accent-soft)}
+
+  @media (max-width: 960px){:root{--sidebar-w:72px} .brand-text,.brand-sub{display:none} .nav a span:not(.ico){display:none} .nav-section{display:none} .nav a{justify-content:center}}
+  @media (max-width: 720px){.app-body{grid-template-columns:1fr} .sidebar{display:none} .composer{left:12px;right:12px} .filter{top:64px} .date-sep{top:122px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="topbar-brand">
+      <img src="assets/logo-symbol-v2-transparent.png" alt="" class="brand-symbol"/>
+      <img src="assets/logo-wordmark-v2-transparent.png" alt="Factrail" class="brand-wordmark"/>
+    </div>
+    <span class="crumb-sep">/</span>
+    <h1 class="page-title">Facts</h1>
+    <div class="search"><span>⌕</span><input placeholder="検索…"/></div>
+    <button class="bell">🔔</button>
+    <div class="avatar">UU</div>
+  </header>
+
+  <div class="app-body">
+    <aside class="sidebar">
+      <nav class="nav">
+        <a class="active" href="#"><span class="ico">▣</span> <span>Facts</span></a>
+        <div class="nav-section">連携</div>
+        <a href="#"><span class="ico">◎</span> <span>GitHub</span></a>
+        <a href="#"><span class="ico">◎</span> <span>Slack</span></a>
+        <a href="#"><span class="ico">◎</span> <span>F2A</span></a>
+        <div class="nav-section">設定</div>
+        <a href="#"><span class="ico">⚙</span> <span>一般</span></a>
+      </nav>
+    </aside>
+
+    <div class="main">
+
+    <section class="content">
+      <div class="filter-shell">
+        <div class="filter">
+          <div class="filter-summary">
+            <span class="sum-ico">⚲</span>
+            <span class="sum-label">期間</span>
+            <span class="sum-chip">今週</span>
+            <span class="sum-sep">·</span>
+            <span class="sum-label">ソース</span>
+            <span class="sum-chip">すべて</span>
+            <span class="sum-sep">·</span>
+            <span class="sum-label">カテゴリ</span>
+            <span class="sum-chip">すべて</span>
+            <span class="filter-hint">ホバーで編集</span>
+          </div>
+          <div class="filter-controls">
+            <div class="field">すべてのソース ▾</div>
+            <div class="field">すべてのカテゴリ ▾</div>
+            <div class="chips">
+              <button class="chip">今日</button>
+              <button class="chip active">今週</button>
+              <button class="chip">今月</button>
+            </div>
+            <button class="btn">⟳ 更新</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="date-sep"><b>4月17日 (木)</b></div>
+
+      <article class="fact">
+        <div class="fact-head">
+          <div>
+            <div class="fact-title-row"><h3>[work/common-ledger-management] セッション完了 (4.6h)</h3><span class="fact-time">18:40</span></div>
+            <div class="fact-summary">ApprovalRequestCandidateApprover新設、認可サマリーフィルタ修正、PR#1027作成。</div>
+            <div class="fact-meta"><span class="tag claude">Claude Code</span><span class="subtag">session.end</span></div>
+          </div>
+          <a class="link" href="#">開く ↗</a>
+        </div>
+      </article>
+
+      <div class="date-sep"><b>昨日 · 4月18日 (土)</b></div>
+
+      <article class="fact">
+        <div class="fact-head">
+          <div>
+            <div class="fact-title-row"><h3>F2Aカテゴリ更新: 個人開発</h3><span class="fact-time">22:14</span></div>
+            <div class="fact-summary">個人開発カテゴリに factrail を追加。</div>
+            <div class="fact-meta"><span class="tag f2a">F2A</span><span class="subtag">category.updated</span></div>
+          </div>
+          <a class="link" href="#">開く ↗</a>
+        </div>
+      </article>
+
+      <div class="date-sep"><b>今日 · 4月19日 (日)</b></div>
+
+      <article class="fact">
+        <div class="fact-head">
+          <div>
+            <div class="fact-title-row"><h3>[factrail] Web UIデザイン刷新を詰める (#143)</h3><span class="fact-time">06:59</span></div>
+            <div class="fact-summary">セッション開始 — 配色・タイポ・レイアウトの方針検討。</div>
+            <div class="fact-meta"><span class="tag claude">Claude Code</span><span class="subtag">session.start</span></div>
+          </div>
+          <a class="link" href="#">開く ↗</a>
+        </div>
+      </article>
+
+      <article class="fact" data-fact-id="slack-1">
+        <div class="fact-head">
+          <div>
+            <div class="fact-title-row"><h3>Slackメッセージ: 今日の進捗共有</h3><span class="fact-time">07:45</span></div>
+            <div class="fact-summary">UI刷新の方向性をメンバーと議論。配色はダークテーマ維持で、アクセントカラーを見直す方針。</div>
+            <div class="fact-meta"><span class="tag slack">Slack</span><span class="subtag">#dev</span></div>
+          </div>
+          <a class="link" href="#">開く ↗</a>
+        </div>
+        <div class="fact-preview">
+          <span class="preview-stat">💬 0 コメント</span>
+          <span class="preview-stat">🧵 スレッド 2件</span>
+          <span style="flex:1"></span>
+          <button class="preview-action" onclick="event.stopPropagation()">プロジェクト</button>
+          <button class="preview-action" onclick="event.stopPropagation()">共有</button>
+        </div>
+      </article>
+
+      <article class="fact" data-fact-id="pr-144">
+        <div class="fact-head">
+          <div>
+            <div class="fact-title-row"><h3>PR #144: 脆弱性修正 axios 1.15.0 / Next.js 16.2.3</h3><span class="fact-time">09:23 <span class="rel">· 2時間前</span></span></div>
+            <div class="fact-summary">axios と Next.js の脆弱性に対応する依存更新。Copilotレビュー10件対応済み。</div>
+            <div class="fact-meta"><span class="tag github">GitHub</span><span class="subtag">merged</span></div>
+          </div>
+          <a class="link" href="#">開く ↗</a>
+        </div>
+        <div class="fact-preview">
+          <span class="preview-stat">💬 3 コメント</span>
+          <span class="preview-stat">🏷 factrail</span>
+          <span style="flex:1"></span>
+          <button class="preview-action" onclick="event.stopPropagation()">コピー</button>
+          <button class="preview-action" onclick="event.stopPropagation()">カテゴリ</button>
+        </div>
+      </article>
+    </section>
+
+    <div class="composer-backdrop"></div>
+
+    <div class="composer">
+      <div class="composer-toolbar">
+        <button class="tool cat"><span class="ico">🏷</span> カテゴリなし</button>
+        <button class="tool"><span class="ico">📁</span> プロジェクト</button>
+        <button class="tool"><span class="ico">📎</span> 添付</button>
+        <button class="tool"><span class="ico">#</span> タグ</button>
+        <div class="spacer"></div>
+        <span>送信 <span class="kbd">⌘</span><span class="kbd">↵</span></span>
+      </div>
+      <div class="composer-body">
+        <textarea placeholder="メモを記録… (Ctrl+Enter で送信、Shift+Enter で改行)"></textarea>
+        <button class="send">➤</button>
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+<div class="drawer" id="factDrawer">
+  <div class="drawer-backdrop" data-close></div>
+  <div class="drawer-panel">
+    <div class="drawer-head">
+      <h2>Fact 詳細</h2>
+      <button class="drawer-close" data-close>✕</button>
+    </div>
+    <div class="drawer-body" id="drawerBody">
+      <div class="d-section">
+        <div class="d-label">タイトル</div>
+        <h3 id="d-title">PR #144: 脆弱性修正 axios 1.15.0 / Next.js 16.2.3</h3>
+      </div>
+      <div class="d-section">
+        <div class="d-label">ソース</div>
+        <div class="fact-meta"><span class="tag github" id="d-tag">GitHub</span><span class="subtag" id="d-subtag">merged</span><span id="d-time" style="color:var(--text-muted);font-size:12.5px">2時間前 (2026/4/19 09:23)</span></div>
+      </div>
+      <div class="d-section">
+        <div class="d-label">概要</div>
+        <div class="d-content" id="d-summary">axios と Next.js の脆弱性に対応する依存更新。Copilotレビュー10件対応済み。</div>
+      </div>
+      <div class="d-section">
+        <div class="d-label">メタデータ</div>
+        <div class="d-content" style="font-size:12.5px;color:var(--text-muted)">
+          プロジェクト: <strong style="color:var(--text)">factrail</strong><br/>
+          カテゴリ: <strong style="color:var(--text)">個人開発</strong><br/>
+          リンク: <a href="#" style="color:var(--accent-strong)">github.com/sode0417/factrail/pull/144</a>
+        </div>
+      </div>
+      <div class="d-section">
+        <div class="d-label">コメント (3)</div>
+        <div class="d-comments">
+          <div class="d-comment">
+            <div class="d-comment-meta">袖山直人 · 1時間前</div>
+            <div>このPRで axios のバージョンアップが完了。動作確認済み。</div>
+          </div>
+          <div class="d-comment">
+            <div class="d-comment-meta">袖山直人 · 30分前</div>
+            <div>Copilotレビューを一通り反映。LGTM。</div>
+          </div>
+          <div class="d-comment">
+            <div class="d-comment-meta">袖山直人 · 5分前</div>
+            <div>マージ完了。</div>
+          </div>
+          <button class="d-comment-add">💬 コメントを追加…</button>
+        </div>
+      </div>
+    </div>
+    <div class="d-actions">
+      <button class="d-action">カテゴリ変更</button>
+      <button class="d-action">プロジェクト紐付け</button>
+      <button class="d-action primary">開く ↗</button>
+    </div>
+  </div>
+</div>
+<script>
+  (() => {
+    // Composer is-active
+    const composer = document.querySelector('.composer');
+    const textarea = composer.querySelector('textarea');
+    const update = () => {
+      const active = document.activeElement === textarea || textarea.value.trim() !== '';
+      composer.classList.toggle('is-active', active);
+    };
+    textarea.addEventListener('focus', update);
+    textarea.addEventListener('blur', update);
+    textarea.addEventListener('input', update);
+
+    // Drawer open/close
+    const drawer = document.getElementById('factDrawer');
+    document.querySelectorAll('.fact').forEach(fact => {
+      fact.addEventListener('click', (e) => {
+        if (e.target.closest('a') || e.target.closest('button') || e.target.closest('.preview-action')) return;
+        const title = fact.querySelector('h3')?.textContent || '';
+        const summary = fact.querySelector('.fact-summary')?.textContent || '';
+        const tagEl = fact.querySelector('.tag');
+        const subtagEl = fact.querySelector('.subtag');
+        const timeEl = fact.querySelector('.fact-time');
+        const dTitle = document.getElementById('d-title');
+        const dSummary = document.getElementById('d-summary');
+        const dTag = document.getElementById('d-tag');
+        const dSubtag = document.getElementById('d-subtag');
+        const dTime = document.getElementById('d-time');
+        if (dTitle) dTitle.textContent = title;
+        if (dSummary) dSummary.textContent = summary;
+        if (dTag && tagEl) { dTag.textContent = tagEl.textContent; dTag.className = tagEl.className; }
+        if (dSubtag && subtagEl) dSubtag.textContent = subtagEl.textContent;
+        if (dTime && timeEl) dTime.textContent = timeEl.textContent;
+        drawer.classList.add('open');
+      });
+    });
+    drawer.querySelectorAll('[data-close]').forEach(el => el.addEventListener('click', () => drawer.classList.remove('open')));
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') drawer.classList.remove('open'); });
+  })();
+</script>
+</body>
+</html>
