@@ -10,6 +10,8 @@
 | Unit (web) | | | `apps/web/...` |
 | E2E | | | |
 
+> **ヒント**: factrail の CI に **YAML lint job は存在しない**ため、`.github/workflows/*.yml` の構文確認は手動検証に分類する。`.github/workflows/` 配下を変更する場合は本表の自動テスト欄に「YAML lint」を書かないこと。代わりに手動検証で `npx js-yaml <file>` を使う。
+
 ## 手動検証
 
 - [ ] **<シナリオ 1>**: 操作手順 → 期待結果

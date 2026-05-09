@@ -1,0 +1,10 @@
+SKIPPING	Snyk Security Scan
+SKIPPING	api-tests
+PENDING	claude-review
+SKIPPING	api-ci
+SKIPPING	pnpm Audit
+SKIPPING	web-ci
+SKIPPING	web-e2e
+SKIPPING	Trivy Security Scan
+SKIPPING	Security Summary
+PASS	security/snyk (sode0417)

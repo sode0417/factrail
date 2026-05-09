@@ -8,22 +8,44 @@ factrail は外部イベント (GitHub / Slack / F2A) を Fact (記録) とし�
 - コード（変数名・関数名・クラス名・型）は英語、ユビキタス言語に従う
 - 詳細・ユビキタス言語表: @.claude/instructions.md
 
-## 開発サイクル（Issue ベース 6 Phase）
+## 開発サイクル（Issue ベース 6 Phase v2）
 
-GitHub Issue 起点でフェーズを進めます。詳細: @docs/issues/README.md
+GitHub Issue 起点で **「ドラフト PR で設計レビュー → Ready で実装レビュー」の二段階レビュー**を回す。詳細: @docs/issues/README.md
 
-| Phase | 主体 | 行うこと | skill |
-| --- | --- | --- | --- |
-| 0. 要件提起 | 人間 | Issue 作成（要件 + 設計サマリー） | — |
-| 1. 詳細設計 | AI 主導 | `docs/issues/<NNN>-<slug>/` 立ち上げ | `/start-issue <NNN>` |
-| 2. 実装 | AI | ブランチ `<type>/<NNN>-<slug>` で実装 | — |
-| 3. 検証 | AI 主導 | test-plan 消化、エビデンス収集 | `/verify-issue <NNN>` |
-| 4. PR | AI | `gh pr create`、本文に `Fixes #<NNN>` | — |
-| 5. FB 集約 | AI | review.md 集約 + ナレッジ昇華 | `/wrap-issue <NNN>` |
+| Phase | PR 状態 | 主体 | 行うこと | skill |
+| --- | --- | --- | --- | --- |
+| 0. 要件提起 | — | 人間 | Issue 作成（要件 + 設計サマリー） | — |
+| 1. 詳細設計 | **Draft** 作成 | AI 主導 | `docs/issues/<NNN>-<slug>/` 立ち上げ + ドラフト PR | `/start-issue <NNN>` |
+| 1.5. 設計レビュー | Draft | AI が反映 | Bot/人間の指摘を `docs(<NNN>): Phase 1 ...` で反映 | — |
+| 2. 実装 | Draft のまま | AI | 同 PR に実装コミット | — |
+| 3. 検証 | Draft のまま | AI 主導 | test-plan 消化、エビデンス収集 | `/verify-issue <NNN>` |
+| **4. PR Open** | **Ready** へ自動 | AI 自動 | 全 PASS なら `gh pr edit --title` → `gh pr ready` の順序で切替 | `/verify-issue` 末尾 |
+| 5. FB 集約・マージ | Ready | AI 集約 / 人間がマージ | review.md 集約 + ナレッジ昇華 | `/wrap-issue <NNN>` |
 
 役割分担: GitHub Issue は **人間向け**（要件 + 設計サマリー）。`docs/issues/<NNN>-<slug>/` は **AI 向け**詳細設計（要件展開・シーケンス・テスト・FB ログ）。
 
 軽微な修正（typo・依存更新）はサイクル省略可。AI が省略を提案 → ユーザー承認。
+
+### コミットメッセージ規約 (Issue サイクル内)
+
+- Phase 1: `docs(<NNN>): Phase 1 詳細設計を起こす (<内容>)`
+- Phase 1.5: `docs(<NNN>): Phase 1 設計レビュー FB を反映`
+- Phase 2: `feat(<NNN>): Phase 2 実装 - <概要>` または `fix(<NNN>): ...`
+- Phase 3: `chore(<NNN>): Phase 3 検証エビデンス追加`
+- Phase 5: `docs(<NNN>): Phase 5 review.md 集約`
+
+Issue 横断 / ドメイン横断のコミットは `feat(facts)`, `fix(webhooks)` のドメイン scope を使う。詳細は @docs/issues/README.md と @.claude/instructions.md。
+
+### マージ方式
+
+- **Create a merge commit** または **Rebase and merge** を使用
+- ❌ **Squash and merge は使わない**（Phase 別 commit が消えるため）
+
+### Bot メンション規約
+
+PR/Issue コメントで **`@claude` を生で書かない**（`claude.yml` workflow の二重 trigger になる）。
+代わりに: `` `claude-review` ``、`claude[bot]`、`Bot レビュー` 等のバッククォート囲み・引用形式を使う。
+例外: 意図的に Bot を起動したい場合のみ `@claude fix` 等を生で記述。
 
 ## コーディング規約
 

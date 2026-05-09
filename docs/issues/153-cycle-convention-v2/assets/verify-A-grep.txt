@@ -1,0 +1,61 @@
+## A-1: docs/issues/README.md の主要セクション grep
+
+1:# Issue ベース開発サイクル v2
+9:## 役割分担
+17:## ディレクトリ規約
+39:## 開発サイクル
+41:### Phase 0: 要件提起 [人間]
+46:### Phase 1: 詳細設計 [AI 主導 + 人間承認]
+56:### Phase 1.5: 設計レビュー対応 [AI が反映、人間が承認]
+63:### Phase 2: 実装 [AI]
+69:### Phase 3: 検証 [AI 主導 + 人間承認]
+77:### Phase 4: PR Open (Ready 切替) [AI 自動]
+91:### Phase 5: FB 集約 + マージ [AI 集約、人間がマージ]
+105:## PR 状態と Phase の対応
+116:## マージ方式
+124:## コミットメッセージ規約
+126:### Bot/AI 応答コミット（Issue サイクル内）— Issue 番号 scope を使う
+136:### 通常のドメインコミット（Issue 紐付けなし or 横断）— ドメイン scope を使う
+145:- Issue サイクル (Phase 1〜5) で生まれるコミット → `<NNN>` 番号 scope
+149:## workflow 変更時の運用
+168:## 規約: PR/Issue コメントでの Bot 参照
+179:## skill 一覧（本サイクル専用）
+187:## 補足
+
+## A-2: skill の Step 一覧
+
+### .claude/skills/start-issue/SKILL.md
+18:## Step 1: Issue 取得と slug 提案
+34:## Step 2: ディレクトリ立ち上げ
+41:## Step 3: README.md を Issue 本文で初期化
+52:## Step 4: シーケンス図とテスト計画を対話で叩き台化
+66:## Step 5: ブランチ作成（オプション、ユーザー確認）
+87:## Step 6: ブランチを push してドラフト PR を作成
+140:## Step 7: 設計サマリーを Issue にコメント返し
+165:## Step 8: 完了報告
+
+### .claude/skills/verify-issue/SKILL.md
+18:## Step 1: 対象ディレクトリと test-plan.md の確認
+27:## Step 2: 自動テストの実行
+41:## Step 3: 手動検証シナリオを順に消化
+53:## Step 4: 非機能・回帰チェック
+59:## Step 5: エビデンス表の更新
+63:## Step 6: 検証結果サマリー
+69:## Step 7: Phase 4 自動 Ready 切替（条件付き）
+
+### .claude/skills/wrap-issue/SKILL.md
+18:## Step 1: PR レビューコメントの収集
+37:## Step 2: 指摘の検証（誤検知判定）
+52:## Step 3: review.md への転記
+63:## Step 4: ナレッジ昇華の判断
+116:## Step 5: ナレッジ反映の提案
+126:## Step 6: 振り返りメモ
+134:## Step 7: マージ前の最終チェック
+
+## A-3: CLAUDE.md 行数 & Phase 1.5 言及
+lines:      108
+22:| **4. PR Open** | **Ready** へ自動 | AI 自動 | 全 PASS なら `gh pr edit --title` → `gh pr ready` の順序で切替 | `/verify-issue` 末尾 |
+32:- Phase 1.5: `docs(<NNN>): Phase 1 設計レビュー FB を反映`
+42:- ❌ **Squash and merge は使わない**（Phase 別 commit が消えるため）
+46:PR/Issue コメントで **`@claude` を生で書かない**（`claude.yml` workflow の二重 trigger になる）。
+48:例外: 意図的に Bot を起動したい場合のみ `@claude fix` 等を生で記述。
