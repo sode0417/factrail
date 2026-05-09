@@ -27,7 +27,8 @@
 ### B. workflow 変更の動作
 
 - [ ] **B-1: claude-code-review.yml の Phase 1 prompt 分岐**: `[Phase 1] xxx` タイトルの本 PR で claude-review が走り、設計レビュー観点（要件展開・シーケンス・テスト計画・スコープ）に絞られた内容を返すこと
-- [ ] **B-2: Ready 切替後の prompt 切替**: PR を Ready にして再走させ、通常 prompt（コード品質・セキュリティ・パフォーマンス）に切り替わること
+- [ ] **B-2: Ready 切替時の prompt 自動切替**: Phase 4 の **「タイトル更新 → `gh pr ready`」の順序**を守り、`ready_for_review` イベント発火時点でタイトルが既に `[Phase 1]` 除去済 → claude-review が **通常 prompt** で起動すること（順序が逆だと空コミット必要、それは避ける）
+  - 検証: `gh run view <id> --log` で `ready_for_review` イベントの run と PR タイトルのタイムスタンプを比較
 - [ ] **B-3: ドラフト中は他 CI が skip される**: Draft 状態で `gh pr checks` し、claude-review 以外の CI が走っていないこと（pending or skipped）
 - [ ] **B-4: Ready 後に他 CI が走る**: Ready 切替後、ci-api, ci-web, test-api, test-web, security が走り pass すること
 - [ ] **B-5: workflow YAML 構文**: `npx js-yaml .github/workflows/{claude-code-review,ci-api,ci-web,test-api,test-web,security}.yml` でパースエラーが出ないこと
@@ -35,7 +36,10 @@
 ### C. skill の動作
 
 - [ ] **C-1: `/start-issue` がドラフト PR まで作る**: Phase 1 の最後で `gh pr create --draft` が実行され、`[Phase 1]` プレフィックスのタイトルになること（本 PR 自身が C-1 のエビデンス）
-- [ ] **C-2: `/verify-issue` の Ready 切替条件分岐**: test-plan の未チェック数を count し、0 なら Ready / それ以外は Draft 維持の挙動が SKILL.md に明記されていること
+- [ ] **C-2: `/verify-issue` の Ready 切替条件分岐**: 以下の二段階で確認
+  - **C-2a (必須)**: SKILL.md に「test-plan 未チェック count → 0 なら Ready 切替 + タイトル更新、それ以外は Draft 維持 + 保留理由記録」と `|| true` 含む実例コードが明記されていること
+  - **C-2b (D-3 成功時のみ)**: ブラウザ完結 PoC が部分成功した場合、実際に `/verify-issue` を E2E で動かし Ready 切替が動作することを確認
+  - D-3 が失敗 / 未検証の場合は C-2a のみで満たし、E2E 確認は別 Issue へ
 - [ ] **C-3: slug 候補提示の Step 化**: `start-issue/SKILL.md` の Step 1 に「slug 候補を 2-3 提示」が記述されていること
 
 ### D. ブラウザ完結検証 (PoC)

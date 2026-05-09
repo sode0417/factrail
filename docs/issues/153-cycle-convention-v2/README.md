@@ -40,7 +40,10 @@ PR #150 で導入した開発サイクル v1 を、PR #150・#152 の試運用�
 - [ ] `.claude/skills/start-issue/SKILL.md` の Step 1 に「slug 候補を 2-3 提示する判断基準」追記
 - [ ] `.claude/skills/verify-issue/SKILL.md` に「全 PASS なら Ready 切替 + タイトル更新」追加
 - [ ] `.claude/skills/verify-issue/SKILL.md` に「test-plan 不完全時はドラフト維持 + 保留理由記録」追加
-- [ ] `.claude/skills/wrap-issue/SKILL.md` の「ナレッジ昇華判断」に再発判定の grep 例を強化
+- [ ] `.claude/skills/wrap-issue/SKILL.md` の「ナレッジ昇華判断」に再発判定の具体的な grep コマンド例を **2 件以上** 追加（例: 「指摘内容のキーワード抽出」「過去 review.md 横断検索」など）
+- [ ] `docs/issues/README.md` または `sequence.md` に **「workflow 変更時の main push → 30 秒待機 → PR push の順序」** を明文化（大分類 H）
+- [ ] `docs/issues/README.md` または `CLAUDE.md` に **コミットメッセージ scope の使い分け規約**（Issue 関連は `<NNN>` 番号 scope、ドメイン横断は `feat(facts)` 等のドメイン scope）を追記
+- [ ] `.claude/instructions.md` の「PR作成時の要件」に **PR タイトルフォーマット規約**（Phase 1 期間中は `[Phase 1] <Issue title>`、Ready 切替時に除去）を追加
 - [ ] `_template/test-plan.md` に YAML lint job 有無確認のヒント追記
 - [ ] `CLAUDE.md` の開発サイクル節を v2 に同期
 
