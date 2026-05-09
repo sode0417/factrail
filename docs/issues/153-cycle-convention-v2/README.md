@@ -44,6 +44,7 @@ PR #150 で導入した開発サイクル v1 を、PR #150・#152 の試運用�
 - [ ] `docs/issues/README.md` または `sequence.md` に **「workflow 変更時の main push → 30 秒待機 → PR push の順序」** を明文化（大分類 H）
 - [ ] `docs/issues/README.md` または `CLAUDE.md` に **コミットメッセージ scope の使い分け規約**（Issue 関連は `<NNN>` 番号 scope、ドメイン横断は `feat(facts)` 等のドメイン scope）を追記
 - [ ] `.claude/instructions.md` の「PR作成時の要件」に **PR タイトルフォーマット規約**（Phase 1 期間中は `[Phase 1] <Issue title>`、Ready 切替時に除去）を追加
+- [ ] `docs/issues/README.md` または `CLAUDE.md` に **「Bot レビュー参照時の `@claude` メンション禁止規約」** を追加（PR #154 で `claude.yml` 二重 trigger が発生したため。代替表記: `` `claude-review` ``, `claude[bot]`, `Bot レビュー`）
 - [ ] `_template/test-plan.md` に YAML lint job 有無確認のヒント追記
 - [ ] `CLAUDE.md` の開発サイクル節を v2 に同期
 
