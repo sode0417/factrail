@@ -1,0 +1,36 @@
+# Trivy 脆弱性・設定ミスの除外リスト
+#
+# 【対象】.github/workflows/security.yml の Trivy スキャン (fs / config 両方)。
+#   リポジトリルートに置くだけで Trivy の --ignorefile 既定値として自動的に読まれる
+#   (trivy-action の trivyignores 入力は不要)。エントリが 0 件でもエラーにならない。
+#
+# 【Snyk との使い分け】Snyk 側の除外は .snyk で管理する。本ファイルは Trivy 専用。
+#
+# 【なぜ空のまま置いてあるか】
+#   security.yml の判定は SARIF の level == "error" が 1 件でもあれば exit 1 する
+#   ハード fail。上流に修正版が存在しない HIGH が 1 件出ただけで main がブロックされ、
+#   毎週日曜 09:00 JST の定期実行で ci-failure-issue.yml が Issue を起票し続ける。
+#   そのとき逃げ道が無いと「severity を CRITICAL だけに狭める」「ゲートを || true にする」
+#   といった恒久的な改悪に流れやすい。期限付きの一時退避先を先に用意しておく。
+#
+# 【書式】1 行 1 ID。ID の後ろに exp:YYYY-MM-DD で失効日を指定する。
+#   CVE-2026-XXXXX exp:2026-12-31
+#   AVD-GH-0001    exp:2026-12-31
+#
+# 【運用ルール】
+#   1. まず依存の更新 (pnpm.overrides の下限引き上げ等) での解消を試みる。
+#      除外は「上流に修正版が存在しない」場合の一時退避に限る。
+#   2. exp: は必須。失効日は追加日から最長 90 日。
+#      期限が切れると Trivy が自動的に除外を無効化し、スキャンが再び fail する。
+#   3. 1 エントリにつき直上のコメントで以下を必ず書く。
+#      - 対象パッケージと現在のバージョン
+#      - 除外理由 (上流 issue / advisory の URL)
+#      - 解除条件 (どのバージョンが出たら外すか)
+#   4. 追加・削除は必ず PR で行い、判断の根拠を PR 本文に残す。
+#
+# 【記入例】
+#   # lodash 4.18.1 / 上流に修正版なし (https://github.com/lodash/lodash/issues/XXXX)
+#   # 解除条件: 4.18.2 リリース後、pnpm.overrides の下限を上げて本行を削除
+#   CVE-2026-XXXXX exp:2026-10-24
+#
+# --- 以下に実エントリを追加する (現在 0 件) ---

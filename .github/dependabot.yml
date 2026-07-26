@@ -1,0 +1,129 @@
+# Dependabot 設定
+#
+# 【前提】このファイルはデフォルトブランチ (main) のものだけが読まれる。
+#   PR ブランチに置いても効かないため、動作確認はマージ後に行う。
+#
+# 【カバー範囲】pnpm workspace のため directory は "/" のみ指定する。
+#   apps/api / apps/web を個別に書くと dependabot-core が MisconfiguredTooling を投げる。
+#   ルートの pnpm-lock.yaml 1 個で両アプリの依存が解決されるため "/" だけで両方カバーされる。
+#
+# 【脆弱性起点の PR について】security updates は本ファイルではなく、リポジトリ設定
+#   (Settings > Code security > Dependabot alerts / security updates) が ON であることが条件。
+#   本ファイルの labels / commit-message はそちらの PR にも適用される。
+version: 2
+
+updates:
+  # ---------------------------------------------------------------------------
+  # npm (pnpm workspace) — root + apps/api + apps/web を一括で見る
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: 'npm' # pnpm も "npm" を指定する ("pnpm" という値は存在しない)
+    directory: '/'
+
+    schedule:
+      # 土曜朝に PR を出す。理由:
+      #  - 平日朝は通勤前で作業枠が短く、週末の朝がレビュー・マージの主枠になっている
+      #  - マージすると deploy.yml が Mac mini で本番ビルド + 再起動を走らせるため、
+      #    在宅していてすぐ切り戻せる時間帯にマージしたい
+      #  - 日曜 09:00 JST の Security Scan (security.yml の cron) が「土曜にマージした main」を
+      #    検証する順序になり、フィードバックが 1 週間以内に閉じる
+      interval: 'weekly'
+      day: 'saturday'
+      time: '06:00'
+      timezone: 'Asia/Tokyo'
+
+    # 公開直後の supply-chain 汚染・即日 yank を避けるための待機期間。
+    # version updates にのみ適用され、security updates は待機しない (= CVE 対応は遅れない)。
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+
+    # package.json のレンジ自体を引き上げる。
+    # 本リポジトリは pnpm.overrides で「必要な下限」を package.json に明記する運用のため、
+    # 依存のレンジも同じ場所に記録される方が一貫する。
+    # 差分ノイズを抑えたい場合は increase-if-necessary にすると lockfile のみの更新になる。
+    versioning-strategy: 'increase'
+
+    # 初回は保守的に 3 で開始する。Dependabot の pnpm 対応には lockfile を再整形する
+    # 既知の不具合が複数あるため、1〜2 サイクル様子を見てから既定値の 5 に引き上げる。
+    open-pull-requests-limit: 3
+
+    # 自動リベースを止める。リベースのたびに synchronize イベントが発火して
+    # claude-code-review.yml が起動する (= Claude クレジットを消費する) ため。
+    # 週内にマージする運用なので陳腐化のリスクは小さい。
+    rebase-strategy: 'disabled'
+
+    labels:
+      - 'dependencies'
+      - 'type:chore'
+
+    commit-message:
+      # コミット規約 <type>(<scope>): に合わせる。include: scope で scope に deps / deps-dev が入る。
+      #   例) chore(deps): bump axios from 1.15.0 to 1.18.1
+      # 本文 ("bump X from A to B") は Dependabot 側で英語固定であり日本語化できないため、
+      # 自動生成コミットに限り英語本文を許容する。
+      prefix: 'chore'
+      include: 'scope'
+
+    groups:
+      # patch / minor は本番・開発それぞれ 1 PR にまとめる (= 週あたり最大 2 PR)。
+      # 「壊れたら本番が落ちる側」と「壊れても CI で止まる側」に分けるのが
+      # レビュー単位として意味のある粒度。
+      production-minor-patch:
+        applies-to: version-updates
+        dependency-type: production
+        update-types:
+          - 'minor'
+          - 'patch'
+      development-minor-patch:
+        applies-to: version-updates
+        dependency-type: development
+        update-types:
+          - 'minor'
+          - 'patch'
+      # major は意図的にグループ化しない。Next.js / NestJS / Prisma 等の破壊的変更は
+      # 1 PR 1 パッケージで検証しないと切り分けができないため。
+      # security updates も意図的にグループ化しない。pnpm では 1 件の更新失敗が
+      # PR ごと使えなくなる既知の不具合があるため、CVE ごとに独立させる。
+
+    # ignore は意図的に設定しない。
+    #  1. ignore は version updates だけでなく security updates にも効くため、
+    #     pnpm.overrides を書く動機になった CVE 修正 PR まで止めてしまう
+    #  2. overrides 管理下 13 件のうち直接依存は axios (apps/web) だけで、
+    #     残りは transitive のみ。npm の version update は直接依存しか対象にしないため、
+    #     そもそも無意味な PR が発生する余地が小さい
+    #  実際にノイズが出た時点で、該当パッケージだけ ignore を足す方が安い。
+
+  # ---------------------------------------------------------------------------
+  # GitHub Actions
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: 'github-actions'
+    directory: '/' # .github/workflows/ 配下が対象になる
+
+    schedule:
+      interval: 'weekly'
+      day: 'saturday'
+      time: '06:00'
+      timezone: 'Asia/Tokyo'
+
+    open-pull-requests-limit: 2
+    rebase-strategy: 'disabled'
+
+    labels:
+      - 'dependencies'
+      - 'ci-cd'
+      - 'type:chore'
+
+    commit-message:
+      # 末尾が ')' なのでコロンは自動で挿入される
+      #   例) chore(ci): bump actions/checkout from 4 to 7
+      prefix: 'chore(ci)'
+
+    groups:
+      # 全 Action を 1 PR に集約する。現在 v4 世代のまま止まっている参照が 35 箇所あり、
+      # グループ化しないと数か月にわたって毎週 PR が量産される。
+      all-actions:
+        applies-to: version-updates
+        patterns:
+          - '*'
+    # 注: cooldown / versioning-strategy は github-actions でのサポートを確認できていないため
+    #     意図的に書かない (不正キーは設定ファイル全体をエラーにするため)。

@@ -66,7 +66,10 @@ jobs:
 
       - name: Run Snyk to check for vulnerabilities
         continue-on-error: true
-        uses: snyk/actions/node@master
+        # SHA ピン留め: README は今も @master を推奨しているが、master への任意コミットで
+        # SNYK_TOKEN を扱う step が書き換えられる経路を塞ぐため v1 の SHA に固定する。
+        # (v1 と master の差分は .github/CODEOWNERS のみで挙動は同一)
+        uses: snyk/actions/node@9adf32b1121593767fc3c057af55b55db032dc04 # v1
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
@@ -95,8 +98,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run Trivy vulnerability scanner (filesystem)
-        uses: aquasecurity/trivy-action@master
+        # SHA ピン留め: 最新リリース v0.36.0 に固定。
+        # v0.36.0 は Trivy 本体を v0.70.0 に固定しているため、ピン留めによる検出能力の
+        # 後退を避けて version を明示する。trivy-action を上げる際は version も見直すこと。
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
+          version: 'v0.72.0'
           scan-type: 'fs'
           scan-ref: '.'
           format: 'sarif'
@@ -105,8 +112,9 @@ jobs:
           exit-code: '0' # レポート生成のため継続
 
       - name: Run Trivy vulnerability scanner (config)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
+          version: 'v0.72.0'
           scan-type: 'config'
           scan-ref: '.'
           format: 'json'
