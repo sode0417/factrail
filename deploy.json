@@ -6,8 +6,10 @@
       "dir": "apps/api",
       "port": 3001,
       "build_cmd": "pnpm run build",
-      "start_cmd": "pnpm run start",
-      "log_file": "~/Library/Logs/factrail-api.log",
+      "launchd_label": "com.sode.factrail-api",
+      "health_path": "/health",
+      "health_expect_jq": ".status == \"ok\"",
+      "health_timeout": 90,
       "error_log": "~/Library/Logs/factrail-api.error.log"
     },
     {
@@ -16,7 +18,10 @@
       "dir": "apps/web",
       "port": 3000,
       "build_cmd": "pnpm run build",
-      "start_cmd": "pnpm run start"
+      "launchd_label": "com.sode.factrail-web",
+      "health_path": "/",
+      "health_timeout": 60,
+      "error_log": "~/Library/Logs/factrail-web.error.log"
     }
   ]
 }
