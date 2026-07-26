@@ -5,14 +5,9 @@
 ### プロジェクトのセットアップ
 
 ```bash
-# 依存関係インストール
-npm install
-
-# API依存関係インストール
-cd apps/api && npm install
-
-# Web依存関係インストール
-cd apps/web && npm install
+# 依存関係インストール（pnpm workspace のためルートで一括。
+# apps/api や apps/web で個別に実行する必要はない）
+pnpm install
 
 # 環境変数設定
 cp apps/api/.env.example apps/api/.env
@@ -24,11 +19,11 @@ cp apps/api/.env.example apps/api/.env
 ```bash
 # API開発サーバー起動（ポート3001）
 cd apps/api
-npm run start:dev
+pnpm run start:dev
 
 # Web開発サーバー起動（ポート3000）
 cd apps/web
-npm run dev
+pnpm run dev
 ```
 
 ### データベース操作
@@ -75,29 +70,41 @@ git push -u origin <branch-name>
 ```bash
 # ユニットテスト実行
 cd apps/api
-npm run test
+pnpm run test
 
 # E2Eテスト実行
-npm run test:e2e
+pnpm run test:e2e
 
 # カバレッジ付きテスト
-npm run test:cov
+pnpm run test:cov
 
 # Watch モード
-npm run test:watch
+pnpm run test:watch
 ```
 
 ### デプロイ
 
-```bash
-# Railway へデプロイ（API）
-# Railway CLIがインストールされている場合
-railway up
+本番は Mac mini + Cloudflare Tunnel。`main` への push で GitHub Actions
+（self-hosted runner `mac-mini-factrail`）が `scripts/deploy.sh` を自動実行する。
+Railway / Vercel は 2026-03-15 に廃止済み。
 
-# Vercel へデプロイ（Web）
-# Vercel CLIがインストールされている場合
-cd apps/web
-vercel deploy
+```bash
+# 手動デプロイ（Mac mini 上で実行）
+cd ~/Projects/factrail
+./scripts/deploy.sh          # 全サービス
+./scripts/deploy.sh api      # API のみ
+./scripts/deploy.sh web      # Web のみ
+
+# GitHub から手動トリガー（workflow_dispatch）
+gh workflow run deploy.yml -f service=web
+```
+
+ビルド不要でサービスを再起動するだけなら launchctl を直接使う。
+`unload` → `load` ではなく `kickstart -k` を使うこと（旧プロセスが残ることがあるため）。
+
+```bash
+launchctl kickstart -k gui/$(id -u)/com.sode.factrail-api
+launchctl kickstart -k gui/$(id -u)/com.sode.factrail-web
 ```
 
 ## 主要ファイルの場所
@@ -253,7 +260,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```bash
 # デバッグモードで起動
 cd apps/api
-npm run start:debug
+pnpm run start:debug
 
 # VSCodeでデバッグ
 # F5キーを押すか、「実行とデバッグ」パネルから起動
@@ -264,12 +271,22 @@ npm run start:debug
 ```bash
 # API ログ（開発環境）
 cd apps/api
-npm run start:dev
+pnpm run start:dev
 # コンソールにログが出力される
 
-# Railway ログ（本番環境）
-railway logs
+# 本番ログ（Mac mini / launchd の StandardOutPath）
+tail -f ~/Library/Logs/factrail-api.log
+tail -f ~/Library/Logs/factrail-api.error.log
+tail -f ~/Library/Logs/factrail-web.log
+tail -f ~/Library/Logs/factrail-web.error.log
+
+# デプロイのログ（GitHub Actions）
+gh run list --workflow=deploy.yml
+gh run view --log
 ```
+
+> ログは `com.sode.log-rotate`（毎日 04:30）が 50 MiB を超えたものを
+> gzip 5 世代でローテートする。古い分は `*.log.1.gz` 〜 `*.log.5.gz`。
 
 ### データベース確認
 
