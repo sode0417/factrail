@@ -3,13 +3,33 @@ name: Deploy
 on:
   push:
     branches: [main]
+  # 手動実行の口。runner は actions/checkout を使わずディスク上の deploy.sh を
+  # そのまま実行するため、deploy.sh を変更した push では「旧スクリプト」が走る
+  # （新スクリプトはその中の git pull で配置されるだけ）。新スクリプトを制御下で
+  # 初実行するために必要。service を指定すれば 1 サービスだけデプロイできる。
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'デプロイ対象サービス（空なら全部）'
+        required: false
+        default: ''
+
+# 2 本のデプロイが同時に kickstart を打つのを防ぐ
+concurrency:
+  group: deploy-factrail
+  cancel-in-progress: false
 
 jobs:
   deploy:
     name: Deploy to Mac mini
     runs-on: [self-hosted, deploy]
+    # ヘルスチェックが詰まった場合に runner を占有し続けないための保険
+    timeout-minutes: 20
     steps:
       - name: Deploy
         env:
           DEPLOY_ROOT: /Users/naoto/Projects/factrail
-        run: $DEPLOY_ROOT/scripts/deploy.sh
+          SERVICE: ${{ inputs.service }}
+        # $SERVICE はクォートしない（空なら引数なしで全サービスが対象になる）
+        run: |
+          "$DEPLOY_ROOT/scripts/deploy.sh" $SERVICE
