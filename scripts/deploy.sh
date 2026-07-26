@@ -242,6 +242,12 @@ apply_migrations() {
     return 0
   fi
 
+  # psql は migrations を使うサービスでのみ必要なので、無条件の依存チェックではなくここで見る
+  if ! command -v psql >/dev/null 2>&1; then
+    err "psql が必要です（$migrations_dir のマイグレーション適用に使用）"
+    return 1
+  fi
+
   configured=$(jq -r ".services[$idx].env_file // empty" "$DEPLOY_CONFIG")
 
   # 旧実装は「最初に存在したファイル」で break していたため、0 バイトの

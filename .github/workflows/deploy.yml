@@ -10,9 +10,14 @@ on:
   workflow_dispatch:
     inputs:
       service:
-        description: 'デプロイ対象サービス（空なら全部）'
+        description: 'デプロイ対象サービス（all なら全部）'
         required: false
-        default: ''
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - api
+          - web
 
 # 2 本のデプロイが同時に kickstart を打つのを防ぐ
 concurrency:
@@ -30,6 +35,10 @@ jobs:
         env:
           DEPLOY_ROOT: /Users/naoto/Projects/factrail
           SERVICE: ${{ inputs.service }}
-        # $SERVICE はクォートしない（空なら引数なしで全サービスが対象になる）
+        # 'all'（既定）と push トリガ時の空文字はどちらも引数なし = 全サービスに落とす
         run: |
-          "$DEPLOY_ROOT/scripts/deploy.sh" $SERVICE
+          if [ -n "$SERVICE" ] && [ "$SERVICE" != "all" ]; then
+            "$DEPLOY_ROOT/scripts/deploy.sh" "$SERVICE"
+          else
+            "$DEPLOY_ROOT/scripts/deploy.sh"
+          fi
