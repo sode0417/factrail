@@ -29,9 +29,14 @@ Factrailは、GitHub、Slack、Googleなど外部サービスで発生するイ�
 - **主要機能**: OAuth設定画面、Webhook設定画面
 
 ### Infrastructure
-- **Deploy**: Railway (API + Redis)
-- **Database**: Supabase (F2Aと共有)
-- **Web**: Vercel
+- **Hosting**: Mac mini（自宅サーバ）+ Cloudflare Tunnel
+  - API: `https://factrail-api.sode-ai.com`（内部 :3001）
+  - Web: `https://factrail.sode-ai.com`（内部 :3000）
+- **Deploy**: GitHub Actions（self-hosted runner）→ `scripts/deploy.sh` → launchd
+- **Database**: Supabase (PostgreSQL・F2Aと共有)
+- **Queue/Session**: Redis (Homebrew, :6379)
+
+> Railway / Vercel は 2026-03-15 に廃止し、Mac mini へ全面移行しました。
 
 ---
 
@@ -39,7 +44,8 @@ Factrailは、GitHub、Slack、Googleなど外部サービスで発生するイ�
 
 ### 前提条件
 
-- Node.js 18+
+- Node.js 20.9+（CI は 20 系、Mac mini は 25 系で稼働）
+- pnpm 10+
 - Supabaseプロジェクト
 - Redis (ローカル開発: Docker)
 
@@ -52,14 +58,11 @@ cd factrail
 
 ### 2. 依存関係インストール
 
-```bash
-# API
-cd apps/api
-npm install
+pnpm workspace のため、**リポジトリルートで一括インストール**します
+（`apps/api` / `apps/web` で個別に実行する必要はありません）。
 
-# Web
-cd apps/web
-npm install
+```bash
+pnpm install
 ```
 
 ### 3. 環境変数設定
@@ -104,17 +107,57 @@ docker run -d -p 6379:6379 redis:alpine
 
 # APIサーバー起動
 cd apps/api
-npm run start:dev
+pnpm run start:dev
 
 # Webサーバー起動（別ターミナル）
 cd apps/web
-npm run dev
+pnpm run dev
 ```
 
 アクセス:
 - API: http://localhost:3001
 - Web: http://localhost:3000
 - Prisma Studio: http://localhost:5555
+
+---
+
+## 🚢 デプロイ
+
+本番は Mac mini 上で稼働し、GitHub Actions の self-hosted runner が自動デプロイします。
+
+```
+main へ push
+  └→ .github/workflows/deploy.yml（paths フィルタなし・無条件発火）
+      └→ self-hosted runner: mac-mini-factrail（launchd 常駐）
+          └→ scripts/deploy.sh
+              ├─ git pull origin main --ff-only
+              ├─ pnpm install --frozen-lockfile（ルートで workspace 一括）
+              └─ deploy.json をループ
+                  ├─ ビルド（pnpm run build）
+                  ├─ launchctl kickstart -kp でサービス再起動
+                  └─ 4 段ヘルスチェック（PID / クラッシュループ / 系統 / HTTP）
+```
+
+**プロセスの起動・停止は launchd に委譲**しています（自前で `kill` / `nohup` しない）。
+runner のジョブ終了処理 `Cleaning up orphan processes` に起動プロセスが殺されるのを避けるためです。
+
+```bash
+# 手動デプロイ（Mac mini 上）
+./scripts/deploy.sh          # 全サービス
+./scripts/deploy.sh api      # API のみ
+
+# GitHub から手動トリガー
+gh workflow run deploy.yml -f service=web
+
+# ビルド不要でサービス再起動だけ
+launchctl kickstart -k gui/$(id -u)/com.sode.factrail-api
+```
+
+> ⚠️ Mac mini の作業ツリーは **main に置いておくこと**。`deploy.sh` が
+> `git pull --ff-only` するため、feature ブランチのままだとデプロイが落ちます。
+
+ログは `~/Library/Logs/factrail-{api,web}{,.error}.log`。
+`com.sode.log-rotate` が毎日 04:30 に 50 MiB 超を gzip 5 世代でローテートします。
 
 ---
 
@@ -161,8 +204,8 @@ npm run dev
 ### ローカルでのClaudeCode使用
 
 ```bash
-# ClaudeCodeをインストール
-npm install -g @anthropic/claude-code
+# ClaudeCodeをインストール（グローバルインストールは npm を使う）
+npm install -g @anthropic-ai/claude-code
 
 # プロジェクトディレクトリで実行
 claude-code
@@ -198,8 +241,14 @@ factrail/
 │   ├── ISSUE_TEMPLATE/
 │   │   └── development.yml      # 開発タスクテンプレート
 │   ├── workflows/
+│   │   ├── deploy.yml           # main push → self-hosted runner でデプロイ
+│   │   ├── ci-api.yml / ci-web.yml
+│   │   ├── test-api.yml / test-web.yml
+│   │   ├── security.yml         # pnpm audit / Snyk / Trivy
 │   │   ├── claude.yml           # Claude自動応答
-│   │   └── claude-code-review.yml
+│   │   ├── claude-code-review.yml
+│   │   └── ...                  # auto-fix, ci-summary, ci-failure-issue 等
+│   ├── dependabot.yml           # 依存の自動更新（土曜 06:00 JST）
 │   └── pull_request_template.md
 └── README.md
 ```
@@ -233,16 +282,14 @@ factrail/
 ## 🧪 テスト
 
 ```bash
-cd apps/api
+# ユニットテスト（リポジトリルートから）
+pnpm --filter api test
 
-# ユニットテスト
-npm run test
-
-# E2Eテスト
-npm run test:e2e
+# E2Eテスト（Playwright / apps/web）
+pnpm --filter web test:e2e
 
 # カバレッジ
-npm run test:cov
+pnpm --filter api test:cov
 ```
 
 ---
@@ -262,18 +309,15 @@ npm run test:cov
 
 #### 使用ツール
 
-1. **npm audit** - npm標準の依存関係脆弱性チェック
+1. **pnpm audit** - 依存関係の脆弱性チェック
 2. **Snyk** - 依存関係とコードの脆弱性スキャン
 3. **Trivy** - ファイルシステムとIaC設定のスキャン
 
 #### ローカルでのセキュリティチェック
 
 ```bash
-# npm auditを実行（API）
-npm run audit:api
-
-# npm auditを実行（Web）
-npm run audit:web
+# 依存の脆弱性チェック（CI の pnpm-audit ジョブと同じ）
+pnpm audit --prod --audit-level high
 
 # Snykを実行（事前にSnyk CLIのインストールと認証が必要）
 cd apps/api

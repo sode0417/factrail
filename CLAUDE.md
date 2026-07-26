@@ -94,10 +94,26 @@ PR/Issue コメントで **`@claude` を生で書かない**（`claude.yml` work
 
 ## CI/CD と GitHub 運用
 
-- ワークフロー: `ci-api.yml`, `ci-web.yml`, `test-api.yml`, `test-web.yml`, `security.yml`, `claude-code-review.yml`
+- ワークフロー: `deploy.yml`, `ci-api.yml`, `ci-web.yml`, `test-api.yml`, `test-web.yml`, `security.yml`, `claude-code-review.yml`, `claude.yml`, `claude-task.yml`, `auto-fix.yml`, `auto-label-issues.yml`, `ci-summary.yml`, `ci-failure-issue.yml`, `docs-update-on-merge.yml`
 - claude-code-action は `id-token: write` 権限が必須（内部で OIDC → App token 交換）
-- ワークフロー変更は **main ブランチと完全一致が必須**（PR で変更すると validation 失敗 → 別 PR で main に先反映）
+- **ワークフロー変更時の cherry-pick が必要なのは、claude-code-action を起動する workflow 自身**（`claude-code-review.yml` / `claude.yml` / `claude-task.yml`）**を変更する場合のみ**。検証対象は「その実行を起動した workflow ファイル 1 個」であって `.github/workflows/*` 全体ではない
+  - それ以外（`security.yml` / `deploy.yml` / `ci-*.yml` / `test-*.yml` 等）の追加・変更は**通常の PR で問題ない**
+  - 実績: PR #160（main に無い workflow を新規追加）、PR #168・#174（`security.yml` / `deploy.yml` を変更）でいずれも claude-review が success
 - 詳細: @.claude/instructions.md (PR 作成時の要件)
+
+## デプロイ
+
+- **本番は Mac mini + Cloudflare Tunnel**（Railway / Vercel は 2026-03-15 に廃止）
+  - API `factrail-api.sode-ai.com` → :3001 / Web `factrail.sode-ai.com` → :3000
+- **経路**: `main` への push（paths フィルタなし・無条件）→ `deploy.yml` → self-hosted runner `mac-mini-factrail`（`~/actions-runner-factrail`, launchd 常駐）→ `scripts/deploy.sh`
+  - 手動起動は `gh workflow run deploy.yml -f service=web`（`workflow_dispatch`）
+- `scripts/deploy.sh` は `git pull --ff-only` → `pnpm install --frozen-lockfile` → `deploy.json` に従いビルド → **`launchctl kickstart -kp` でサービス再起動** → 4 段ヘルスチェック
+  - **プロセスの起動・停止は launchd に委譲している**（自前で `kill` / `nohup` しない）。runner のジョブ終了時 `Cleaning up orphan processes` に起動プロセスが殺されるのを避けるため
+  - ⚠️ **Mac mini の作業ツリーは main に置いておくこと**。`git pull --ff-only` するため、feature ブランチのままだとデプロイが落ちる
+- **プロセス常駐**: launchd `com.sode.factrail-api` / `com.sode.factrail-web`（KeepAlive + ThrottleInterval 10）
+- **ログ**: `~/Library/Logs/factrail-{api,web}{,.error}.log`。`com.sode.log-rotate` が毎日 04:30 に 50 MiB 超を gzip 5 世代でローテート
+- **deploy-hook (:3090) は 2026-07-26 に factrail から切り離し済み**（担当は ai-assistant のみ。factrail 向け webhook も無効化）
+- パッケージマネージャは **pnpm**（2026-04-05 に npm から移行）。`npm ci` / `npm install` を新規に書かない
 
 ## 関連ファイル
 

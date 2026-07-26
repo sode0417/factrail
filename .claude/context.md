@@ -52,10 +52,15 @@ factrail/
   - アクティビティビュー
 
 #### Infrastructure
-- **Database**: Supabase (PostgreSQL)
-- **API Deploy**: Railway
-- **Web Deploy**: Vercel
-- **Queue**: Redis (Bull)
+- **Database**: Supabase (PostgreSQL) - multiSchema: factrail, public
+- **Hosting**: Mac mini（自宅サーバ）+ Cloudflare Tunnel
+  - API: `factrail-api.sode-ai.com` → localhost:3001
+  - Web: `factrail.sode-ai.com` → localhost:3000
+- **プロセス常駐**: launchd（`com.sode.factrail-api` / `com.sode.factrail-web`、KeepAlive + ThrottleInterval 10）
+- **Deploy**: GitHub Actions self-hosted runner `mac-mini-factrail` → `scripts/deploy.sh`（`main` push で自動）
+  - ※ Railway / Vercel は 2026-03-15 に廃止し Mac mini へ全面移行
+- **Queue**: Redis (Bull) — Homebrew Redis :6379
+- **パッケージマネージャ**: pnpm workspace（2026-04-05 に npm から移行）
 
 ## データモデル
 
@@ -380,10 +385,11 @@ npm run test:cov
 ## リポジトリ情報
 
 - **Main branch**: main
-- **Current branch**: claude/issue-4-slack-dm-dispatch
-- **最新機能**: Slack DM/チャンネル自動投稿機能の実装完了
-- **Railway**: apps/api をデプロイ
-- **Vercel**: apps/web をデプロイ予定
+- **デプロイ**: `main` への push → `deploy.yml` → self-hosted runner `mac-mini-factrail` → `scripts/deploy.sh`
+  - `deploy.json` に定義: `api`（node / apps/api / :3001）, `web`（nextjs / apps/web / :3000）
+  - ビルドは `pnpm run build`、起動は launchd（`launchctl kickstart -kp`）に委譲
+- **常駐**: launchd `com.sode.factrail-api`, `com.sode.factrail-web`
+- Railway / Vercel は **2026-03-15 に廃止**（Mac mini + Cloudflare Tunnel へ移行）
 
 ## 主要ファイルパス
 
