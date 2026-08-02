@@ -96,6 +96,8 @@ PR/Issue コメントで **`@claude` を生で書かない**（`claude.yml` work
 
 - ワークフロー: `deploy.yml`, `ci-api.yml`, `ci-web.yml`, `test-api.yml`, `test-web.yml`, `security.yml`, `claude-code-review.yml`, `claude.yml`, `claude-task.yml`, `auto-fix.yml`, `auto-label-issues.yml`, `ci-summary.yml`, `ci-failure-issue.yml`, `docs-update-on-merge.yml`
 - claude-code-action は `id-token: write` 権限が必須（内部で OIDC → App token 交換）
+- **claude-review は Dependabot 起動の PR ではスキップされる**（`claude-code-review.yml` の `if: github.actor != 'dependabot[bot]'`）。Dependabot 起動の run は Actions ではなく **Dependabot のシークレットストア**を参照するため `secrets.CLAUDE_CODE_OAUTH_TOKEN` が空になり、必ず失敗するのを避けるため。依存更新の安全性は Trivy / Snyk / pnpm audit が担保する（#158）
+  - claude bot 起票の PR（Phase 1 のドラフト PR）は `allowed_bots: 'claude'` で許可済み
 - **ワークフロー変更時の cherry-pick が必要なのは、claude-code-action を起動する workflow 自身**（`claude-code-review.yml` / `claude.yml` / `claude-task.yml`）**を変更する場合のみ**。検証対象は「その実行を起動した workflow ファイル 1 個」であって `.github/workflows/*` 全体ではない
   - それ以外（`security.yml` / `deploy.yml` / `ci-*.yml` / `test-*.yml` 等）の追加・変更は**通常の PR で問題ない**
   - 実績: PR #160（main に無い workflow を新規追加）、PR #168・#174（`security.yml` / `deploy.yml` を変更）でいずれも claude-review が success
