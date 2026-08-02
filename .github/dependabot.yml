@@ -48,8 +48,13 @@ updates:
     open-pull-requests-limit: 3
 
     # 自動リベースを止める。リベースのたびに synchronize イベントが発火して
-    # claude-code-review.yml が起動する (= Claude クレジットを消費する) ため。
+    # CI 一式 (API CI / Web CI / API Tests / Web E2E / Security Scan) が回り直すため。
     # 週内にマージする運用なので陳腐化のリスクは小さい。
+    #
+    # ⚠️ 2026-08-02 補足: 元の理由は「claude-code-review.yml が起動して Claude クレジットを
+    # 消費するため」だったが、#158 の対応で claude-review は Dependabot 起動の run では
+    # スキップされるようになったため、その理由はもう成立しない。
+    # 手動の `@dependabot rebase` はこの設定に関係なく使える。
     rebase-strategy: 'disabled'
 
     labels:

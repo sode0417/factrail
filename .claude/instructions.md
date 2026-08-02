@@ -264,6 +264,31 @@ async createFact(dto: CreateFactDto) {
 [name].e2e.ts     # E2Eテスト
 ```
 
+### Playwright E2E の待ち方
+
+**`page.waitForLoadState('networkidle')` を使わないこと。**
+
+- **理由**: 「500ms 通信が途切れる」という条件は、ポーリング・プリフェッチ・
+  リダイレクトの連鎖があると成立するタイミングが実行環境に左右され、flaky になる。
+  Playwright 公式もテストでの使用を非推奨としている
+- **代わりに**: 到達先で必ず描画される要素をロケータで待つ
+  （`expect(page.getByRole(...)).toBeVisible()` 等）。
+  URL 遷移を確認したい場合は `expect(page).toHaveURL(...)` を併用する
+- **根拠**: Issue #171。CI で 30 秒タイムアウトして main の CI が赤いまま 1 週間放置された。
+  同じコードでも run によって成功したり失敗したりしていた
+
+```typescript
+// ❌ 悪い例（通信が止まる保証がない）
+await page.goto('/');
+await page.waitForLoadState('networkidle');
+await expect(page.locator('body')).toBeVisible(); // body は常に可視で無意味
+
+// ✅ 良い例（描画される要素を決定的に待つ）
+await page.goto('/');
+await expect(page).toHaveURL(/\/login$/);
+await expect(page.getByRole('heading', { name: 'ようこそ' })).toBeVisible();
+```
+
 ### テスト記述の原則
 
 **重要**: テストの`describe`と`it`は、ドメインに即した**日本語**で記述すること。
