@@ -12,11 +12,11 @@ on:
 
 jobs:
   claude-review:
-    # Optional: Filter by PR author
-    # if: |
-    #   github.event.pull_request.user.login == 'external-contributor' ||
-    #   github.event.pull_request.user.login == 'new-developer' ||
-    #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
+    # Dependabot 起動の run は Actions ではなく Dependabot のシークレットストアを読むため、
+    # secrets.CLAUDE_CODE_OAUTH_TOKEN が空になり claude-code-action が必ず失敗する。
+    # 依存更新の安全性は Trivy / Snyk / pnpm audit が担保しているので、ここではスキップする。
+    # (Issue #158)
+    if: github.actor != 'dependabot[bot]'
 
     runs-on: ubuntu-latest
     permissions:
@@ -37,6 +37,9 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Phase 1 のドラフト PR は claude bot が起票するため、bot アクターを明示的に許可する。
+          # 未指定だと claude-code-action が非人間アクターをブロックして失敗する (Issue #158)
+          allowed_bots: 'claude'
           show_full_output: true
           track_progress: true
           prompt: |
