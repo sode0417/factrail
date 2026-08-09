@@ -197,7 +197,7 @@ launchctl kickstart -k gui/$(id -u)/com.sode.factrail-web
 
 **解決策:**
 1. DATABASE_URL が正しく設定されているか確認
-2. Supabase プロジェクトが起動しているか確認
+2. Mac mini のローカル PostgreSQL が起動しているか確認（`pg_isready`）
 3. ネットワーク接続を確認
 
 ```bash
@@ -297,17 +297,21 @@ npx prisma studio
 # http://localhost:5555 でブラウザが開く
 ```
 
-### Queue確認
+### Redis 確認（認証セッション）
+
+ジョブキューは無い（Bull は 2026-03-22 に廃止済み）。Redis は
+`REDIS_SESSION_DB`（既定 1）にセッション類だけを保持する。
 
 ```bash
 # Redis CLI接続
 redis-cli
 
-# キュー確認
-KEYS bull:slack-dispatch:*
+# セッション関連キーの確認
+redis-cli -n 1 --scan --pattern 'session:*'
+redis-cli -n 1 --scan --pattern 'user_sessions:*'
 
-# ジョブ詳細確認
-HGETALL bull:slack-dispatch:<job-id>
+# セッションの中身
+redis-cli -n 1 GET session:<session-id>
 ```
 
 ## よくある操作
@@ -373,8 +377,6 @@ const blocks = [
 ### 必須環境変数（apps/api/.env）
 
 - [ ] `DATABASE_URL` - PostgreSQL接続文字列
-- [ ] `SUPABASE_URL` - Supabase URL
-- [ ] `SUPABASE_SERVICE_KEY` - Supabase サービスロールキー
 - [ ] `ENCRYPTION_KEY` - 32文字以上の暗号化キー
 - [ ] `SLACK_CLIENT_ID` - Slack アプリのClient ID
 - [ ] `SLACK_CLIENT_SECRET` - Slack アプリのClient Secret

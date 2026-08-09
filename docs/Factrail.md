@@ -78,7 +78,7 @@ Factrail 自身は「解釈」や「意思決定」を行わない。
 - **Framework**: NestJS + TypeScript
 - **ORM**: Prisma
 - **DB**: PostgreSQL
-- **Queue**: Bull (Redis)
+- **Redis**: 認証セッション / OAuth コード保存（`ioredis`。ジョブキューは 2026-03-22 に廃止済み）
 - **暗号化**: crypto (Node.js built-in)
 
 ### Frontend (Web)

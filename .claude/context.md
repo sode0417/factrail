@@ -29,8 +29,8 @@ factrail/
 #### Backend (apps/api)
 - **Framework**: NestJS 10.0.0 + TypeScript 5.1.3
 - **ORM**: Prisma 6.19.1
-- **DB**: PostgreSQL (Supabase) - multiSchema: factrail, public
-- **Queue**: Bull 4.16.5 (Redis)
+- **DB**: PostgreSQL（Mac mini のローカル）- multiSchema: factrail, public
+- **Redis**: ioredis 5.x（認証セッション / OAuth コード。Bull Queue は 2026-03-22 に廃止済み）
 - **Slack連携**: @slack/web-api 7.13.0
 - **バリデーション**: class-validator 0.14.3, class-transformer 0.5.1
 - **主要機能**:
@@ -52,14 +52,14 @@ factrail/
   - アクティビティビュー
 
 #### Infrastructure
-- **Database**: Supabase (PostgreSQL) - multiSchema: factrail, public
+- **Database**: PostgreSQL（Mac mini のローカル）- multiSchema: factrail, public
 - **Hosting**: Mac mini（自宅サーバ）+ Cloudflare Tunnel
   - API: `factrail-api.sode-ai.com` → localhost:3001
   - Web: `factrail.sode-ai.com` → localhost:3000
 - **プロセス常駐**: launchd（`com.sode.factrail-api` / `com.sode.factrail-web`、KeepAlive + ThrottleInterval 10）
 - **Deploy**: GitHub Actions self-hosted runner `mac-mini-factrail` → `scripts/deploy.sh`（`main` push で自動）
   - ※ Railway / Vercel は 2026-03-15 に廃止し Mac mini へ全面移行
-- **Queue**: Redis (Bull) — Homebrew Redis :6379
+- **Redis**: Homebrew Redis :6379（認証セッション専用。ジョブキューは無し）
 - **パッケージマネージャ**: pnpm workspace（2026-04-05 に npm から移行）
 
 ## データモデル
@@ -158,10 +158,6 @@ src/
 │   ├── webhooks.service.ts      # GitHub Webhook検証・処理
 │   ├── webhooks.controller.ts   # Webhook受信エンドポイント
 │   └── webhooks.module.ts       # モジュール定義
-├── dispatchers/             # Dispatchersモジュール
-│   ├── slack-dispatcher.service.ts     # Slack DM/チャンネル投稿
-│   ├── slack-dispatcher.processor.ts   # Bull キュー処理（リトライロジック）
-│   └── dto/                            # DispatchSlackMessageDto
 ├── health/                  # ヘルスチェック
 ├── app.module.ts            # ルートモジュール
 ├── main.ts                  # エントリーポイント
@@ -209,19 +205,14 @@ src/
 
 ## 非同期処理
 
-### Bull Queue
-- **用途**: Slack DM/チャンネル投稿の非同期処理
-- **リトライロジック**: 指数バックオフで最大5回
-- **Processor Pattern**: ジョブ処理の分離
+**ジョブキューは存在しない。** Fact→Slack 投稿を担っていた Bull Queue と
+dispatchers モジュールは 2026-03-22 に廃止済み（`25bfc57`）。
+Redis は認証セッション / OAuth コード保存にのみ使う（`ioredis` 経由）。
 
 ### データフロー
 
 ```
-[GitHub] → [Factrail Webhook] → [Facts DB]
-                ↓                     ↓
-          [Bull Queue]          [F2A API]
-                ↓
-          [Slack DM/Channel]
+[GitHub] → [Factrail Webhook] → [Facts DB] → [F2A API]
 ```
 
 ## 開発ワークフロー
@@ -233,12 +224,8 @@ src/
 NODE_ENV=development
 API_PORT=3001
 
-# データベース
-DATABASE_URL=postgresql://postgres:PASSWORD@db.PROJECT_REF.supabase.co:5432/postgres?schema=factrail&pgbouncer=true
-
-# Supabase
-SUPABASE_URL=https://PROJECT_REF.supabase.co
-SUPABASE_SERVICE_KEY=YOUR_SERVICE_ROLE_KEY
+# データベース（Mac mini のローカル PostgreSQL）
+DATABASE_URL=postgresql://factrail:PASSWORD@localhost:5432/factrail?schema=factrail
 
 # セキュリティ
 ENCRYPTION_KEY=CHANGE_ME_32_CHARS_MINIMUM

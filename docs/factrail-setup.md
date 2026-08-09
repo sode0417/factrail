@@ -9,6 +9,12 @@ related: [[Factrail（Fact Trail）]]
 
 # Factrail 環境構築手順書
 
+> ⚠️ **本ドキュメントは Supabase / Railway 時代（2025-12）の内容で、現状と乖離している。**
+> 現在の構成は Mac mini のローカル PostgreSQL + Cloudflare Tunnel で、Supabase は使っていない
+> （`@supabase/supabase-js` の依存も 2026-08-09 に削除済み）。また Bull Queue も
+> 2026-03-22 に廃止済み。実際の構築手順は `README.md` と `.claude/quickref.md` を参照すること。
+> 本ファイルの全面改訂は別途対応する。
+
 ## 前提条件
 
 - Node.js 18+ インストール済み

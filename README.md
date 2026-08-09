@@ -19,8 +19,8 @@ Factrailは、GitHub、Slack、Googleなど外部サービスで発生するイ�
 ### Backend (apps/api)
 - **Framework**: NestJS + TypeScript
 - **ORM**: Prisma
-- **Database**: PostgreSQL (Supabase)
-- **Queue**: Bull (Redis)
+- **Database**: PostgreSQL（Mac mini のローカル）
+- **Session Store**: Redis（`ioredis` 経由。Bull Queue は 2026-03-22 に廃止済み）
 - **主要機能**: Facts管理、Integrations管理、Webhook受信、Slack DM/チャンネル自動投稿
 
 ### Frontend (apps/web)
@@ -33,8 +33,8 @@ Factrailは、GitHub、Slack、Googleなど外部サービスで発生するイ�
   - API: `https://factrail-api.sode-ai.com`（内部 :3001）
   - Web: `https://factrail.sode-ai.com`（内部 :3000）
 - **Deploy**: GitHub Actions（self-hosted runner）→ `scripts/deploy.sh` → launchd
-- **Database**: Supabase (PostgreSQL・F2Aと共有)
-- **Queue/Session**: Redis (Homebrew, :6379)
+- **Database**: PostgreSQL（Mac mini のローカル :5432。F2A とは同一サーバ上の別 DB）
+- **Session**: Redis (Homebrew, :6379)
 
 > Railway / Vercel は 2026-03-15 に廃止し、Mac mini へ全面移行しました。
 
@@ -46,8 +46,8 @@ Factrailは、GitHub、Slack、Googleなど外部サービスで発生するイ�
 
 - Node.js 24 系（リポジトリルートの `.node-version` で 24.18.1 に固定。CI・Mac mini とも同じ系列を使う）
 - pnpm 10+
-- Supabaseプロジェクト
-- Redis (ローカル開発: Docker)
+- PostgreSQL（ローカル :5432）
+- Redis (ローカル開発: Homebrew または Docker)
 
 ### 1. リポジトリクローン
 
@@ -78,9 +78,7 @@ cp apps/api/.env.example apps/api/.env
 
 主な環境変数：
 ```env
-DATABASE_URL=postgresql://...
-SUPABASE_URL=https://...
-SUPABASE_SERVICE_KEY=...
+DATABASE_URL=postgresql://factrail:PASSWORD@localhost:5432/factrail?schema=factrail
 ENCRYPTION_KEY=... # 32文字のランダム文字列
 REDIS_URL=redis://localhost:6379
 ```
@@ -270,7 +268,7 @@ factrail/
 ### Webhook受信
 - GitHub Webhook対応
 - 署名検証
-- 非同期処理（Bull Queue）
+- 受信時に同期で Fact を作成（ジョブキューは使わない）
 
 ### F2A連携
 - Facts → F2A Events 変換API

@@ -81,9 +81,9 @@ PR/Issue コメントで **`@claude` を生で書かない**（`claude.yml` work
 
 - API: NestJS + Prisma (`apps/api`)
 - Web: Next.js (`apps/web`)
-- DB: PostgreSQL（ローカル）/ Supabase（Slack 系では未使用）
-- Redis: セッション管理 + OAuth コード保存（**停止不可**）
-- Queue: Bull (Slack dispatch は廃止済み、認証用途のみ)
+- DB: PostgreSQL（Mac mini のローカル）
+- Redis: セッション管理 + OAuth コード保存（`ioredis` 経由・**停止不可**）
+- Queue: **無し**。Bull は 2026-03-22 に廃止済み（`25bfc57`）。依存宣言も 2026-08-09 に削除
 - 詳細: @.claude/context.md
 
 ## 環境変数（必須）
