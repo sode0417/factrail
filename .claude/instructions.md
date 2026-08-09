@@ -452,11 +452,15 @@ Factrailプロジェクトで使用するドメイン用語の日本語・英語
 
 ### 配信（Dispatcher）関連
 
+> ⚠️ 配信（Fact → Slack 投稿）は 2026-03-22 に廃止済み（`25bfc57`）。
+> dispatchers モジュールと Bull Queue は存在しない。過去のコード・Issue を
+> 読む際の語彙として残す。
+
 | 日本語 | 英語 | 説明 | 使用例 |
 |--------|------|------|--------|
-| 配信 | dispatch | 記録を外部へ送信する | `dispatchToSlack()` |
-| キュー | queue | 非同期処理のためのジョブキュー | `Bull Queue`, `addToQueue()` |
-| ジョブ | job | キューに追加される処理単位 | `SlackPostJob` |
+| 配信 | dispatch | 記録を外部へ送信する（廃止） | `dispatchToSlack()` |
+| キュー | queue | 非同期処理のためのジョブキュー（廃止） | `Bull Queue`, `addToQueue()` |
+| ジョブ | job | キューに追加される処理単位（廃止） | `SlackPostJob` |
 
 ### F2A連携関連
 
@@ -697,8 +701,9 @@ async handleGithubWebhook(
 
 ### キューイング
 
-- **Bull (Redis)**を使用
-- 時間のかかる処理（Slack投稿等）は非同期化
+- **ジョブキューは使っていない**（Bull は 2026-03-22 に廃止済み）
+- Redis は認証セッション / OAuth コード保存にのみ使う（`ioredis` 経由）
+- 再導入が必要になった場合は、依存の追加から設計し直すこと
 
 ---
 
@@ -709,8 +714,6 @@ async handleGithubWebhook(
 ```env
 # Database
 DATABASE_URL=
-SUPABASE_URL=
-SUPABASE_SERVICE_KEY=
 
 # Security
 ENCRYPTION_KEY=  # 32文字
