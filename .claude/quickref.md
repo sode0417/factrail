@@ -122,9 +122,11 @@ launchctl kickstart -k gui/$(id -u)/com.sode.factrail-web
 | **Slack OAuth** | `apps/api/src/integrations/slack-oauth.service.ts` |
 | **Webhook受信** | `apps/api/src/webhooks/webhooks.controller.ts` |
 | **Webhook処理** | `apps/api/src/webhooks/webhooks.service.ts` |
-| **Slack投稿** | `apps/api/src/dispatchers/slack-dispatcher.service.ts` |
-| **Queue処理** | `apps/api/src/dispatchers/slack-dispatcher.processor.ts` |
 | **暗号化** | `apps/api/src/common/crypto/crypto.service.ts` |
+
+> Fact → Slack 投稿を担っていた `apps/api/src/dispatchers/`（`slack-dispatcher.service.ts` /
+> `slack-dispatcher.processor.ts`）は **2026-03-22 に廃止済み**（`25bfc57`）。
+> ディレクトリごと存在しないので、過去の Issue やコードで参照されていても探さないこと。
 
 ### Frontend（Web）
 
@@ -350,27 +352,10 @@ touch <page-name>/page.tsx
 
 ### Slack Block Kit メッセージ作成
 
-```typescript
-// apps/api/src/dispatchers/slack-dispatcher.service.ts を参考に
-const blocks = [
-  {
-    type: 'section',
-    text: {
-      type: 'mrkdwn',
-      text: '*タイトル*\n説明文'
-    }
-  },
-  {
-    type: 'context',
-    elements: [
-      {
-        type: 'mrkdwn',
-        text: ':github: GitHub • <URL|リンク>'
-      }
-    ]
-  }
-];
-```
+> ⚠️ **廃止済みの操作**。Fact → Slack 投稿（dispatchers モジュール）は 2026-03-22 に
+> 削除されており（`25bfc57`）、参考元として案内していた
+> `apps/api/src/dispatchers/slack-dispatcher.service.ts` も存在しない。
+> Slack へ投稿する処理が再び必要になった場合は、モジュールの設計から起こすこと。
 
 ## 環境変数チェックリスト
 
