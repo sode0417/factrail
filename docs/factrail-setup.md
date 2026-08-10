@@ -1,580 +1,344 @@
 ---
-title: Factrail｜環境構築手順書
+title: Factrail｜環境構築・運用手順書
 type: private
 status: Active
-date: 2025-12-29
-tags: [project, factrail, setup]
+date: 2026-08-10
+tags: [project, factrail, setup, deploy]
 related: [[Factrail（Fact Trail）]]
 ---
 
-# Factrail 環境構築手順書
+# Factrail 環境構築・運用手順書
 
-> ⚠️ **本ドキュメントは Supabase / Railway 時代（2025-12）の内容で、現状と乖離している。**
-> 現在の構成は Mac mini のローカル PostgreSQL + Cloudflare Tunnel で、Supabase は使っていない
-> （`@supabase/supabase-js` の依存も 2026-08-09 に削除済み）。また Bull Queue も
-> 2026-03-22 に廃止済み。実際の構築手順は `README.md` と `.claude/quickref.md` を参照すること。
-> 本ファイルの全面改訂は別途対応する。
-
-## 前提条件
-
-- Node.js 18+ インストール済み
-- F2Aプロジェクトで使用中のSupabaseプロジェクト
-- GitHub アカウント
-- Slack ワークスペース管理権限
+> 本ドキュメントは **2026-08-10 に稼働中の実環境を実測して書き起こした**もの。
+> 旧版（2025-12・Supabase / Railway 前提）は実態と全面的に乖離していたため破棄した。
+>
+> **原則: このファイルにコードやスキーマを複製しない。** 実物（`apps/api/prisma/schema.prisma`,
+> `deploy.json`, `scripts/deploy.sh`）が唯一の正で、ここは「どこに何があるか」と「なぜそうなっているか」を書く。
 
 ---
 
-## 1. Supabase セットアップ
+## 0. 現在の構成（要約）
 
-### 1.1 F2Aと同じプロジェクトを使用
-
-F2Aプロジェクトで使用しているSupabaseプロジェクトを共有します。
-
-**必要な認証情報（F2Aから取得）:**
-- Project URL
-- service_role key（RLSバイパス用）
-- Database接続文字列
-
-### 1.2 Factrail用スキーマ作成
-
-Supabase Dashboard → SQL Editor で以下を実行：
-```sql
--- Factrail専用スキーマ作成
-CREATE SCHEMA IF NOT EXISTS factrail;
-
--- スキーマ権限設定
-ALTER SCHEMA factrail OWNER TO postgres;
-GRANT ALL ON SCHEMA factrail TO postgres;
-GRANT USAGE ON SCHEMA factrail TO anon, authenticated, service_role;
-
--- UUID拡張（必要な場合）
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+```
+                    Cloudflare Tunnel
+  factrail.sode-ai.com     ──→ localhost:3000  (Next.js / apps/web)
+  factrail-api.sode-ai.com ──→ localhost:3001  (NestJS  / apps/api)
+                                    │
+                    ┌───────────────┼───────────────┐
+                    ↓               ↓               ↓
+            PostgreSQL         Redis          launchd
+            localhost:5432     :6379          com.sode.factrail-{api,web}
+            db=factrail        認証セッション
+            schema=factrail    のみ
 ```
 
-### 1.3 Factrailテーブル作成
-```sql
--- Facts テーブル
-CREATE TABLE factrail.facts (
-  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  external_id TEXT NOT NULL,
-  source TEXT NOT NULL,
-  source_url TEXT,
-  occurred_at TIMESTAMPTZ NOT NULL,
-  
-  title TEXT NOT NULL,
-  summary TEXT,
-  content TEXT,
-  raw JSONB NOT NULL,
-  
-  type TEXT NOT NULL,
-  metadata JSONB,
-  
-  slack_message_id TEXT UNIQUE,
-  f2a_event_id CHAR(26) UNIQUE,
-  
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  processed_at TIMESTAMPTZ,
-  
-  UNIQUE(source, external_id)
-);
-
--- インデックス
-CREATE INDEX idx_facts_occurred_at ON factrail.facts(occurred_at DESC);
-CREATE INDEX idx_facts_type ON factrail.facts(type);
-CREATE INDEX idx_facts_source ON factrail.facts(source);
-CREATE INDEX idx_facts_f2a_event_id ON factrail.facts(f2a_event_id);
-
--- Integrations テーブル
-CREATE TABLE factrail.integrations (
-  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  provider TEXT NOT NULL,
-  account_id TEXT NOT NULL,
-  account_name TEXT,
-  
-  access_token TEXT NOT NULL, -- 暗号化済み
-  refresh_token TEXT,         -- 暗号化済み
-  expires_at TIMESTAMPTZ,
-  scope TEXT[],
-  
-  status TEXT DEFAULT 'active',
-  last_sync_at TIMESTAMPTZ,
-  
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  
-  UNIQUE(provider, account_id)
-);
-
--- 更新時刻自動更新トリガー
-CREATE OR REPLACE FUNCTION factrail.update_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER update_integrations_updated_at
-  BEFORE UPDATE ON factrail.integrations
-  FOR EACH ROW
-  EXECUTE FUNCTION factrail.update_updated_at();
-
--- Settings テーブル
-CREATE TABLE factrail.settings (
-  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  provider TEXT NOT NULL,
-  setting_type TEXT NOT NULL,
-  value TEXT NOT NULL, -- 暗号化済み
-
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-
-  UNIQUE(provider, setting_type)
-);
-
-CREATE TRIGGER update_settings_updated_at
-  BEFORE UPDATE ON factrail.settings
-  FOR EACH ROW
-  EXECUTE FUNCTION factrail.update_updated_at();
-```
-
-### 1.4 F2A連携用ビュー（オプション）
-```sql
--- F2A側から参照しやすいビュー
-CREATE OR REPLACE VIEW public.factrail_pending_facts AS
-SELECT 
-  id as factrail_id,
-  title as content,
-  type,
-  source,
-  metadata as payload,
-  occurred_at,
-  created_at
-FROM factrail.facts
-WHERE f2a_event_id IS NULL
-ORDER BY occurred_at DESC;
-
--- F2Aユーザーに読み取り権限
-GRANT SELECT ON public.factrail_pending_facts TO authenticated;
-```
+- **ホスティングは Mac mini 1台**。Railway / Vercel は 2026-03-15 に廃止
+- **DB は Mac mini のローカル PostgreSQL**。Supabase は使っていない（§11 参照）
+- **ジョブキューは無い**。Bull は 2026-03-22 に廃止（§11 参照）
+- **プロセスの起動・停止は launchd に委譲**。自前で `kill` / `nohup` しない
 
 ---
 
-## 2. リポジトリ構成
+## 1. 前提条件
+
+実測値（2026-08-10 時点）:
+
+| 項目 | バージョン | 確認方法 |
+|---|---|---|
+| Node.js | **24.18.1** | `.node-version` に固定・`node --version` と一致 |
+| pnpm | **10.33.0** | `pnpm --version` |
+| PostgreSQL | ローカル稼働 | `pg_isready` |
+| Redis | ローカル稼働 | `redis-cli ping` |
+
+- パッケージマネージャは **pnpm**（2026-04-05 に npm から移行）。`npm ci` / `npm install` を新規に書かない
+- Node は `.node-version` で固定されている。バージョンを上げる時は **ネイティブモジュールの ABI に注意**
+  （`better-sqlite3` が Node 25 系でビルドされたまま Node 24 で実行され、`browser` 収集が7日間止まった事故がある。CLAUDE.md「既知のデータ欠損」参照）
+
+その他に必要なもの: GitHub アカウント / Slack ワークスペースの管理権限 / Cloudflare Tunnel の設定権限。
+
+---
+
+## 2. リポジトリと依存関係
+
 ```bash
-# リポジトリ作成
-mkdir factrail
+git clone git@github.com:sode0417/factrail.git
 cd factrail
-git init
 
-# monorepo 構成
-mkdir apps
-mkdir packages
+# pnpm workspace のためルートで一括。apps/api や apps/web で個別に実行する必要はない
+pnpm install
 ```
 
----
+モノレポ構成:
 
-## 3. Backend (NestJS) セットアップ
-
-### 3.1 NestJS プロジェクト作成
-```bash
-# NestJS CLI インストール
-npm i -g @nestjs/cli
-
-# API プロジェクト作成
-cd apps
-nest new api --package-manager npm
-cd api
-
-# 必要なパッケージインストール
-npm install @nestjs/config @nestjs/throttler @nestjs/bull
-npm install @prisma/client prisma
-npm install bull bull-board
-npm install bcrypt
-npm install class-validator class-transformer
-npm install @supabase/supabase-js
-
-# 型定義
-npm install -D @types/bcrypt
-```
-
-### 3.2 Prisma セットアップ
-```bash
-# Prisma 初期化
-npx prisma init
-```
-
-### 3.3 prisma/schema.prisma
-```prisma
-generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["multiSchema"]
-}
-
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-  schemas  = ["factrail", "public"]
-}
-
-// Facts モデル
-model Fact {
-  id          String   @id @default(uuid())
-  externalId  String   @map("external_id")
-  source      String
-  sourceUrl   String?  @map("source_url")
-  occurredAt  DateTime @map("occurred_at")
-  
-  title       String
-  summary     String?
-  content     String?  @db.Text
-  raw         Json
-  
-  type        String
-  metadata    Json?
-  
-  slackMessageId String? @unique @map("slack_message_id")
-  f2aEventId     String? @unique @map("f2a_event_id")
-  
-  createdAt   DateTime @default(now()) @map("created_at")
-  processedAt DateTime? @map("processed_at")
-  
-  @@unique([source, externalId])
-  @@index([occurredAt])
-  @@index([type])
-  @@index([source])
-  @@index([f2aEventId])
-  @@map("facts")
-  @@schema("factrail")
-}
-
-// Integrations モデル
-model Integration {
-  id            String   @id @default(uuid())
-  provider      String
-  accountId     String   @map("account_id")
-  accountName   String?  @map("account_name")
-  
-  accessToken   String   @map("access_token") @db.Text
-  refreshToken  String?  @map("refresh_token") @db.Text
-  expiresAt     DateTime? @map("expires_at")
-  scope         String[]
-  
-  status        String   @default("active")
-  lastSyncAt    DateTime? @map("last_sync_at")
-  
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
-  
-  @@unique([provider, accountId])
-  @@map("integrations")
-  @@schema("factrail")
-}
-
-// Settings モデル
-model Setting {
-  id           String   @id @default(uuid())
-  provider     String
-  settingType  String   @map("setting_type")
-  value        String   @db.Text // 暗号化済み
-
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-
-  @@unique([provider, settingType])
-  @@map("settings")
-  @@schema("factrail")
-}
-
-// F2A Events参照用（読み取り専用）
-model Event {
-  id            String   @id
-  userId        String   @map("user_id")
-  content       String
-  eventTypeId   String?  @map("event_type_id")
-  payload       Json?
-  occurredAt    DateTime @map("occurred_at")
-  createdAt     DateTime @map("created_at")
-  updatedAt     DateTime @map("updated_at")
-
-  @@map("events")
-  @@schema("public")
-}
-```
-
-### 3.4 環境変数（.env）
-```env
-# Supabase (F2Aと同じプロジェクト)
-DATABASE_URL="postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres?schema=factrail&pgbouncer=true"
-DIRECT_URL="postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres?schema=factrail"
-
-# Supabase設定
-SUPABASE_URL="https://[YOUR-PROJECT-REF].supabase.co"
-SUPABASE_SERVICE_KEY="your-service-role-key"
-
-# Encryption
-ENCRYPTION_KEY=your-32-character-encryption-key-here
-
-# Slack
-SLACK_CLIENT_ID=your-slack-client-id
-SLACK_CLIENT_SECRET=your-slack-client-secret
-SLACK_REDIRECT_URI=http://localhost:3000/setup/slack/callback
-
-# GitHub
-GITHUB_WEBHOOK_SECRET=your-github-webhook-secret
-
-# Redis (Railway Redis or local)
-REDIS_URL=redis://localhost:6379
-
-# API
-API_PORT=3001
-NODE_ENV=development
-```
-
-### 3.5 Prisma実行
-```bash
-# Prisma Clientを生成（マイグレーションはSupabaseで実行済み）
-npx prisma generate
-
-# スキーマをPrismaに同期（既存テーブルから）
-npx prisma db pull
-
-# 開発時はこれでDBの状態を確認
-npx prisma studio
-```
-
----
-
-## 4. Frontend (Next.js) セットアップ
-
-### 4.1 Next.js プロジェクト作成
-```bash
-cd apps
-npx create-next-app@latest web --typescript --app --no-tailwind
-cd web
-
-# Chakra UI インストール
-npm install @chakra-ui/react @emotion/react @emotion/styled framer-motion
-npm install axios
-npm install @supabase/supabase-js
-```
-
-### 4.2 環境変数（.env.local）
-```env
-# API
-NEXT_PUBLIC_API_URL=http://localhost:3001
-
-# Supabase (読み取り専用で使う場合)
-NEXT_PUBLIC_SUPABASE_URL=https://[YOUR-PROJECT-REF].supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-
-# Basic Auth
-BASIC_AUTH_USER=admin
-BASIC_AUTH_PASSWORD=your-password-here
-```
-
----
-
-## 5. プロジェクト構成
-
-### 5.1 最終的なディレクトリ構造
 ```
 factrail/
 ├── apps/
-│   ├── api/                 # NestJS Backend
-│   │   ├── src/
-│   │   │   ├── facts/
-│   │   │   ├── integrations/
-│   │   │   ├── settings/
-│   │   │   ├── webhooks/
-│   │   │   │   └── github/
-│   │   │   ├── dispatchers/
-│   │   │   │   └── slack/   # Slack DM/チャンネル投稿
-│   │   │   ├── common/
-│   │   │   │   ├── crypto/
-│   │   │   │   ├── prisma/
-│   │   │   │   └── supabase/
-│   │   │   └── main.ts
-│   │   ├── prisma/
-│   │   │   └── schema.prisma
-│   │   ├── .env
-│   │   └── package.json
-│   │
-│   └── web/                 # Next.js Frontend
-│       ├── app/
-│       ├── .env.local
-│       └── package.json
-│
-├── package.json            
-└── README.md
+│   ├── api/          # NestJS (:3001)
+│   └── web/          # Next.js (:3000)
+├── docs/
+├── scripts/deploy.sh # デプロイ本体
+├── deploy.json       # デプロイ対象サービスの定義
+└── .github/workflows/
 ```
 
 ---
 
-## 6. Supabase連携サービス
+## 3. データベース（PostgreSQL）
 
-### 6.1 src/common/supabase/supabase.service.ts
-```typescript
-import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+**Mac mini のローカル PostgreSQL** を使う。接続先は `apps/api/.env` の `DATABASE_URL`:
 
-@Injectable()
-export class SupabaseService {
-  private supabase: SupabaseClient;
-
-  constructor(private configService: ConfigService) {
-    this.supabase = createClient(
-      this.configService.get('SUPABASE_URL'),
-      this.configService.get('SUPABASE_SERVICE_KEY'),
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      },
-    );
-  }
-
-  getClient(): SupabaseClient {
-    return this.supabase;
-  }
-
-  // F2A Events を直接参照する場合
-  async getUnimportedF2AEvents(since: Date) {
-    const { data, error } = await this.supabase
-      .from('events')
-      .select('*')
-      .gte('created_at', since.toISOString())
-      .is('external_id', null);
-
-    if (error) throw error;
-    return data;
-  }
-
-  // Factrail Facts の Supabase 経由アクセス
-  async getFactsViaSupabase(limit = 50) {
-    const { data, error } = await this.supabase
-      .schema('factrail')
-      .from('facts')
-      .select('*')
-      .order('occurred_at', { ascending: false })
-      .limit(limit);
-
-    if (error) throw error;
-    return data;
-  }
-}
+```
+postgresql://<user>:<pass>@localhost:5432/factrail?schema=factrail
 ```
 
----
+- データベース名 `factrail`、スキーマ `factrail`（Prisma の `multiSchema` で `factrail` と `public` を扱う）
+- テーブル定義を SQL で手書きする必要はない。**スキーマの正は `apps/api/prisma/schema.prisma`**
 
-## 7. Railway デプロイ設定
+### マイグレーション
 
-### 7.1 railway.json (API)
-```json
-{
-  "$schema": "https://railway.app/railway.schema.json",
-  "build": {
-    "builder": "NIXPACKS",
-    "buildCommand": "cd apps/api && npm ci && npx prisma generate && npm run build"
-  },
-  "deploy": {
-    "startCommand": "cd apps/api && npm run start:prod",
-    "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 10
-  }
-}
-```
-
-### 7.2 環境変数（Railway）
-
-Railway ダッシュボードで設定：
-```
-# Supabase
-DATABASE_URL=<Supabase Direct Connection String>
-SUPABASE_URL=<Supabase Project URL>
-SUPABASE_SERVICE_KEY=<Service Role Key>
-
-# Security
-ENCRYPTION_KEY=<32文字のランダム文字列>
-
-# Slack
-SLACK_CLIENT_ID=<Slack App Client ID>
-SLACK_CLIENT_SECRET=<Slack App Client Secret>
-
-# GitHub
-GITHUB_WEBHOOK_SECRET=<GitHub Webhook Secret>
-
-# Redis (Railway Redisを追加した場合)
-REDIS_URL=<Railway Redis URL>
-```
-
----
-
-## 8. 開発開始
-
-### 8.1 ローカル起動
 ```bash
-# Redisをローカルで起動（Dockerを使用）
-docker run -d -p 6379:6379 redis:alpine
-
-# 開発サーバー起動
-npm run dev
-```
-
-### 8.2 データベース確認
-```bash
-# Prisma Studioで確認
 cd apps/api
-npx prisma studio
-
-# Supabase Dashboardでも確認可能
-# Table Editor → factrailスキーマを選択
+npx prisma migrate dev --name <migration_name>   # 開発時: 作成 + 適用
+npx prisma migrate deploy                        # 本番相当: 適用のみ
+npx prisma generate                              # Prisma Client 再生成
+npx prisma studio                                # DB ブラウザ (http://localhost:5555)
 ```
 
-### 8.3 アクセス URL
+`apps/api/prisma/migrations/` に履歴がある。`manual/` ディレクトリに手動適用分が置かれている。
 
-- API: http://localhost:3001
-- API Docs: http://localhost:3001/api
-- Web: http://localhost:3000
-- Prisma Studio: http://localhost:5555
-- Supabase Dashboard: https://app.supabase.com
+⚠️ **`scripts/deploy.sh` には `apply_migrations()` があり、デプロイ時にマイグレーションを適用する。**
+DB を壊す変更を含む migration を main に入れる時は、適用タイミングを意識すること。
 
 ---
 
-## 9. F2Aとの連携確認
+## 4. Redis
 
-### 9.1 F2A側でFactrailデータを確認
-```sql
--- F2A側のSupabase SQL Editor
-SELECT * FROM factrail.facts ORDER BY occurred_at DESC LIMIT 10;
+**認証セッションと OAuth コードの保存にのみ使う**（`ioredis` 経由）。ジョブキューではない。
 
--- または事前作成したビューを使用
-SELECT * FROM public.factrail_pending_facts LIMIT 10;
+- 実使用箇所: `apps/api/src/auth/session/session.service.ts`
+- `REDIS_SESSION_DB`（既定 `1`）にセッション類を保持
+
+```bash
+redis-cli ping
+redis-cli -n 1 --scan --pattern 'session:*'
+redis-cli -n 1 --scan --pattern 'user_sessions:*'
 ```
 
-### 9.2 F2A側のPrismaスキーマ追加（オプション）
-```prisma
-// F2A側のschema.prismaに追加
-model FactrailFact {
-  id          String   @id
-  title       String
-  source      String
-  metadata    Json?
-  occurredAt  DateTime @map("occurred_at")
-  
-  @@map("factrail_pending_facts")
-  @@schema("public")
-}
-```
+**停止不可**。落とすとログインできなくなる。
 
 ---
 
-## 次のステップ
+## 5. 環境変数
 
-1. NestJS の各モジュール実装
-2. 暗号化サービスの実装
-3. GitHub Webhook コントローラー作成
-4. Slack OAuth フロー実装
-5. F2A連携APIの実装
+### apps/api/.env
+
+`apps/api/.env.example` をコピーして値を埋める。
+
+```bash
+cp apps/api/.env.example apps/api/.env
+```
+
+必須のもの:
+
+| 変数 | 用途 |
+|---|---|
+| `DATABASE_URL` | PostgreSQL 接続文字列 |
+| `ENCRYPTION_KEY` | **32文字以上**。トークン暗号化（AES-256-GCM）に使う |
+| `SLACK_CLIENT_ID` / `SLACK_CLIENT_SECRET` / `SLACK_REDIRECT_URI` | Slack OAuth |
+| `GITHUB_WEBHOOK_SECRET` | GitHub Webhook の署名検証 |
+| `REDIS_URL`（または `REDIS_HOST` / `REDIS_PORT` / `REDIS_PASSWORD`） | Redis 接続 |
+| `REDIS_SESSION_DB` | セッション用 DB 番号（既定 1） |
+| `JWT_SECRET` | 認証トークン |
+| `API_PORT` | 既定 3001 |
+
+⚠️ **`ENCRYPTION_KEY` を変更すると既存の暗号化データが全て復号不能になる。**
+変更前に「エクスポート → 復号 → 新キーで再暗号化」の手順を踏むこと。
+
+⚠️ **`.env.example` は実環境より 9 キー少ない**（2026-08-10 実測）。
+実際の `.env` にあって example に無いもの:
+`ALLOWED_ORIGINS` / `API_KEYS` / `API_URL` / `DIRECT_URL` / `FACTRAIL_USER_ID` /
+`GOOGLE_CALENDAR_REFRESH_TOKEN` / `PORT` / `SUPABASE_URL` / `SUPABASE_SERVICE_KEY`
+（末尾2つは死んだ設定 → §11）。**新しい環境を立てる時は example だけでは足りない可能性がある。**
+
+### apps/web/.env.local
+
+```
+NEXT_PUBLIC_API_URL=http://localhost:3001
+NEXT_PUBLIC_F2A_API_URL=<F2A の API URL>
+```
+
+⚠️ 現在の `apps/web/.env.local` には `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` が残っているが、**死んだ設定**（§11）。
+
+---
+
+## 6. ローカル開発
+
+```bash
+# API (:3001)
+cd apps/api && pnpm run start:dev
+
+# Web (:3000)
+cd apps/web && pnpm run dev
+```
+
+アクセス先:
+
+| | URL |
+|---|---|
+| Web | http://localhost:3000 |
+| API | http://localhost:3001 |
+| ヘルスチェック | http://localhost:3001/health |
+| Prisma Studio | http://localhost:5555 |
+
+### テスト
+
+```bash
+cd apps/api
+pnpm run test        # ユニット
+pnpm run test:e2e    # E2E
+pnpm run test:cov    # カバレッジ
+```
+
+⚠️ Playwright E2E で `page.waitForLoadState('networkidle')` を使わないこと（flaky になる。Issue #171）。
+到達先で必ず描画される要素をロケータで待つ。詳細は `.claude/instructions.md`。
+
+---
+
+## 7. 本番構成（Mac mini）
+
+### 常駐
+
+launchd が2つのサービスを常駐させる（KeepAlive + ThrottleInterval 10）:
+
+| ラベル | plist | ポート |
+|---|---|---|
+| `com.sode.factrail-api` | `~/Library/LaunchAgents/com.sode.factrail-api.plist` | 3001 |
+| `com.sode.factrail-web` | `~/Library/LaunchAgents/com.sode.factrail-web.plist` | 3000 |
+
+ビルド不要で再起動するだけなら:
+
+```bash
+launchctl kickstart -k gui/$(id -u)/com.sode.factrail-api
+launchctl kickstart -k gui/$(id -u)/com.sode.factrail-web
+```
+
+`unload` → `load` ではなく **`kickstart -k`** を使う（旧プロセスが残ることがあるため）。
+
+### 公開
+
+Cloudflare Tunnel（`~/.cloudflared/config.yml`）:
+
+- `factrail.sode-ai.com` → localhost:3000
+- `factrail-api.sode-ai.com` → localhost:3001
+
+### ログ
+
+```
+~/Library/Logs/factrail-api.log        ~/Library/Logs/factrail-api.error.log
+~/Library/Logs/factrail-web.log        ~/Library/Logs/factrail-web.error.log
+```
+
+`com.sode.log-rotate` が毎日 04:30 に 50 MiB 超を gzip 5 世代でローテートする。
+
+---
+
+## 8. デプロイ
+
+### 経路
+
+```
+main への push（paths フィルタなし・無条件）
+  → .github/workflows/deploy.yml
+  → self-hosted runner "mac-mini-factrail"（~/actions-runner-factrail・launchd 常駐）
+  → scripts/deploy.sh
+```
+
+手動起動:
+
+```bash
+gh workflow run deploy.yml -f service=web    # service は all / api / web
+```
+
+Mac mini 上で直接:
+
+```bash
+cd ~/Projects/factrail
+./scripts/deploy.sh          # 全サービス
+./scripts/deploy.sh api      # API のみ
+DEPLOY_SKIP_PULL=1 ./scripts/deploy.sh web   # git pull を省略（リハーサル用）
+```
+
+### deploy.sh がやること
+
+`deploy.json` を読み、サービスごとに:
+
+1. `git pull`（`DEPLOY_SKIP_PULL=1` で省略可）
+2. `pnpm install`
+3. `apply_migrations()` — マイグレーション適用
+4. `build_cmd`（`pnpm run build`）
+5. **`launchctl kickstart -kp`** でサービス再起動
+6. ヘルスチェック（`health_path` に対し `health_expect_jq` で判定・タイムアウトは `health_timeout`）
+
+`deploy.json` の定義:
+
+| service | dir | port | health_path | 判定 |
+|---|---|---|---|---|
+| `api` | `apps/api` | 3001 | `/health` | `.status == "ok"` |
+| `web` | `apps/web` | 3000 | `/` | HTTP 応答 |
+
+### ⚠️ 落とし穴
+
+- **Mac mini の作業ツリーは main に置いておくこと。** `git pull --ff-only` するため、feature ブランチのままだとデプロイが落ちる
+- **`deploy.sh` 自身を変更した push では「旧スクリプト」が走る**（runner は `actions/checkout` を使わず、ディスク上の `deploy.sh` をそのまま実行するため。新スクリプトはその中の `git pull` で配置されるだけ）。新しい `deploy.sh` を制御下で初実行するために `workflow_dispatch` の口がある
+- **同時デプロイは `concurrency: deploy-factrail` で直列化**されている
+- **`/health` が `degraded` を返すと deploy が失敗扱いになる**（`health_expect_jq` が `.status == "ok"` のため）。ヘルスチェックに新しい判定項目を足す時は、デプロイを人質に取らないか検討すること
+
+### workflow 変更時
+
+`.github/workflows/*` のうち **claude-code-action を起動する workflow 自身**
+（`claude-code-review.yml` / `claude.yml` / `claude-task.yml`）を変更する場合のみ、
+main への cherry-pick が先に必要。それ以外（`deploy.yml` / `ci-*.yml` / `security.yml` 等）は通常の PR でよい。
+詳細は CLAUDE.md「CI/CD と GitHub 運用」。
+
+---
+
+## 9. トラブルシューティング
+
+| 症状 | 確認すること |
+|---|---|
+| `Can't reach database server` | `pg_isready` / `DATABASE_URL` / `cd apps/api && npx prisma db pull` |
+| `ECONNREFUSED 127.0.0.1:6379` | `redis-cli ping` / `REDIS_URL` |
+| `Invalid OAuth state` | `SLACK_REDIRECT_URI` と Slack App 側の Redirect URL の一致 |
+| `Invalid signature`（Webhook） | `GITHUB_WEBHOOK_SECRET` と GitHub 側 Secret の一致 |
+| `Invalid key length` | `ENCRYPTION_KEY` が32文字以上か |
+| デプロイが落ちる | 作業ツリーが main か / `gh run view --log` |
+| サービスが起動しない | `~/Library/Logs/factrail-*.error.log` |
+
+---
+
+## 10. F2A との連携
+
+- **Pull 型**: F2A 側が `GET /api/facts` を呼ぶ
+- Fact → F2A Event のマッピングは CLAUDE.md / `.claude/context.md` を参照
+- `fact.f2aEventId` に F2A 側の ID が入る（取り込み済みの印）
+
+---
+
+## 11. 廃止済みの構成（残っている設定の説明）
+
+**設定ファイルや環境変数が残っているが、いずれも使われていない。** 削除の判断は別途。
+
+| 廃止したもの | 時期 | 残っているもの |
+|---|---|---|
+| **Supabase** | 2026-03-15 に Mac mini へ移行 | `apps/api/.env` の `SUPABASE_URL` / `SUPABASE_SERVICE_KEY`、`apps/web/.env.local` の `NEXT_PUBLIC_SUPABASE_*` |
+| **Railway** | 同上 | ルートの `railway.json`（NIXPACKS ビルダー定義） |
+| **Vercel** | 同上 | なし |
+| **Bull（ジョブキュー）** | 2026-03-22（`25bfc57`・Slack dispatch モジュールごと 862 行削除） | なし（依存宣言も 2026-08-09 の PR #194 で削除済み） |
+
+補足:
+
+- **Supabase プロジェクトは既に存在しない。** 2026-08-10 に DNS を確認したところ `NXDOMAIN` で、
+  REST API にも到達しない。`SUPABASE_SERVICE_KEY` はプロジェクト消滅により**既に無効**
+- **`apps/api/src` に Supabase への参照はゼロ**（旧版ドキュメントが説明していた
+  `src/common/supabase/supabase.service.ts` は**実在しない**）
+- **Redis は廃止していない。** Bull と一緒に消えたと誤解されやすいが、認証セッションで現役（§4）
