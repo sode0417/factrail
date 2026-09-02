@@ -13,7 +13,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     // hydrationが完了するまで認証チェックをスキップ
     if (!_hasHydrated) return;
 
-    const publicPaths = ['/login', '/auth/callback'];
+    // 未ログインでも閲覧できるページ。/privacy と /terms は OAuth 審査で外部から
+    // 参照されるため、認証を挟まず公開する必要がある
+    const publicPaths = ['/login', '/auth/callback', '/privacy', '/terms'];
     const isPublicPath = publicPaths.some((path) => pathname.startsWith(path));
 
     // 認証済みユーザーがログインページにアクセスした場合、ダッシュボードへリダイレクト
