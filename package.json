@@ -30,6 +30,8 @@
       "ws": ">=8.20.1 <9",
       "postcss": ">=8.5.23 <9",
       "sharp": ">=0.35.3 <0.36",
+      "deepmerge-ts": ">=8.0.2 <9",
+      "browserslist": ">=4.28.7 <5",
       "brace-expansion@1": ">=1.1.16 <2",
       "brace-expansion@2": ">=2.1.2 <3",
       "brace-expansion@5": ">=5.0.8 <6",
