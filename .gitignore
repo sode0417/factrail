@@ -14,3 +14,6 @@ node_modules/
 
 # 環境変数（実体は apps/api/.env / apps/web/.env.local。値をコミットしない）
 .env
+# .env 派生（バックアップ含む）を除外（.env.example は配布物なので除外しない）
+.env.*
+!.env.example
