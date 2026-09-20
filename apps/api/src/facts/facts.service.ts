@@ -19,7 +19,18 @@ export class FactsService {
    * @returns ページングされた記録のリスト
    */
   async findAll(userId: string, query: QueryFactsDto) {
-    const { source, type, from, to, limit = 50, cursor, grouped, projectId, categoryId } = query;
+    const {
+      source,
+      type,
+      from,
+      to,
+      limit = 50,
+      cursor,
+      grouped,
+      projectId,
+      categoryId,
+      search,
+    } = query;
 
     // 検索条件を組み立て
     const where: Prisma.FactWhereInput = {
@@ -56,6 +67,25 @@ export class FactsService {
     // グループ表示モード: ungrouped + 親のみ取得
     if (grouped === 'true') {
       where.OR = [{ groupId: null }, { parentId: null }];
+    }
+
+    // タイトル・要約の部分一致検索
+    // ⚠️ where.OR はグループ表示モードが使うため、ここでは AND 側に積む。
+    //    OR を直接代入すると、grouped=true と併用したときに片方が消える。
+    const keyword = search?.trim();
+    if (keyword) {
+      const conditions: Prisma.FactWhereInput[] = Array.isArray(where.AND)
+        ? where.AND
+        : where.AND
+          ? [where.AND]
+          : [];
+      conditions.push({
+        OR: [
+          { title: { contains: keyword, mode: 'insensitive' } },
+          { summary: { contains: keyword, mode: 'insensitive' } },
+        ],
+      });
+      where.AND = conditions;
     }
 
     // カーソルベースページネーション: 次ページがあるか確認するため +1 件取得

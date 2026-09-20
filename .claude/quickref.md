@@ -152,10 +152,16 @@ launchctl kickstart -k gui/$(id -u)/com.sode.factrail-web
 | DELETE | `/api/facts/:id` | Fact削除 |
 
 **クエリパラメータ（GET /api/facts）:**
-- `limit`: 取得件数（デフォルト: 20）
+- `limit`: 取得件数（デフォルト: 50・最大 100）
 - `cursor`: カーソル（前回のレスポンスから）
 - `source`: ソースフィルター（例: github, slack）
 - `type`: タイプフィルター
+- `search`: title / summary の部分一致検索（大文字小文字を区別しない・最大 200 文字）
+
+> ⚠️ 受け口の無いクエリパラメータは `ValidationPipe` の `whitelist` に落とされ、
+> **エラーにならずに「指定しなかったのと同じ結果」が返る**。絞り込んだつもりの
+> 結果が絞り込まれていない、という形で表に出るので、新しいパラメータを足す時は
+> 必ず `QueryFactsDto` にも追加すること。
 
 ### Integrations
 

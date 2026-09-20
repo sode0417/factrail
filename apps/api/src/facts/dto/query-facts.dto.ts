@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsDateString, IsInt, Min, Max } from 'class-validator';
+import { IsOptional, IsString, IsDateString, IsInt, Min, Max, MaxLength } from 'class-validator';
 import { Type } from 'class-transformer';
 
 /**
@@ -42,6 +42,18 @@ export class QueryFactsDto {
   @Min(1)
   @Max(100)
   limit?: number = 50;
+
+  /**
+   * タイトル・要約に対する部分一致検索（オプション）
+   *
+   * 送り手（MCP の query_facts / factrail-query スキル）が「title/summary の全文検索」
+   * として送ってくるパラメータ。受け口が無いと ValidationPipe の whitelist に落とされ、
+   * 絞り込まれていない結果がそのまま「検索結果」として返るため、ここで明示的に受ける。
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  search?: string;
 
   /**
    * ページネーション用のカーソル（オプション）
