@@ -74,7 +74,25 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        # Dependabot の PR は「main へマージした結果」で package.json の pnpm.overrides と
+        # lockfile の overrides が食い違い、--frozen-lockfile が
+        # ERR_PNPM_LOCKFILE_CONFIG_MISMATCH で落ちる。
+        # そのため Dependabot の PR に限り、この実行の中だけで lockfile を解決し直す。
+        # ⚠️ commit はしないので PR の lockfile 自体は直らない。食い違いがあった場合は
+        #    警告を出す（緑になったことを「マージして安全」と読ませないため）。
+        env:
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          RUN_ACTOR: ${{ github.actor }}
+        run: |
+          if [ "$PR_AUTHOR" = 'dependabot[bot]' ] || [ "$RUN_ACTOR" = 'dependabot[bot]' ]; then
+            cp pnpm-lock.yaml "$RUNNER_TEMP/pnpm-lock.before.yaml"
+            pnpm install --no-frozen-lockfile
+            if ! cmp -s pnpm-lock.yaml "$RUNNER_TEMP/pnpm-lock.before.yaml"; then
+              echo "::warning::この PR の pnpm-lock.yaml は package.json の pnpm.overrides と食い違っています。CI はこの実行の中で解決し直して通していますが、PR の lockfile 自体は直っていません。マージ前に @dependabot rebase を実行してください。"
+            fi
+          else
+            pnpm install --frozen-lockfile
+          fi
 
       - name: Generate Prisma Client
         run: pnpm exec prisma generate
