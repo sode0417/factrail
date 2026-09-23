@@ -85,9 +85,9 @@ jobs:
           RUN_ACTOR: ${{ github.actor }}
         run: |
           if [ "$PR_AUTHOR" = 'dependabot[bot]' ] || [ "$RUN_ACTOR" = 'dependabot[bot]' ]; then
-            cp pnpm-lock.yaml "$RUNNER_TEMP/pnpm-lock.before.yaml"
+            cp "$GITHUB_WORKSPACE/pnpm-lock.yaml" "$RUNNER_TEMP/pnpm-lock.before.yaml"
             pnpm install --no-frozen-lockfile
-            if ! cmp -s pnpm-lock.yaml "$RUNNER_TEMP/pnpm-lock.before.yaml"; then
+            if ! cmp -s "$GITHUB_WORKSPACE/pnpm-lock.yaml" "$RUNNER_TEMP/pnpm-lock.before.yaml"; then
               echo "::warning::この PR の pnpm-lock.yaml は package.json の pnpm.overrides と食い違っています。CI はこの実行の中で解決し直して通していますが、PR の lockfile 自体は直っていません。マージ前に @dependabot rebase を実行してください。"
             fi
           else
