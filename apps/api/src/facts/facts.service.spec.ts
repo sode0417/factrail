@@ -158,6 +158,114 @@ describe('FactsService', () => {
       );
     });
 
+    it('検索語でタイトル・要約を絞り込めること', async () => {
+      const filteredFacts = [mockFacts[0]];
+      mockPrismaService.fact.findMany.mockResolvedValue(filteredFacts);
+
+      const query: QueryFactsDto = { search: 'ランニング' };
+      const result = await service.findAll(userId, query);
+
+      expect(result.data).toEqual(filteredFacts);
+      expect(prisma.fact.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            userId,
+            AND: [
+              {
+                OR: [
+                  { title: { contains: 'ランニング', mode: 'insensitive' } },
+                  { summary: { contains: 'ランニング', mode: 'insensitive' } },
+                ],
+              },
+            ],
+          }),
+        }),
+      );
+    });
+
+    it('検索語の前後の空白を落とすこと', async () => {
+      mockPrismaService.fact.findMany.mockResolvedValue([]);
+
+      const query: QueryFactsDto = { search: '  ランニング  ' };
+      await service.findAll(userId, query);
+
+      expect(prisma.fact.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            AND: [
+              {
+                OR: [
+                  { title: { contains: 'ランニング', mode: 'insensitive' } },
+                  { summary: { contains: 'ランニング', mode: 'insensitive' } },
+                ],
+              },
+            ],
+          }),
+        }),
+      );
+    });
+
+    it('検索語が空白のみのときは絞り込まないこと', async () => {
+      mockPrismaService.fact.findMany.mockResolvedValue(mockFacts);
+
+      const query: QueryFactsDto = { search: '   ' };
+      await service.findAll(userId, query);
+
+      const callArg = mockPrismaService.fact.findMany.mock.calls.at(-1)[0];
+      expect(callArg.where.AND).toBeUndefined();
+    });
+
+    it('検索語と日時範囲を併用できること', async () => {
+      mockPrismaService.fact.findMany.mockResolvedValue([]);
+
+      const query: QueryFactsDto = {
+        search: 'ランニング',
+        from: '2026-03-01',
+        to: '2026-03-31',
+      };
+      await service.findAll(userId, query);
+
+      expect(prisma.fact.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            userId,
+            occurredAt: {
+              gte: new Date('2026-03-01'),
+              lte: new Date('2026-03-31'),
+            },
+            AND: [
+              {
+                OR: [
+                  { title: { contains: 'ランニング', mode: 'insensitive' } },
+                  { summary: { contains: 'ランニング', mode: 'insensitive' } },
+                ],
+              },
+            ],
+          }),
+        }),
+      );
+    });
+
+    it('グループ表示モードと併用しても、どちらの条件も消えないこと', async () => {
+      mockPrismaService.fact.findMany.mockResolvedValue([]);
+
+      const query: QueryFactsDto = { search: 'ランニング', grouped: 'true' };
+      await service.findAll(userId, query);
+
+      const callArg = mockPrismaService.fact.findMany.mock.calls.at(-1)[0];
+      // グループ表示モードの OR はそのまま残る
+      expect(callArg.where.OR).toEqual([{ groupId: null }, { parentId: null }]);
+      // 検索条件は AND 側に積まれる
+      expect(callArg.where.AND).toEqual([
+        {
+          OR: [
+            { title: { contains: 'ランニング', mode: 'insensitive' } },
+            { summary: { contains: 'ランニング', mode: 'insensitive' } },
+          ],
+        },
+      ]);
+    });
+
     it('カーソルベースページネーションが正しく機能すること', async () => {
       mockPrismaService.fact.findMany.mockResolvedValue(mockFacts);
 
