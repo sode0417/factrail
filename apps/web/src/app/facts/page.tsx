@@ -98,11 +98,12 @@ function FactsPageContent() {
     messagesEndRef.current?.scrollIntoView({ behavior });
   }, []);
 
+  // Facts の取得そのもの。
+  // ⚠️ 同期の setState を持たないこと —— effect から呼ぶため。
+  //    effect の本体で setState するとカスケード再描画になる
+  //    (react-hooks/set-state-in-effect)。
   const fetchFacts = useCallback(
-    async (isBackground = false) => {
-      if (!isBackground) setLoading(true);
-      else setIsBackgroundUpdate(true);
-
+    async () => {
       try {
         const params = new URLSearchParams();
         if (sourceFilter) params.append('source', sourceFilter);
@@ -124,6 +125,17 @@ function FactsPageContent() {
       }
     },
     [sourceFilter, apiParams.from, apiParams.to, grouped, filterCategoryId, filterProjectId],
+  );
+
+  // 明示的な再取得（ボタン・投稿後・ポーリング）。
+  // ⭐ 読み込み表示の切り替えは「取得を始めた出来事」の側に置く。
+  const refreshFacts = useCallback(
+    async (isBackground = false) => {
+      if (isBackground) setIsBackgroundUpdate(true);
+      else setLoading(true);
+      await fetchFacts();
+    },
+    [fetchFacts],
   );
 
   const toggleExpand = useCallback(async (factId: string) => {
@@ -160,14 +172,14 @@ function FactsPageContent() {
         ...(selectedCategoryId && { categoryId: selectedCategoryId }),
       });
       setMemoText('');
-      await fetchFacts(false);
+      await refreshFacts(false);
     } catch (error) {
       console.error('Failed to create memo:', error);
       toast({ title: 'メモの作成に失敗しました', status: 'error', duration: 5000, isClosable: true });
     } finally {
       setIsSending(false);
     }
-  }, [memoText, isSending, fetchFacts, toast, selectedProjectId, selectedCategoryId]);
+  }, [memoText, isSending, refreshFacts, toast, selectedProjectId, selectedCategoryId]);
 
   const handleSendComment = useCallback(async (parentId: string) => {
     const text = (commentTexts[parentId] || '').trim();
@@ -186,14 +198,14 @@ function FactsPageContent() {
         `/api/facts/${parentId}/children`,
       );
       setChildrenMap((prev) => ({ ...prev, [parentId]: response.data.data }));
-      await fetchFacts(true);
+      await refreshFacts(true);
     } catch (error) {
       console.error('Failed to create comment:', error);
       toast({ title: 'コメントの作成に失敗しました', status: 'error', duration: 5000, isClosable: true });
     } finally {
       setSendingCommentId(null);
     }
-  }, [commentTexts, sendingCommentId, fetchFacts, toast]);
+  }, [commentTexts, sendingCommentId, refreshFacts, toast]);
 
   const startEditing = useCallback((fact: Fact) => {
     setEditingFactId(fact.id);
@@ -284,7 +296,13 @@ function FactsPageContent() {
   }, [drawerDisclosure]);
 
   // 初回ロードとフィルター変更時
-  useEffect(() => { fetchFacts(); }, [fetchFacts]);
+  // ⭐ 読み込み表示の切り替え（同期の setState）は refreshFacts 側、つまり
+  //    「取得を始めた出来事」の側へ移してある。ここでは取得の完了を待つだけ。
+  useEffect(() => {
+    void (async () => {
+      await fetchFacts();
+    })();
+  }, [fetchFacts]);
 
   // 初回ロード完了後に最下部へスクロール
   useEffect(() => {
@@ -293,9 +311,9 @@ function FactsPageContent() {
 
   // ポーリング
   useEffect(() => {
-    const intervalId = setInterval(() => fetchFacts(true), POLLING_INTERVAL);
+    const intervalId = setInterval(() => refreshFacts(true), POLLING_INTERVAL);
     return () => clearInterval(intervalId);
-  }, [fetchFacts]);
+  }, [refreshFacts]);
 
   const filteredFacts = facts.filter((fact) => {
     if (!searchQuery) return true;
@@ -326,7 +344,7 @@ function FactsPageContent() {
           }}
           loading={loading}
           isBackgroundUpdate={isBackgroundUpdate}
-          onRefresh={() => fetchFacts(false)}
+          onRefresh={() => refreshFacts(false)}
           dateFilter={{
             from, to, preset, isActive: dateFilterActive,
             applyPreset, setDateRange, clearFilter,
