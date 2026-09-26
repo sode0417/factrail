@@ -21,45 +21,58 @@ import apiClient from '@/lib/axios';
 function SlackCallbackContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
-  const [errorMessage, setErrorMessage] = useState<string>('');
+  // バックエンドへの問い合わせの結果だけを state で持つ
+  const [postStatus, setPostStatus] = useState<'loading' | 'success' | 'error'>('loading');
+  const [postErrorMessage, setPostErrorMessage] = useState<string>('');
 
-  const handleCallback = async (code: string, state: string) => {
-    try {
-      await apiClient.post('/integrations/slack/callback', { code, state });
-      setStatus('success');
-      // 3秒後に設定ページにリダイレクト
-      setTimeout(() => {
-        router.push('/setup/slack');
-      }, 3000);
-    } catch (error: unknown) {
-      console.error('Slack callback error:', error);
-      setStatus('error');
-      const axiosError = error as { response?: { data?: { message?: string } } };
-      const message = axiosError?.response?.data?.message || (error instanceof Error ? error.message : '連携に失敗しました');
-      setErrorMessage(message);
-    }
-  };
+  const code = searchParams.get('code');
+  const oauthError = searchParams.get('error');
+  const state = searchParams.get('state');
+
+  // ⭐ URL のパラメータだけで決まるエラーは、描画時に求められる。
+  //    以前は effect の中で setState していたが、それは「描画で計算できるものを
+  //    状態にしていた」だけで、カスケード再描画の原因になっていた
+  //    (react-hooks/set-state-in-effect)。
+  const paramErrorMessage = oauthError
+    ? `認証がキャンセルされました: ${oauthError}`
+    : !code || !state
+      ? '認証コードまたはstateパラメータが見つかりません'
+      : null;
+
+  const status = paramErrorMessage ? 'error' : postStatus;
+  const errorMessage = paramErrorMessage ?? postErrorMessage;
 
   useEffect(() => {
-    const code = searchParams.get('code');
-    const error = searchParams.get('error');
-    const state = searchParams.get('state');
+    // URL の時点で決着しているなら、通信は行わない
+    if (paramErrorMessage) return;
 
-    if (error) {
-      setStatus('error');
-      setErrorMessage(`認証がキャンセルされました: ${error}`);
-      return;
-    }
-
-    if (!code || !state) {
-      setStatus('error');
-      setErrorMessage('認証コードまたはstateパラメータが見つかりません');
-      return;
-    }
-
-    // バックエンドにcode + stateを送信（stateの検証はバックエンド側で実施）
-    handleCallback(code, state);
+    // ⭐ 状態の更新は通信の応答が返ってから（＝外部の出来事）行う。
+    //    effect の同期本体では setState しない。
+    let cancelled = false;
+    void (async () => {
+      try {
+        // バックエンドにcode + stateを送信（stateの検証はバックエンド側で実施）
+        await apiClient.post('/integrations/slack/callback', { code, state });
+        if (cancelled) return;
+        setPostStatus('success');
+        // 3秒後に設定ページにリダイレクト
+        setTimeout(() => {
+          router.push('/setup/slack');
+        }, 3000);
+      } catch (error: unknown) {
+        console.error('Slack callback error:', error);
+        if (cancelled) return;
+        setPostStatus('error');
+        const axiosError = error as { response?: { data?: { message?: string } } };
+        setPostErrorMessage(
+          axiosError?.response?.data?.message ||
+            (error instanceof Error ? error.message : '連携に失敗しました'),
+        );
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

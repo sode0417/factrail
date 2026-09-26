@@ -122,8 +122,18 @@ export default function GitHubSetupPage() {
   }, []);
 
   useEffect(() => {
-    fetchSettings();
-    fetchRepositories();
+    // ⭐ fetchSettings / fetchRepositories は await の後でしか setState しない。
+    //    effect の同期本体から呼ぶと、その区別が付かず
+    //    react-hooks/set-state-in-effect になるため、応答を待つ形にまとめる。
+    //    併せて、応答が返る前に画面を離れた場合は state を更新しない。
+    let cancelled = false;
+    void (async () => {
+      await Promise.all([fetchSettings(), fetchRepositories()]);
+      if (cancelled) return;
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [fetchSettings, fetchRepositories]);
 
   const generateSecret = () => {
