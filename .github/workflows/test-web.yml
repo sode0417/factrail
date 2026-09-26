@@ -6,11 +6,25 @@ on:
     paths:
       - 'apps/web/**'
       - '.github/workflows/test-web.yml'
+      # ⭐ ルートの依存ファイル。ここだけを変える PR でも、lint / 型検査 / テストを通す。
+      #    これが無いと「依存だけを変える PR」は CI が1本も起動せず全部緑に見える。
+      #    (2026-09-19 の PR #212 が実際にそれで通り、lint の error 3件が6日間見えなかった)
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.npmrc'
   push:
     branches: [main]
     paths:
       - 'apps/web/**'
       - '.github/workflows/test-web.yml'
+      # ⭐ ルートの依存ファイル。ここだけを変える PR でも、lint / 型検査 / テストを通す。
+      #    これが無いと「依存だけを変える PR」は CI が1本も起動せず全部緑に見える。
+      #    (2026-09-19 の PR #212 が実際にそれで通り、lint の error 3件が6日間見えなかった)
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.npmrc'
 
 jobs:
   web-e2e:
