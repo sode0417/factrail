@@ -19,9 +19,9 @@
 import { Box, Button, Flex, Spinner, Text, VStack } from '@chakra-ui/react';
 import { useCallback, useEffect, useState } from 'react';
 import { MainLayout } from '@/components/layout';
-import { MemoCard } from '@/components/memos';
-import { fetchMemos } from '@/lib/memos';
-import type { Memo } from '@/types/memo';
+import { MemoCard, MemoGroupHeader } from '@/components/memos';
+import { fetchMemoGroups } from '@/lib/memos';
+import type { MemoGroup } from '@/types/memo';
 
 /**
  * 読み込みの状態。
@@ -33,19 +33,19 @@ import type { Memo } from '@/types/memo';
 type Status = 'loading' | 'ready' | 'error';
 
 export default function MemosPage() {
-  const [memos, setMemos] = useState<Memo[]>([]);
+  const [groups, setGroups] = useState<MemoGroup[]>([]);
   const [status, setStatus] = useState<Status>('loading');
 
   // ⚠️ 同期の setState を持たないこと —— effect から呼ぶため
   //    (react-hooks/set-state-in-effect)。状態の切り替えは await の後だけ。
   const loadMemos = useCallback(async () => {
     try {
-      const result = await fetchMemos();
-      setMemos(result);
+      const result = await fetchMemoGroups();
+      setGroups(result);
       setStatus('ready');
     } catch (error) {
       console.error('読書メモの取得に失敗しました', error);
-      setMemos([]);
+      setGroups([]);
       setStatus('error');
     }
   }, []);
@@ -64,8 +64,11 @@ export default function MemosPage() {
     void loadMemos();
   }, [loadMemos]);
 
+  // 素材はあるがハイライトが 0 件、という状態も「まだありません」に寄せる
+  const totalMemos = groups.reduce((sum, group) => sum + group.memos.length, 0);
+
   return (
-    <MainLayout title="メモ" subtitle="本をまたいでハイライトとメモを並べる">
+    <MainLayout title="メモ" subtitle="素材ごとにハイライトとメモをまとめる">
       <Box px={{ base: 3, md: 6, lg: 8 }} py={6} maxW="1600px" mx="auto" w="100%">
         {status === 'loading' && (
           <Flex justify="center" py={10}>
@@ -95,7 +98,7 @@ export default function MemosPage() {
           </Flex>
         )}
 
-        {status === 'ready' && memos.length === 0 && (
+        {status === 'ready' && totalMemos === 0 && (
           <Flex
             direction="column"
             align="center"
@@ -112,10 +115,17 @@ export default function MemosPage() {
           </Flex>
         )}
 
-        {status === 'ready' && memos.length > 0 && (
-          <VStack spacing={2} align="stretch" data-testid="memos-list">
-            {memos.map((memo) => (
-              <MemoCard key={memo.id} memo={memo} />
+        {status === 'ready' && totalMemos > 0 && (
+          <VStack spacing={6} align="stretch" data-testid="memos-list">
+            {groups.map((group) => (
+              <Box key={group.id} data-testid="memo-group">
+                <MemoGroupHeader group={group} />
+                <VStack spacing={2} align="stretch">
+                  {group.memos.map((memo) => (
+                    <MemoCard key={memo.id} memo={memo} />
+                  ))}
+                </VStack>
+              </Box>
             ))}
           </VStack>
         )}

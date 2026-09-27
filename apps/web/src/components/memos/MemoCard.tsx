@@ -1,7 +1,6 @@
 'use client';
 
-import { Box, Flex, HStack, Icon, Link, Text } from '@chakra-ui/react';
-import { FiAlertTriangle, FiExternalLink } from 'react-icons/fi';
+import { Box, HStack, Text } from '@chakra-ui/react';
 import type { Memo } from '@/types/memo';
 
 /**
@@ -42,38 +41,9 @@ function Chip({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * 「取れた分が全部とは限らない」印。
- *
- * 🔴 F2A が `import_notice` を持っている本には必ず出す。DB に入れただけで画面に
- *    出さないなら、隠したのと同じ。
- * ⚠️ 文面は Amazon の言い分そのままなので、こちらで要約も断定もしない。
+ * ハイライト 1 件。
+ * ⭐ 素材の題名・リンク・欠落の印は、外側の {@link MemoGroupHeader} が持つ。
  */
-function ImportNotice({ notice }: { notice: string }) {
-  return (
-    <Flex
-      align="flex-start"
-      gap={2}
-      mt={3}
-      px={3}
-      py={2}
-      bg="#FBEFE4"
-      border="1px solid"
-      borderColor="#E0965A"
-      borderRadius="sm"
-    >
-      <Icon as={FiAlertTriangle} color="#B4652A" boxSize="14px" mt="2px" flexShrink={0} />
-      <Box minW={0}>
-        <Text fontSize="12px" fontWeight={600} color="#8A4A18">
-          この本は、取れたハイライトが全部とは限りません
-        </Text>
-        <Text fontSize="11.5px" color="#8A4A18" whiteSpace="pre-wrap" mt="2px">
-          {notice}
-        </Text>
-      </Box>
-    </Flex>
-  );
-}
-
 export function MemoCard({ memo }: { memo: Memo }) {
   return (
     <Box
@@ -105,7 +75,6 @@ export function MemoCard({ memo }: { memo: Memo }) {
         borderRadius="full"
       />
 
-      {/* ハイライトの本文 */}
       <Text
         fontSize="md"
         color="text.default"
@@ -142,44 +111,12 @@ export function MemoCard({ memo }: { memo: Memo }) {
         </Box>
       )}
 
-      {memo.importNotice && <ImportNotice notice={memo.importNotice} />}
-
-      {/* 出どころ */}
-      <Flex align="baseline" gap={3} wrap="wrap" mt={3}>
-        <Text fontWeight={600} fontSize="sm" color="text.default" noOfLines={1}>
-          {memo.bookTitle}
-        </Text>
-        {memo.bookAuthor && (
-          <Text fontSize="12px" color="text.muted" noOfLines={1}>
-            {memo.bookAuthor}
-          </Text>
-        )}
-      </Flex>
-
-      <HStack spacing={2} mt={2} wrap="wrap">
-        {memo.color && <Chip>{memo.color}</Chip>}
-        {memo.locator && <Chip>{memo.locator}</Chip>}
-        {/* Amazon の表示そのままの文字列。日付として整形しない */}
-        {memo.lastHighlightedText && (
-          <Text fontSize="11.5px" color="text.muted">
-            最後のハイライト: {memo.lastHighlightedText}
-          </Text>
-        )}
-        {memo.sourceUrl && (
-          <Link
-            href={memo.sourceUrl}
-            isExternal
-            fontSize="11.5px"
-            color="accent.strong"
-            display="inline-flex"
-            alignItems="center"
-            gap="4px"
-          >
-            元の素材へ
-            <Icon as={FiExternalLink} boxSize="12px" />
-          </Link>
-        )}
-      </HStack>
+      {(memo.color || memo.locator) && (
+        <HStack spacing={2} mt={3} wrap="wrap">
+          {memo.color && <Chip>{memo.color}</Chip>}
+          {memo.locator && <Chip>{memo.locator}</Chip>}
+        </HStack>
+      )}
     </Box>
   );
 }

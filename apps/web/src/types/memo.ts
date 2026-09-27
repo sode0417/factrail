@@ -34,27 +34,39 @@ export interface F2AHighlight {
   created_at: string;
 }
 
-/** F2A から受け取る本 1 冊（ハイライトを内側に持つ）。 */
+/**
+ * F2A から受け取る素材 1 つ（ハイライトを内側に持つ）。
+ *
+ * ⭐ 呼び名について: 表の名前は `books` だが、本人は web / YouTube も同じ仕組みに
+ *    入れるつもりでおられる（2026-09-27 シート 58ddd654 の設問 3 の補足）。
+ *    画面では「本」と決めつけず **素材** と呼ぶ。
+ */
 export interface F2ABook {
   id: string;
   title: string;
   /** Kindle 由来は `著者: ` のラベルを含んだまま入っている。画面でラベルを足さない。 */
   author: string | null;
+  /** 📏 2026-09-27 時点の F2A は `kindle` / `paper` / `manual` の 3 つだけ。 */
   source: string;
   asin: string | null;
+  /**
+   * 素材そのものの URL。
+   * 🔴 2026-09-27 時点の F2A には **この列が無い**。本人が web / YouTube のリンクも
+   *    欲しいと言われているので、足された瞬間に流れるよう受け口だけ先に開けてある。
+   *    ⛔ 来ないことを前提に、必ず null を許す。
+   */
+  url?: string | null;
   /** Amazon の表示そのままの文字列。日付として扱わない。 */
   last_highlighted_text: string | null;
   /**
    * Amazon 側が「一部の注釈は表示されていません」と出した文面と、件数表示。
-   * 🔴 入っている本は取れたハイライトが全部とは限らない。画面に必ず印を出す。
+   * 🔴 入っている素材は取れたハイライトが全部とは限らない。画面に必ず印を出す。
    */
   import_notice: string | null;
   highlights: F2AHighlight[];
 }
 
-/**
- * 画面で使う形。本をまたいで 1 件ずつ並べるので、本の情報を各件に畳み込んである。
- */
+/** 画面で使うハイライト 1 件。素材の情報は外側の {@link MemoGroup} が持つ。 */
 export interface Memo {
   id: string;
   text: string;
@@ -64,14 +76,25 @@ export interface Memo {
   maybeTruncated: boolean;
   /** 並べ替えに使う取り込み時刻。⚠️ ハイライトした時刻ではない。 */
   importedAt: string;
+}
 
-  bookId: string;
-  bookTitle: string;
-  bookAuthor: string | null;
-  bookSource: string;
-  /** 元の素材へのリンク。作れないときは null（ASIN の無い紙・手入力）。 */
+/**
+ * 素材 1 つと、その中のハイライト。
+ *
+ * 📌 一覧は **素材ごとにまとめて**出す（2026-09-27 シート 58ddd654 の設問 2 で本人が
+ *    「本ごとにまとめる」を選択）。⛔ 本をまたいで 1 列に混ぜない。
+ */
+export interface MemoGroup {
+  id: string;
+  title: string;
+  author: string | null;
+  source: string;
+  /** 元の素材へのリンク。作れないときは null。画面は null のときもその旨を出す。 */
   sourceUrl: string | null;
   lastHighlightedText: string | null;
   /** 非 null なら「黙って欠けているかもしれない」印を出す。 */
   importNotice: string | null;
+  memos: Memo[];
+  /** 素材どうしの並べ替えに使う、この素材でいちばん新しい取り込み時刻。 */
+  latestImportedAt: string;
 }
