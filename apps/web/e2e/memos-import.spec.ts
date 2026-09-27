@@ -50,13 +50,17 @@ const DUMMY_EXPORT = JSON.stringify({
 });
 
 test.describe('メモの取り込み', () => {
-  test('取り込みボタンが一覧の状態に関係なく出ること', async ({ page }) => {
+  test('予備の取り込みボタンが、一覧の状態に関係なく出ること', async ({ page }) => {
     await signIn(page);
     await page.goto('/memos');
 
     // 一覧が 0 件でも取り込みはできる
     await expect(page.getByTestId('memos-empty')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'メモを取り込む' })).toBeVisible();
+    // 🔴 これは予備の経路。本筋（収集そのものを起動するボタン）は
+    //    F2A に口ができてから足すので、ラベルで区別できることまで確かめる
+    await expect(
+      page.getByRole('button', { name: 'JSON から取り込む（予備）' }),
+    ).toBeVisible();
   });
 
   test('取り込みに成功すると、件数の内訳が出ること', async ({ page }) => {

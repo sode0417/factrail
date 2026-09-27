@@ -139,12 +139,17 @@ function ResultPanel({ summary }: { summary: MemoImportSummary }) {
 }
 
 /**
- * 取り込みボタン。
+ * JSON から取り込むボタン。**予備の経路**。
  *
- * 📌 kindle-exporter が出した JSON を**手で選んで**送る形にしてある
- *    （2026-09-27 に F2A 担当と確認）。⛔ ボタンから取得そのものを起動しない ——
- *    取得は Chrome を立ち上げて Amazon を読む作りで 📏 実測 約17秒 かかり、
- *    押すたびに Amazon を叩くことになるため。取得は 1 日 1 回の自動実行が別にある。
+ * 🔴 **これは本筋ではない。** 本人のご依頼は「押すと Kindle の収集そのものが走る」形で
+ *    （2026-09-27 本人回答: 自動 1 日 1 回 ＋ 手動の「今すぐ取り込む」の両方）、
+ *    そちらは F2A に収集を起動する口ができてから足す。⛔ 混同しないよう、
+ *    画面でも「予備」と判る表示にしてある。
+ *
+ * ⭐ それでも残す理由: **収集が壊れたときに、手元の JSON から入れ直せる道**になるため
+ *    （⚠️ Amazon のログインが切れると収集は失敗する）。自動収集は壊れていても
+ *    誰も押していないので気づけない —— factrail の `browser` ソースで実際に
+ *    7 日間 落ち続けた型なので、逃げ道は残しておく。
  */
 export function MemoImportButton({ onImported }: { onImported?: () => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -184,12 +189,14 @@ export function MemoImportButton({ onImported }: { onImported?: () => void }) {
           onClick={() => inputRef.current?.click()}
           isLoading={busy}
           loadingText="取り込み中"
-          variant="outline"
+          variant="ghost"
+          color="text.muted"
+          fontWeight={500}
         >
-          メモを取り込む
+          JSON から取り込む（予備）
         </Button>
         <Text fontSize="11.5px" color="text.muted">
-          kindle-exporter が出した JSON を選んでください。
+          収集がうまくいかないときの逃げ道です。kindle-exporter が出した JSON を選んでください。
           同じものを 2 回入れても増えません。
         </Text>
       </Flex>
