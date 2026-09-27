@@ -1,5 +1,13 @@
 import { f2aClient } from '@/lib/axios';
-import type { F2ABook, F2AHighlight, Memo, MemoGroup } from '@/types/memo';
+import type {
+  F2ABook,
+  F2AHighlight,
+  Memo,
+  MemoGroup,
+  MemoImportError,
+  MemoImportFailure,
+  MemoImportSummary,
+} from '@/types/memo';
 
 /**
  * 読書メモを F2A から取ってきて、画面の形に均す層。
@@ -105,4 +113,76 @@ export function toMemoGroups(books: F2ABook[]): MemoGroup[] {
 export async function fetchMemoGroups(): Promise<MemoGroup[]> {
   const response = await f2aClient.get<{ data: F2ABook[] }>(MEMOS_ENDPOINT);
   return toMemoGroups(response.data?.data ?? []);
+}
+
+/**
+ * 取り込みの口。
+ *
+ * 📏 F2A `apps/api/src/routes/books.rs` の `POST /api/books/import/kindle`。
+ *    食わせるのは `~/Projects/kindle-exporter` が出す JSON（`ExportResult`）そのまま。
+ *
+ * ⚠️ F2A 側のボディ上限は 16MB（`MAX_IMPORT_BYTES`）。📏 実物は1冊10件で 6.5KB。
+ */
+const IMPORT_ENDPOINT = '/api/books/import/kindle';
+
+/** F2A 側の上限に合わせる。超えたら送らずに手前で止める（413 だけ返っても理由が判らないため）。 */
+const MAX_IMPORT_BYTES = 16 * 1024 * 1024;
+
+/** axios のエラーから HTTP ステータスと本文を取り出す（型を絞るだけ）。 */
+function readAxiosError(error: unknown): { status?: number; detail: string | null } {
+  const res = (error as { response?: { status?: number; data?: unknown } })?.response;
+  if (!res) return { detail: null };
+
+  let detail: string | null = null;
+  const data = res.data;
+  if (typeof data === 'string' && data.trim()) detail = data.trim();
+  else if (data && typeof data === 'object') {
+    const msg = (data as { error?: unknown; message?: unknown }).error
+      ?? (data as { message?: unknown }).message;
+    if (typeof msg === 'string' && msg.trim()) detail = msg.trim();
+  }
+  return { status: res.status, detail };
+}
+
+/**
+ * kindle-exporter が出した JSON を F2A へ送る。
+ *
+ * 🔴 失敗の理由を種類で返す。⛔ ひとまとめの「失敗しました」にしない ——
+ *    とくに **404（F2A に口がまだ無い）** を他と混ぜると、こちらの作りの誤りだと
+ *    誤解される。📏 2026-09-27 時点の本番 F2A は `/api/books/*` がすべて 404
+ *    （マージしてもバイナリが入れ替わらないため。F2A 担当と実測で一致）。
+ *
+ * ⭐ 取り込みは冪等（📏 F2A 担当の実測: 2回目は ±0 件）。二重に押しても増えない。
+ */
+export async function importKindleMemos(file: File): Promise<MemoImportSummary> {
+  if (file.size > MAX_IMPORT_BYTES) {
+    throw { kind: 'too-large', detail: null } satisfies MemoImportError;
+  }
+
+  // 送る前に JSON として読めるか確かめる。⭐ 読めないものを送っても 400 が返るだけで、
+  //    「ファイルを間違えた」のか「口が違う」のかが画面から判らなくなる。
+  const raw = await file.text();
+  let payload: unknown;
+  try {
+    payload = JSON.parse(raw);
+  } catch {
+    throw { kind: 'invalid-json', detail: null } satisfies MemoImportError;
+  }
+
+  try {
+    const response = await f2aClient.post<{ data: MemoImportSummary }>(
+      IMPORT_ENDPOINT,
+      payload,
+    );
+    return response.data?.data ?? {};
+  } catch (error) {
+    const { status, detail } = readAxiosError(error);
+    const kind: MemoImportFailure =
+      status === 404 ? 'not-deployed'
+      : status === 401 || status === 403 ? 'unauthorized'
+      : status === 413 ? 'too-large'
+      : status === 400 || status === 422 ? 'rejected'
+      : 'unknown';
+    throw { kind, detail } satisfies MemoImportError;
+  }
 }
