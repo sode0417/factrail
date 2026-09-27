@@ -106,7 +106,11 @@ Fact を分析する際、以下の期間・ソースはデータが存在しな
 
 ## CI/CD と GitHub 運用
 
-- ワークフロー: `deploy.yml`, `ci-api.yml`, `ci-web.yml`, `test-api.yml`, `test-web.yml`, `security.yml`, `claude-code-review.yml`, `claude.yml`, `claude-task.yml`, `auto-fix.yml`, `auto-label-issues.yml`, `ci-summary.yml`, `ci-failure-issue.yml`, `docs-update-on-merge.yml`
+- ワークフロー: `deploy.yml`, `ci-api.yml`, `ci-web.yml`, `test-api.yml`, `test-web.yml`, `security.yml`, `claude-code-review.yml`, `claude.yml`, `claude-task.yml`, `auto-fix.yml`, `auto-label-issues.yml`, `ci-summary.yml`, `ci-failure-issue.yml`, `docs-update-on-merge.yml`, `dependabot-lockfile.yml`
+- **`dependabot-lockfile.yml` は Dependabot の PR の `pnpm-lock.yaml` を作り直して、その PR に commit し返す**（Dependabot が `pnpm.overrides` の記述を落とすため `--frozen-lockfile` が壊れる）
+  - 🔴 `pull_request_target` で動かす。**Dependabot 起動の `pull_request` では `GITHUB_TOKEN` が read のみになり push できない**（2026-09-28 実測: PR #217 の run は `Contents: read / Metadata: read`）
+  - ⛔ 権限は `contents: write` だけ。実行するのは `pnpm install --lockfile-only --ignore-scripts` のみ（書き込み権限を持った状態で信頼できないコードを動かさないため）
+  - ⚠️ `GITHUB_TOKEN` の push は CI を起動し直さない。PR のチェック結果は「直す前のコミット」に対するもの
 - claude-code-action は `id-token: write` 権限が必須（内部で OIDC → App token 交換）
 - **claude-review は Dependabot 起動の PR ではスキップされる**（`claude-code-review.yml` の `if: github.actor != 'dependabot[bot]'`）。Dependabot 起動の run は Actions ではなく **Dependabot のシークレットストア**を参照するため `secrets.CLAUDE_CODE_OAUTH_TOKEN` が空になり、必ず失敗するのを避けるため。依存更新の安全性は Trivy / Snyk / pnpm audit が担保する（#158）
   - claude bot 起票の PR（Phase 1 のドラフト PR）は `allowed_bots: 'claude'` で許可済み
