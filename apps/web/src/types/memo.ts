@@ -1,85 +1,107 @@
 /**
- * 読書メモ（ハイライト + 自分のメモ）の型。
+ * 読書メモ（素材とハイライト）の型。
  *
- * 🔴 データの持ち主は F2A（`books` / `book_highlights` の 2 表）で、factrail は
- *    画面だけを持つ。ここにあるのは「F2A から受け取る形」と「画面で使う形」の 2 種類。
+ * 🔴 データの持ち主は F2A。factrail は画面だけを持つ。
+ *    📏 口の形は F2A の PR #67（`GET /api/media` / `GET /api/media/{id}`）に合わせてある。
+ *    ⭐ 2026-09-28 に F2A 担当から提示された実物の仕様。⛔ こちらの推測ではない。
  *
- * ⚠️ 列の意味は F2A のマイグレーション
- *    `apps/api/migrations/20260927_032_books_and_highlights.sql` が正。
- *    とくに次の 2 点は、知らないと画面で嘘をつく:
+ * ⚠️ 知らないと画面で嘘をつく点:
  *
  *    - `highlighted_at` は Kindle 由来では必ず NULL（Amazon が 1 件ごとの日時を
- *      持っていない）。だから「ハイライトした日時」は基本的に出せない。本ごとの
- *      `last_highlighted_text` が唯一の手がかりで、これは Amazon の表示そのままの
- *      文字列（例: `2026年9月26日土曜日`）。日付として解釈しない。
+ *      持っていない）。⛔ 「ハイライトした日時」として出せない。
  *    - `maybe_truncated` の false は「切れていない」ではなく「切れている疑いを
- *      検出しなかった」。断定した文言を出さない。
+ *      検出しなかった」。⛔ 断定した文言を出さない。
+ *    - `last_highlighted_text` は Amazon の表示そのままの文字列
+ *      （例: `2026年9月26日土曜日`）。⛔ 日付として解釈しない。
  */
 
-/** F2A から受け取るハイライト 1 件（snake_case は F2A 側の表記に合わせる）。 */
-export interface F2AHighlight {
-  id: string;
-  /** ハイライトの本文。 */
-  text: string;
-  /** 本人が付けたメモ。無いことのほうが多い。 */
-  note: string | null;
-  /** 位置。Kindle なら位置番号、紙ならページなど。 */
-  locator: string | null;
-  locator_type: string | null;
-  /** Kindle のハイライト色（`yellow` / `pink` など）。未知の色が来てもよい。 */
-  color: string | null;
-  /** 本文が Amazon 側で切られている疑い。false は「検出しなかった」の意味。 */
-  maybe_truncated: boolean;
-  /** 取り込んだ時刻。⚠️ ハイライトした時刻ではない。 */
-  created_at: string;
-}
-
-/**
- * F2A から受け取る素材 1 つ（ハイライトを内側に持つ）。
- *
- * ⭐ 呼び名について: 表の名前は `books` だが、本人は web / YouTube も同じ仕組みに
- *    入れるつもりでおられる（2026-09-27 シート 58ddd654 の設問 3 の補足）。
- *    画面では「本」と決めつけず **素材** と呼ぶ。
- */
-export interface F2ABook {
+/** 素材 1 つ（一覧で返る形。⛔ ハイライトは持たない）。 */
+export interface F2AMedia {
   id: string;
   title: string;
-  /** Kindle 由来は `著者: ` のラベルを含んだまま入っている。画面でラベルを足さない。 */
+  /** Kindle 由来は `著者: ` のラベルを含んだまま。⛔ 画面でラベルを足さない。 */
   author: string | null;
-  /**
-   * 何を読んだか。📏 本番は `kindle` / `paper` / `manual` の 3 つ。
-   * ⭐ F2A の PR #66（未マージ）で `web` / `youtube` が加わる。
-   */
+  /** 何を読んだか: `kindle` / `paper` / `manual` / `web` / `youtube`。 */
   source: string;
+  /**
+   * どこから取ったか: `kindle-exporter` / `glasp` / `manual`。
+   * 🔑 `source` とは別の軸。⛔ 片方だけだと「YouTube の動画を Glasp から取った」が表せない。
+   */
+  ingest_via: string | null;
+  /** 素材そのものの URL。無い素材もある。 */
+  source_url: string | null;
   asin: string | null;
-  /**
-   * 素材そのものの URL。
-   * 📏 F2A の PR #66（未マージ）で `books.source_url` として実装済み
-   *    （＋ `UNIQUE (user_id, source_url)`）。2026-09-27 に F2A 担当と突き合わせて
-   *    この名前に合わせた。⛔ 本番にはまだ入っていないので、必ず null を許す。
-   */
-  source_url?: string | null;
-  /**
-   * 素材に付いたタグ。📏 F2A の PR #66 で `books.tags text[]` として実装済み。
-   * ⛔ まだ画面に出していない（#66 がマージされてから足す）。
-   */
-  tags?: string[] | null;
-  /**
-   * どこから取ったか。📏 F2A の PR #66 で追加（`glasp` / `kindle-exporter` / `manual`）。
-   * 🔑 `source`（何を読んだか）と経路を分けるための列。⛔ まだ画面に出していない。
-   */
-  ingest_via?: string | null;
-  /** Amazon の表示そのままの文字列。日付として扱わない。 */
+  tags: string[] | null;
+  summary: string | null;
   last_highlighted_text: string | null;
   /**
    * Amazon 側が「一部の注釈は表示されていません」と出した文面と、件数表示。
    * 🔴 入っている素材は取れたハイライトが全部とは限らない。画面に必ず印を出す。
    */
   import_notice: string | null;
-  highlights: F2AHighlight[];
+  highlight_count: number;
+  /**
+   * F2A が並べ替えに使った時刻。
+   * 🔑 `MAX(highlighted_at)` → 無ければ `created_at`。Kindle は後者に落ちる。
+   * ⛔ これで並べ直さない（F2A は同時刻のとき件数・id まで見て解決している）。
+   */
+  sort_at: string;
+  created_at: string;
+  updated_at: string;
 }
 
-/** 画面で使うハイライト 1 件。素材の情報は外側の {@link MemoGroup} が持つ。 */
+/** ハイライト 1 件（詳細でのみ返る）。 */
+export interface F2AHighlight {
+  id: string;
+  text: string;
+  note: string | null;
+  locator: string | null;
+  locator_type: string | null;
+  color: string | null;
+  maybe_truncated: boolean;
+  /** ⛔ Kindle 由来では必ず null。 */
+  highlighted_at: string | null;
+  created_at: string;
+}
+
+/** 素材 1 つの詳細。 */
+export interface F2AMediaDetail extends F2AMedia {
+  highlights: F2AHighlight[];
+  /** 🔴 true なら、返っていないハイライトがある。必ず画面に出す。 */
+  highlights_truncated: boolean;
+}
+
+export interface F2AMediaListResponse {
+  data: F2AMedia[];
+  meta: {
+    /** 🔴 続きの有無はこれで判定する。⛔ `next_cursor` の有無で判定しない。 */
+    has_more: boolean;
+    next_cursor: string | null;
+    limit: number;
+  };
+}
+
+// =====================
+// 画面で使う形
+// =====================
+
+/** 素材 1 つ。 */
+export interface MemoSource {
+  id: string;
+  title: string;
+  author: string | null;
+  source: string;
+  ingestVia: string | null;
+  sourceUrl: string | null;
+  tags: string[];
+  lastHighlightedText: string | null;
+  importNotice: string | null;
+  highlightCount: number;
+  /** ⛔ 並べ替えには使わない。「なぜこの順か」の説明用。 */
+  sortAt: string;
+}
+
+/** ハイライト 1 件。 */
 export interface Memo {
   id: string;
   text: string;
@@ -87,29 +109,25 @@ export interface Memo {
   locator: string | null;
   color: string | null;
   maybeTruncated: boolean;
-  /** 並べ替えに使う取り込み時刻。⚠️ ハイライトした時刻ではない。 */
-  importedAt: string;
 }
 
-/**
- * 素材 1 つと、その中のハイライト。
- *
- * 📌 一覧は **素材ごとにまとめて**出す（2026-09-27 シート 58ddd654 の設問 2 で本人が
- *    「本ごとにまとめる」を選択）。⛔ 本をまたいで 1 列に混ぜない。
- */
-export interface MemoGroup {
-  id: string;
-  title: string;
-  author: string | null;
-  source: string;
-  /** 元の素材へのリンク。作れないときは null。画面は null のときもその旨を出す。 */
-  sourceUrl: string | null;
-  lastHighlightedText: string | null;
-  /** 非 null なら「黙って欠けているかもしれない」印を出す。 */
-  importNotice: string | null;
+/** 素材 1 つを開いたときの中身。 */
+export interface MemoDetail {
   memos: Memo[];
-  /** 素材どうしの並べ替えに使う、この素材でいちばん新しい取り込み時刻。 */
-  latestImportedAt: string;
+  /** 🔴 true なら、返っていないハイライトがある。 */
+  truncated: boolean;
+}
+
+/** 一覧の 1 ページ分。 */
+export interface MemoPage {
+  items: MemoSource[];
+  hasMore: boolean;
+  nextCursor: string | null;
+  /**
+   * ⚠️ カーソルが壊れていた（F2A が 400）ので、先頭から読み直したことを示す。
+   * ⛔ 黙って先頭に戻さず、画面に出すために持つ。
+   */
+  restarted: boolean;
 }
 
 // =====================
@@ -136,13 +154,10 @@ export interface MemoImportDetail {
 /**
  * 取り込みの結果。
  *
- * 📏 F2A `books_import.rs` の `ImportSummary` に対応。
- *
- * 🔴 **項目名は変わる予定がある**（2026-09-27 に F2A 担当から連絡あり）:
- *    `books_existing` → `books_updated` + `books_unchanged`、
- *    `highlights_duplicate` → `highlights_updated` + `highlights_unchanged`。
+ * 🔴 **項目名は変わる予定がある**（F2A 担当から連絡あり）:
+ *    `books_existing` → `books_updated` + `books_unchanged` など。
  *    ⇒ ⭐ だからすべて **任意** にしてあり、画面は **来た項目だけ出す**。
- *    ⛔ 特定の項目があることを前提にしない（無い項目で 0 と書くと嘘になる）。
+ *    ⛔ 無い項目で 0 と書くと嘘になる。
  */
 export interface MemoImportSummary {
   books_in_file?: number;

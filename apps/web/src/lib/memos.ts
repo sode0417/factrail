@@ -1,54 +1,47 @@
 import { f2aClient } from '@/lib/axios';
 import type {
-  F2ABook,
   F2AHighlight,
+  F2AMedia,
+  F2AMediaDetail,
+  F2AMediaListResponse,
   Memo,
-  MemoGroup,
+  MemoDetail,
   MemoImportError,
   MemoImportFailure,
   MemoImportSummary,
+  MemoPage,
+  MemoSource,
 } from '@/types/memo';
 
 /**
  * 読書メモを F2A から取ってきて、画面の形に均す層。
  *
- * 🔴🔴 ここは「F2A の読み出し口が決まったら差し替える 1 ファイル」。
+ * 📏 口の形は F2A の PR #67 に合わせてある（2026-09-28 に F2A 担当から提示された実物）。
+ *    ⛔ 以前のようにこちらで推測した形ではない。
  *
- *   2026-09-27 時点で、F2A に **読み出しの JSON 口は存在しない**。
- *   `/api/books` に生えているのは `POST /import/kindle` の 1 本だけで
- *   （F2A `apps/api/src/routes/books.rs`）、GET は本番のビルドが古いから
- *   404 なのではなく、ソースにも無いから 404 になる。
- *   F2A 側の `/books` は API 自身が HTML を組んで返す画面で、JSON は出さない。
- *
- *   ⇒ 下の `MEMOS_ENDPOINT` と変換は **こちらが置いた仮の取り決め**。
- *     F2A の表の列（`20260927_032_books_and_highlights.sql`）に合わせてあるが、
- *     実装されたら実物に合わせて直すこと。画面側（`app/memos/page.tsx` と
- *     `components/memos/`）はこの層より上なので、直すのはここだけで済む。
+ * 🔴 **2026-09-28 時点で、この口はまだ本番に入っていない**（PR #67 は OPEN）。
+ *    本番の F2A は `/api/media` を知らないので 404 を返す。画面はそれを
+ *    「読み込めませんでした」として出す（⛔ 「まだありません」と混ぜない）。
  */
-const MEMOS_ENDPOINT = '/api/books';
+const MEDIA_ENDPOINT = '/api/media';
 
-/**
- * 素材へのリンクを決める。
- *
- * 🔴 本人は「web や YouTube の場合はそのリンクも」と言われている
- *    （2026-09-27 シート 58ddd654 設問 3 の補足）。
- *    📏 F2A の PR #66（未マージ）で `books.source_url` と `web` / `youtube` が
- *    実装済み。⛔ 本番にはまだ入っていないので、来たら使い、来なければ
- *    Kindle の ASIN からだけ組み立てる。
- *
- * ⚠️ 作れないときは null を返し、画面側で「リンクがありません」と出す。
- *    ⛔ 黙って何も出さない（＝リンクが無いことに気づけない）のを避けるため。
- */
-function resolveSourceUrl(book: F2ABook): string | null {
-  // F2A が素材そのものの URL を持っていれば、それが正
-  if (book.source_url && book.source_url.trim()) return book.source_url.trim();
+/** 一覧の 1 ページの件数。⛔ F2A 側の既定（50）に合わせてある。 */
+const PAGE_LIMIT = 50;
 
-  // Kindle は ASIN から「メモとハイライト」のページを組み立てられる
-  if (book.source === 'kindle' && book.asin) {
-    return `https://read.amazon.co.jp/notebook?asin=${encodeURIComponent(book.asin)}`;
-  }
-
-  return null;
+function toMemoSource(media: F2AMedia): MemoSource {
+  return {
+    id: media.id,
+    title: media.title,
+    author: media.author,
+    source: media.source,
+    ingestVia: media.ingest_via,
+    sourceUrl: media.source_url,
+    tags: media.tags ?? [],
+    lastHighlightedText: media.last_highlighted_text,
+    importNotice: media.import_notice,
+    highlightCount: media.highlight_count,
+    sortAt: media.sort_at,
+  };
 }
 
 function toMemo(highlight: F2AHighlight): Memo {
@@ -59,73 +52,89 @@ function toMemo(highlight: F2AHighlight): Memo {
     locator: highlight.locator,
     color: highlight.color,
     maybeTruncated: highlight.maybe_truncated,
-    importedAt: highlight.created_at,
   };
 }
 
-/** 空文字や未定義が混ざっても NaN にならないよう、読めない時刻は 0 に倒す。 */
-function toTime(value: string): number {
-  const t = new Date(value).getTime();
-  return Number.isNaN(t) ? 0 : t;
+function statusOf(error: unknown): number | undefined {
+  return (error as { response?: { status?: number } })?.response?.status;
+}
+
+async function requestPage(cursor?: string): Promise<F2AMediaListResponse> {
+  const params = new URLSearchParams({ limit: String(PAGE_LIMIT) });
+  if (cursor) params.set('cursor', cursor);
+  const response = await f2aClient.get<F2AMediaListResponse>(
+    `${MEDIA_ENDPOINT}?${params.toString()}`,
+  );
+  return response.data;
 }
 
 /**
- * 素材ごとにまとめる。
+ * 素材の一覧を 1 ページ取る。
  *
- * 📌 本人が「本ごとにまとめる」を選ばれた（2026-09-27 シート 58ddd654 設問 2）。
+ * 🔴 **並べ替えをしない。** F2A が返した順のまま描く。
+ *    ⚠️ F2A 側は `MAX(highlighted_at)` → 無ければ `created_at` → 同着ならハイライトの多い順
+ *    → `id` という鍵で並べている。⛔ こちらで並べ直すと、その配慮が消える。
+ *    📏 実際 F2A 担当は「1回の取り込みは1トランザクションなので全冊が同時刻になり、
+ *    ハイライト0件の素材が上位を占めた」という穴を踏んで直している。同じ穴に入らない。
  *
- * ⚠️ 素材どうしの並びは、その素材でいちばん新しい取り込み時刻の降順。
- *    **ハイライトした時刻ではない** —— Kindle 由来には 1 件ごとの日時が存在しない。
- * ⭐ 素材の中の並びは **受け取った順のまま** にしてある。1 回の取り込みで入った分は
- *    時刻がほぼ同じで並べ替えても意味が無く、取得側が渡してくる順（＝読んだ順）の
- *    ほうが読み物として自然なため。⛔ ここで時刻ソートし直さない。
+ * ⚠️ カーソルが壊れていると F2A は **400** を返す（⛔ 黙って先頭に戻したりしない）。
+ *    その場合はカーソルを捨てて先頭から読み直し、`restarted: true` で呼び元に伝える
+ *    —— ⛔ 黙って読み直すと、利用者には「勝手に一番上に戻った」としか見えない。
  */
-export function toMemoGroups(books: F2ABook[]): MemoGroup[] {
-  const groups = books.map((book) => {
-    const memos = (book.highlights ?? []).map(toMemo);
-    const latestImportedAt = memos.reduce<string>(
-      (latest, memo) => (toTime(memo.importedAt) > toTime(latest) ? memo.importedAt : latest),
-      memos[0]?.importedAt ?? '',
-    );
+export async function fetchMemoPage(cursor?: string): Promise<MemoPage> {
+  let payload: F2AMediaListResponse;
+  let restarted = false;
 
-    return {
-      id: book.id,
-      title: book.title,
-      author: book.author,
-      source: book.source,
-      sourceUrl: resolveSourceUrl(book),
-      lastHighlightedText: book.last_highlighted_text,
-      importNotice: book.import_notice,
-      memos,
-      latestImportedAt,
-    };
-  });
+  try {
+    payload = await requestPage(cursor);
+  } catch (error) {
+    if (cursor && statusOf(error) === 400) {
+      payload = await requestPage();
+      restarted = true;
+    } else {
+      throw error;
+    }
+  }
 
-  return groups.sort((a, b) => toTime(b.latestImportedAt) - toTime(a.latestImportedAt));
+  return {
+    items: (payload?.data ?? []).map(toMemoSource),
+    // 🔴 続きの有無は has_more で判定する。⛔ next_cursor の有無で判定しない
+    hasMore: payload?.meta?.has_more === true,
+    nextCursor: payload?.meta?.next_cursor ?? null,
+    restarted,
+  };
 }
 
 /**
- * F2A から読書メモを取得する。
+ * 素材 1 つのハイライトを取る。
  *
- * 🔴 失敗は握りつぶさず投げる。呼ぶ側で「まだ 1 件も無い」と「読み込めなかった」を
- *    別の表示にするため —— 混ぜると、繋がっていないことに気づけない。
+ * ⭐ 一覧は件数しか持たないので、開いたときにここで取る。
+ *    ⛔ 一覧の描画時にまとめて取らない（素材の数だけ叩くことになるため）。
  */
-export async function fetchMemoGroups(): Promise<MemoGroup[]> {
-  const response = await f2aClient.get<{ data: F2ABook[] }>(MEMOS_ENDPOINT);
-  return toMemoGroups(response.data?.data ?? []);
+export async function fetchMemoDetail(mediaId: string): Promise<MemoDetail> {
+  const response = await f2aClient.get<{ data: F2AMediaDetail }>(
+    `${MEDIA_ENDPOINT}/${encodeURIComponent(mediaId)}`,
+  );
+  const detail = response.data?.data;
+  return {
+    memos: (detail?.highlights ?? []).map(toMemo),
+    // 🔴 返っていないハイライトがあることを、黙って隠さない
+    truncated: detail?.highlights_truncated === true,
+  };
 }
+
+// =====================
+// 取り込み
+// =====================
 
 /**
  * 取り込みの口。
- *
  * 📏 F2A `apps/api/src/routes/books.rs` の `POST /api/books/import/kindle`。
- *    食わせるのは `~/Projects/kindle-exporter` が出す JSON（`ExportResult`）そのまま。
- *
- * ⚠️ F2A 側のボディ上限は 16MB（`MAX_IMPORT_BYTES`）。📏 実物は1冊10件で 6.5KB。
+ * ⚠️ F2A 側のボディ上限は 16MB（`MAX_IMPORT_BYTES`）。
  */
 const IMPORT_ENDPOINT = '/api/books/import/kindle';
 
-/** F2A 側の上限に合わせる。超えたら送らずに手前で止める（413 だけ返っても理由が判らないため）。 */
+/** F2A 側の上限に合わせる。超えたら送らずに手前で止める（413 だけでは理由が判らない）。 */
 const MAX_IMPORT_BYTES = 16 * 1024 * 1024;
 
 /** axios のエラーから HTTP ステータスと本文を取り出す（型を絞るだけ）。 */
@@ -149,10 +158,9 @@ function readAxiosError(error: unknown): { status?: number; detail: string | nul
  *
  * 🔴 失敗の理由を種類で返す。⛔ ひとまとめの「失敗しました」にしない ——
  *    とくに **404（F2A に口がまだ無い）** を他と混ぜると、こちらの作りの誤りだと
- *    誤解される。📏 2026-09-27 時点の本番 F2A は `/api/books/*` がすべて 404
- *    （マージしてもバイナリが入れ替わらないため。F2A 担当と実測で一致）。
+ *    誤解される。
  *
- * ⭐ 取り込みは冪等（📏 F2A 担当の実測: 2回目は ±0 件）。二重に押しても増えない。
+ * ⭐ 取り込みは冪等（📏 F2A 担当の実測: 同じファイルの2回目は `inserted: 0`）。
  */
 export async function importKindleMemos(file: File): Promise<MemoImportSummary> {
   if (file.size > MAX_IMPORT_BYTES) {
