@@ -25,9 +25,14 @@ async function signIn(page: Page) {
       }),
     );
   });
-  // 一覧の読み込みは取り込みと別。ここでは 0 件で固定しておく
-  await page.route('**/api/books', (route) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: '{"data":[]}' }),
+  // 一覧の読み込みは取り込みと別。ここでは 0 件で固定しておく。
+  // ⚠️ 一覧は `/api/media`、取り込みは `/api/books/import/kindle` と口が別。
+  await page.route('**/api/media?*', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: '{"data":[],"meta":{"has_more":false,"next_cursor":null,"limit":50}}',
+    }),
   );
 }
 

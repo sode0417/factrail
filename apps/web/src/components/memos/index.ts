@@ -1,3 +1,3 @@
 export { MemoCard } from './MemoCard';
-export { MemoGroupHeader } from './MemoGroupHeader';
+export { MemoSourceHeader } from './MemoSourceHeader';
 export { MemoImportButton } from './MemoImportButton';
