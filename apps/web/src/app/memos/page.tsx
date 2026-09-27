@@ -208,6 +208,15 @@ export default function MemosPage() {
     [sources, detailMap, detailErrorIds, trimmedQuery],
   );
 
+  /**
+   * 素材 id → 本文・メモを探せなかった理由。
+   * 🔴 素材ごとの一行（MemoMatchNote）で「0 件」と言ってよいかの判定に使う。
+   */
+  const gapById = useMemo(
+    () => Object.fromEntries(search.unsearched.map(({ source, gap }) => [source.id, gap])),
+    [search.unsearched],
+  );
+
   /** 🔴 これが 0 になるまで「一致 0 件」と言ってはいけない（まだ探し終わっていない）。 */
   const pendingSourceCount = useMemo(
     () =>
@@ -340,7 +349,9 @@ export default function MemosPage() {
                       onToggle={() => void toggleExpand(source.id)}
                     />
 
-                    {isSearching && <MemoMatchNote match={match} />}
+                    {isSearching && (
+                      <MemoMatchNote match={match} gap={gapById[source.id] ?? null} />
+                    )}
 
                     {isExpanded && (
                       <Box mt={2} pl={{ base: 0, md: 6 }}>

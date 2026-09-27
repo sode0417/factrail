@@ -4,7 +4,18 @@
 //    ⭐ 絞り込みは「ブラウザが持っているデータ」に対して行う。サーバ側で絞ると、
 //       読書メモの本文が HTML に載って誰にでも配られる（📄 `app/memos/page.tsx` の冒頭参照）。
 
-import { Box, Flex, Icon, Input, InputGroup, InputLeftElement, InputRightElement, IconButton, Spinner, Text } from '@chakra-ui/react';
+import {
+  Box,
+  Flex,
+  Icon,
+  IconButton,
+  Input,
+  InputGroup,
+  InputLeftElement,
+  InputRightElement,
+  Spinner,
+  Text,
+} from '@chakra-ui/react';
 import { FiAlertTriangle, FiSearch, FiX } from 'react-icons/fi';
 import type { MemoSearchGapItem } from '@/lib/memo-search';
 
@@ -76,6 +87,12 @@ export function MemoSearchBox({
   hasMore,
 }: Props) {
   const stillLoading = isSearching && pendingSourceCount > 0;
+  /**
+   * ⭐ 「まだ読み込めていない」は上のスピナーの行が言っているので、一覧には出さない。
+   *    ⛔ 隠すのではなく、同じことを二重に言わないだけ —— 読み込みが終わると
+   *    `load-failed` / `truncated` として残り、必ず名前つきで出る。
+   */
+  const unsearchedToList = unsearched.filter(({ gap }) => gap !== 'not-loaded');
 
   return (
     <Box mb={4} data-testid="memos-search">
@@ -135,13 +152,13 @@ export function MemoSearchBox({
       )}
 
       {/* 🔴 探せなかった素材を黙って落とさない。落とすと「無い」と言ったことになる */}
-      {isSearching && unsearched.length > 0 && (
+      {isSearching && unsearchedToList.length > 0 && (
         <Caution testId="memos-search-unsearched">
           <Text fontWeight={600}>
-            {unsearched.length} 件の素材は、本文・メモを探せていません（題名とリンクだけで判定しました）
+            {unsearchedToList.length} 件の素材は、本文・メモを探せていません（題名とリンクだけで判定しました）
           </Text>
           <Box as="ul" pl={4} mt="2px">
-            {unsearched.map(({ source, gap }) => (
+            {unsearchedToList.map(({ source, gap }) => (
               <li key={source.id}>
                 {source.title} — {GAP_LABELS[gap]}
               </li>

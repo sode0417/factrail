@@ -347,6 +347,39 @@ test.describe('メモページの検索', () => {
     const notice = page.getByTestId('memos-search-unsearched');
     await expect(notice).toBeVisible();
     await expect(notice).toContainText('ハイライトが一部しか返っていません');
+    // ⭐ 素材ごとの一行にも、件数が「出ている分の中での件数」だと書く
+    await expect(page.getByTestId('memo-match-note')).toContainText(
+      '返っていないハイライトは探せていません',
+    );
+  });
+
+  test('題名だけ当たった素材の本文が読み込めないとき、「0 件」と書かないこと', async ({
+    page,
+  }) => {
+    await signIn(page);
+    await stubList(page, listBody([MEDIA_BOOK]));
+    // 🔴 題名は当たるが、本文・メモは見に行けていない状態
+    await stubDetail(page, MEDIA_BOOK.id, { error: 'dummy' }, 500);
+
+    await page.goto('/memos');
+    await typeQuery(page, 'ゼータ');
+
+    const note = page.getByTestId('memo-match-note');
+    await expect(note).toContainText('本文・メモを読み込めなかったので探せていません');
+    // ⛔ 「0 件だった」と言わない（0 件なのではなく見ていない）
+    await expect(note).not.toContainText('0 件');
+  });
+
+  test('読み込みが終われば、まだ読み込めていない素材の一覧は残らないこと', async ({ page }) => {
+    await signIn(page);
+    await stubAll(page);
+
+    await page.goto('/memos');
+    await typeQuery(page, '恒常性');
+
+    // ⭐ 「まだ読み込めていません」はスピナーの行が言う。一覧には出さない
+    //    （⛔ 隠すのではなく、二重に言わないだけ。失敗・一部だけは必ず名前つきで出る）
+    await expect(page.getByTestId('memos-search-unsearched')).toHaveCount(0);
   });
 
   test('続きが未読込のときは、検索の対象外だと出すこと', async ({ page }) => {
