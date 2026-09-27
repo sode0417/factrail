@@ -209,14 +209,14 @@ test.describe('メモページ', () => {
     ).toBeVisible();
   });
 
-  test('F2A が素材の URL を持っていれば、そちらを優先して出すこと', async ({ page }) => {
+  test('F2A が素材の source_url を持っていれば、そちらを優先して出すこと', async ({ page }) => {
     await signIn(page);
-    // ⭐ F2A に url 列が足された将来を見込んだ受け口。web / YouTube もここに乗る
+    // 📏 F2A の PR #66 で `books.source_url` として実装済み。web / YouTube もここに乗る
     await stubBooks(page, {
       data: [
         {
           ...FAKE_BOOKS[0],
-          url: 'https://example.test/dummy-article',
+          source_url: 'https://example.test/dummy-article',
         },
       ],
     });

@@ -31,9 +31,9 @@ const MEMOS_ENDPOINT = '/api/books';
  * 素材へのリンクを決める。
  *
  * 🔴 本人は「web や YouTube の場合はそのリンクも」と言われている
- *    （2026-09-27 シート 58ddd654 設問 3 の補足）。⛔ ただし F2A の `books` 表には
- *    **URL の列がまだ無く**、`source` も `kindle` / `paper` / `manual` の 3 つしか
- *    取れない。⇒ ⭐ F2A が `url` を持ったらそれを最優先で使い、それまでは
+ *    （2026-09-27 シート 58ddd654 設問 3 の補足）。
+ *    📏 F2A の PR #66（未マージ）で `books.source_url` と `web` / `youtube` が
+ *    実装済み。⛔ 本番にはまだ入っていないので、来たら使い、来なければ
  *    Kindle の ASIN からだけ組み立てる。
  *
  * ⚠️ 作れないときは null を返し、画面側で「リンクがありません」と出す。
@@ -41,7 +41,7 @@ const MEMOS_ENDPOINT = '/api/books';
  */
 function resolveSourceUrl(book: F2ABook): string | null {
   // F2A が素材そのものの URL を持っていれば、それが正
-  if (book.url && book.url.trim()) return book.url.trim();
+  if (book.source_url && book.source_url.trim()) return book.source_url.trim();
 
   // Kindle は ASIN から「メモとハイライト」のページを組み立てられる
   if (book.source === 'kindle' && book.asin) {
