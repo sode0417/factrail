@@ -4,6 +4,7 @@ import { Box, Flex, Icon, Text } from '@chakra-ui/react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
+  FiBookOpen,
   FiDatabase,
   FiGithub,
   FiMessageSquare,
@@ -19,6 +20,7 @@ interface NavItem {
 
 const mainNavItems: NavItem[] = [
   { name: 'Facts', href: '/facts', icon: FiDatabase },
+  { name: 'メモ', href: '/memos', icon: FiBookOpen },
 ];
 
 const setupNavItems: NavItem[] = [
