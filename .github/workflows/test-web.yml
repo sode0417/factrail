@@ -2,6 +2,13 @@ name: Web E2E Tests
 
 on:
   pull_request:
+    # ⭐ ready_for_review を入れておくこと。
+    # ⛔ 既定 (opened / synchronize / reopened) だけだと、下の job の
+    #    `if: ... draft == false` と噛み合わず、**ドラフトで作った PR を Ready に
+    #    切り替えても CI が1度も走らない**（Draft 中の push は skip され、
+    #    Ready 切替は trigger にならないため）。
+    #    2026-09-27 の PR #222 で実際に起き、空コミットを push して初めて走った。
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [main]
     paths:
       - 'apps/web/**'
