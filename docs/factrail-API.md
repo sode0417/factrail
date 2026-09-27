@@ -43,6 +43,7 @@ Facts の一覧取得
 | type | string | No | タイプでフィルタ |
 | from | ISO 8601 | No | 開始日時 |
 | to | ISO 8601 | No | 終了日時 |
+| search | string | No | title / summary の部分一致検索 (大文字小文字を区別しない, 最大 200 文字) |
 | limit | number | No | 取得件数 (default: 50, max: 100) |
 | cursor | string | No | ページネーション用カーソル |
 
