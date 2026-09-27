@@ -46,16 +46,29 @@ export interface F2ABook {
   title: string;
   /** Kindle 由来は `著者: ` のラベルを含んだまま入っている。画面でラベルを足さない。 */
   author: string | null;
-  /** 📏 2026-09-27 時点の F2A は `kindle` / `paper` / `manual` の 3 つだけ。 */
+  /**
+   * 何を読んだか。📏 本番は `kindle` / `paper` / `manual` の 3 つ。
+   * ⭐ F2A の PR #66（未マージ）で `web` / `youtube` が加わる。
+   */
   source: string;
   asin: string | null;
   /**
    * 素材そのものの URL。
-   * 🔴 2026-09-27 時点の F2A には **この列が無い**。本人が web / YouTube のリンクも
-   *    欲しいと言われているので、足された瞬間に流れるよう受け口だけ先に開けてある。
-   *    ⛔ 来ないことを前提に、必ず null を許す。
+   * 📏 F2A の PR #66（未マージ）で `books.source_url` として実装済み
+   *    （＋ `UNIQUE (user_id, source_url)`）。2026-09-27 に F2A 担当と突き合わせて
+   *    この名前に合わせた。⛔ 本番にはまだ入っていないので、必ず null を許す。
    */
-  url?: string | null;
+  source_url?: string | null;
+  /**
+   * 素材に付いたタグ。📏 F2A の PR #66 で `books.tags text[]` として実装済み。
+   * ⛔ まだ画面に出していない（#66 がマージされてから足す）。
+   */
+  tags?: string[] | null;
+  /**
+   * どこから取ったか。📏 F2A の PR #66 で追加（`glasp` / `kindle-exporter` / `manual`）。
+   * 🔑 `source`（何を読んだか）と経路を分けるための列。⛔ まだ画面に出していない。
+   */
+  ingest_via?: string | null;
   /** Amazon の表示そのままの文字列。日付として扱わない。 */
   last_highlighted_text: string | null;
   /**
@@ -97,4 +110,72 @@ export interface MemoGroup {
   memos: Memo[];
   /** 素材どうしの並べ替えに使う、この素材でいちばん新しい取り込み時刻。 */
   latestImportedAt: string;
+}
+
+// =====================
+// 取り込み（kindle-exporter の JSON を F2A へ送る）
+// =====================
+
+/**
+ * 素材 1 つ分の取り込み結果。
+ * 📏 F2A `apps/api/src/books_import.rs` の `BookImportDetail` に対応。
+ */
+export interface MemoImportDetail {
+  title: string;
+  asin: string | null;
+  /** `created` / `existing` / `skipped` */
+  result: string;
+  /** 取り込めなかった理由。⭐ 黙って落とさず画面に出す。 */
+  skipped_reason: string | null;
+  highlights_in_file: number;
+  highlights_inserted: number;
+  highlights_duplicate: number;
+  has_notice: boolean;
+}
+
+/**
+ * 取り込みの結果。
+ *
+ * 📏 F2A `books_import.rs` の `ImportSummary` に対応。
+ *
+ * 🔴 **項目名は変わる予定がある**（2026-09-27 に F2A 担当から連絡あり）:
+ *    `books_existing` → `books_updated` + `books_unchanged`、
+ *    `highlights_duplicate` → `highlights_updated` + `highlights_unchanged`。
+ *    ⇒ ⭐ だからすべて **任意** にしてあり、画面は **来た項目だけ出す**。
+ *    ⛔ 特定の項目があることを前提にしない（無い項目で 0 と書くと嘘になる）。
+ */
+export interface MemoImportSummary {
+  books_in_file?: number;
+  books_created?: number;
+  books_existing?: number;
+  books_updated?: number;
+  books_unchanged?: number;
+  books_skipped?: number;
+  books_with_notice?: number;
+  highlights_in_file?: number;
+  highlights_inserted?: number;
+  highlights_duplicate?: number;
+  highlights_updated?: number;
+  highlights_unchanged?: number;
+  books?: MemoImportDetail[];
+  /**
+   * 🔴 F2A が知らなかった JSON の項目名。
+   *    ⚠️ 空でないなら、取得側が増やした情報を取り込みが捨てている。必ず画面に出す。
+   */
+  unknown_fields?: string[];
+}
+
+/** 取り込みが失敗した理由。画面の文言を分けるために種類で持つ。 */
+export type MemoImportFailure =
+  | 'not-deployed'
+  | 'unauthorized'
+  | 'too-large'
+  | 'rejected'
+  | 'invalid-json'
+  | 'unknown';
+
+export interface MemoImportError {
+  kind: MemoImportFailure;
+  /** F2A が返した文面があれば添える（無ければ null）。 */
+  detail: string | null;
 }

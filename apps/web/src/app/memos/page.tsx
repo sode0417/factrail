@@ -19,7 +19,7 @@
 import { Box, Button, Flex, Spinner, Text, VStack } from '@chakra-ui/react';
 import { useCallback, useEffect, useState } from 'react';
 import { MainLayout } from '@/components/layout';
-import { MemoCard, MemoGroupHeader } from '@/components/memos';
+import { MemoCard, MemoGroupHeader, MemoImportButton } from '@/components/memos';
 import { fetchMemoGroups } from '@/lib/memos';
 import type { MemoGroup } from '@/types/memo';
 
@@ -70,6 +70,10 @@ export default function MemosPage() {
   return (
     <MainLayout title="メモ" subtitle="素材ごとにハイライトとメモをまとめる">
       <Box px={{ base: 3, md: 6, lg: 8 }} py={6} maxW="1600px" mx="auto" w="100%">
+        {/* ⭐ 取り込みは一覧の読み込みとは独立。読み込めていなくても取り込めるよう、
+            状態に関係なく常に出す */}
+        <MemoImportButton onImported={retry} />
+
         {status === 'loading' && (
           <Flex justify="center" py={10}>
             <Spinner size="xl" color="brand.500" />
