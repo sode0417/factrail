@@ -11,6 +11,8 @@
 //   F2A を叩き、読書メモの本文を HTML に埋めて誰にでも配る。
 //   ⛔ 同じ理由で、このページで `getServerSideProps` 相当のサーバ取得や、
 //      データを焼き込む静的生成をしない。
+//   ⛔ 同じ理由で、検索も**ブラウザの中だけ**で行う（サーバに検索語を渡して
+//      サーバ側で絞ると、絞った結果を HTML に載せることになる）。
 //
 //   確かめ方: `curl` でこのページを取り、HTML にメモの本文が 1 文字も出ていない
 //   ことを見る。ブラウザで見て「ログイン画面が出た」は検証にならない（ブラウザは
@@ -18,10 +20,17 @@
 
 import { Box, Button, Flex, Icon, Spinner, Text, VStack } from '@chakra-ui/react';
 import { FiAlertTriangle, FiInfo } from 'react-icons/fi';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MainLayout } from '@/components/layout';
-import { MemoCard, MemoImportButton, MemoSourceHeader } from '@/components/memos';
+import {
+  MemoCard,
+  MemoImportButton,
+  MemoMatchNote,
+  MemoSearchBox,
+  MemoSourceHeader,
+} from '@/components/memos';
 import { fetchMemoDetail, fetchMemoPage } from '@/lib/memos';
+import { searchMemos } from '@/lib/memo-search';
 import type { MemoDetail, MemoSource } from '@/types/memo';
 
 /**
@@ -48,6 +57,17 @@ export default function MemosPage() {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [detailMap, setDetailMap] = useState<Record<string, MemoDetail>>({});
   const [detailErrorIds, setDetailErrorIds] = useState<Set<string>>(new Set());
+
+  // 検索語と、検索中に手で閉じた素材
+  const [query, setQuery] = useState('');
+  const [searchCollapsedIds, setSearchCollapsedIds] = useState<Set<string>>(new Set());
+
+  // ⚠️ 同じ素材の詳細を二重に取りに行かないための見張り。
+  //    ⭐ state ではなく ref —— 取得中であることは画面に出さないので再描画が要らない。
+  const inFlightIds = useRef<Set<string>>(new Set());
+
+  const trimmedQuery = query.trim();
+  const isSearching = trimmedQuery.length > 0;
 
   // ⚠️ 同期の setState を持たないこと —— effect から呼ぶため
   //    (react-hooks/set-state-in-effect)。状態の切り替えは await の後だけ。
@@ -81,6 +101,7 @@ export default function MemosPage() {
     setExpandedIds(new Set());
     setDetailMap({});
     setDetailErrorIds(new Set());
+    inFlightIds.current = new Set();
     void loadFirstPage();
   }, [loadFirstPage]);
 
@@ -103,8 +124,60 @@ export default function MemosPage() {
     }
   }, [nextCursor, loadingMore]);
 
+  /**
+   * 素材 1 つの詳細（ハイライト）を取る。
+   * 🔴 「0 件だった」と「取れなかった」を混ぜない —— 失敗は `detailErrorIds` に入れる。
+   */
+  const loadDetail = useCallback(async (id: string) => {
+    if (inFlightIds.current.has(id)) return;
+    inFlightIds.current.add(id);
+    try {
+      const detail = await fetchMemoDetail(id);
+      setDetailMap((prev) => ({ ...prev, [id]: detail }));
+      setDetailErrorIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    } catch (error) {
+      console.error('ハイライトの取得に失敗しました', error);
+      setDetailErrorIds((prev) => new Set(prev).add(id));
+    } finally {
+      inFlightIds.current.delete(id);
+    }
+  }, []);
+
+  /**
+   * 本文・メモを探すには詳細が要るので、まだ無い分をまとめて取りに行く。
+   *
+   * ⭐ 検索語が入った時に初めて取る。⛔ 一覧の描画時には取らない
+   *    （開いてもいない素材の数だけ叩くことになる）。
+   * ⚠️ 素材が増えるとこの「全素材ぶん叩く」形が重くなる。その時は F2A 側に
+   *    検索の口を足して置き換えること（📏 2026-09-28 時点は素材 5 件・ハイライト 29 件）。
+   */
+  useEffect(() => {
+    if (!isSearching) return;
+    const missing = sources.filter(
+      (source) =>
+        source.highlightCount > 0 && !detailMap[source.id] && !detailErrorIds.has(source.id),
+    );
+    if (missing.length === 0) return;
+    void Promise.all(missing.map((source) => loadDetail(source.id)));
+  }, [isSearching, sources, detailMap, detailErrorIds, loadDetail]);
+
   const toggleExpand = useCallback(
     async (id: string) => {
+      // 検索中は「一致した素材を開いた状態」が既定。手で閉じられるようにしておく
+      if (isSearching) {
+        setSearchCollapsedIds((prev) => {
+          const next = new Set(prev);
+          if (next.has(id)) next.delete(id);
+          else next.add(id);
+          return next;
+        });
+        return;
+      }
+
       setExpandedIds((prev) => {
         const next = new Set(prev);
         if (next.has(id)) next.delete(id);
@@ -113,23 +186,39 @@ export default function MemosPage() {
       });
 
       if (detailMap[id]) return;
-
-      try {
-        const detail = await fetchMemoDetail(id);
-        setDetailMap((prev) => ({ ...prev, [id]: detail }));
-        setDetailErrorIds((prev) => {
-          const next = new Set(prev);
-          next.delete(id);
-          return next;
-        });
-      } catch (error) {
-        console.error('ハイライトの取得に失敗しました', error);
-        // 🔴 「0 件だった」と「取れなかった」を混ぜない
-        setDetailErrorIds((prev) => new Set(prev).add(id));
-      }
+      await loadDetail(id);
     },
-    [detailMap],
+    [isSearching, detailMap, loadDetail],
   );
+
+  const changeQuery = useCallback((value: string) => {
+    setQuery(value);
+    // ⭐ 検索語を変えたら、前の検索で閉じた覚えは捨てる
+    setSearchCollapsedIds(new Set());
+  }, []);
+
+  const search = useMemo(
+    () =>
+      searchMemos({
+        sources,
+        detailMap,
+        failedIds: detailErrorIds,
+        query: trimmedQuery,
+      }),
+    [sources, detailMap, detailErrorIds, trimmedQuery],
+  );
+
+  /** 🔴 これが 0 になるまで「一致 0 件」と言ってはいけない（まだ探し終わっていない）。 */
+  const pendingSourceCount = useMemo(
+    () =>
+      sources.filter(
+        (source) =>
+          source.highlightCount > 0 && !detailMap[source.id] && !detailErrorIds.has(source.id),
+      ).length,
+    [sources, detailMap, detailErrorIds],
+  );
+
+  const searchFinished = isSearching && pendingSourceCount === 0;
 
   return (
     <MainLayout title="メモ" subtitle="素材ごとにハイライトとメモをまとめる">
@@ -190,97 +279,147 @@ export default function MemosPage() {
         )}
 
         {status === 'ready' && sources.length > 0 && (
-          <VStack spacing={3} align="stretch" data-testid="memos-list">
-            {/* 🔴 並べ替えをしない。F2A が返した順のまま描く
-                （F2A 側が MAX(highlighted_at) → created_at → 件数 → id で解決済み） */}
-            {sources.map((source) => {
-              const isExpanded = expandedIds.has(source.id);
-              const detail = detailMap[source.id];
-              const failed = detailErrorIds.has(source.id);
+          <>
+            {/* 🔴 絞り込みはブラウザの中だけ（F2A に検索の口は無い）。
+                ⛔ サーバ側で絞らない —— 絞った結果を HTML に載せることになる */}
+            <MemoSearchBox
+              value={query}
+              onChange={changeQuery}
+              isSearching={isSearching}
+              pendingSourceCount={pendingSourceCount}
+              matchedSourceCount={search.matches.length}
+              matchedMemoCount={search.matchedMemoCount}
+              loadedSourceCount={sources.length}
+              unsearched={search.unsearched}
+              hasMore={hasMore}
+            />
 
-              return (
-                <Box key={source.id}>
-                  <MemoSourceHeader
-                    source={source}
-                    isExpanded={isExpanded}
-                    onToggle={() => void toggleExpand(source.id)}
-                  />
-
-                  {isExpanded && (
-                    <Box mt={2} pl={{ base: 0, md: 6 }}>
-                      {failed ? (
-                        <Flex
-                          align="center"
-                          gap={2}
-                          px={4}
-                          py={3}
-                          bg="#FBEFE4"
-                          border="1px solid"
-                          borderColor="#E0965A"
-                          borderRadius="md"
-                          data-testid="memo-detail-error"
-                        >
-                          <Icon as={FiAlertTriangle} color="#B4652A" boxSize="14px" />
-                          <Text fontSize="12px" color="#8A4A18">
-                            ハイライトを読み込めませんでした（0 件なのではありません）
-                          </Text>
-                        </Flex>
-                      ) : !detail ? (
-                        <Flex justify="center" py={4}>
-                          <Spinner size="sm" color="brand.500" />
-                        </Flex>
-                      ) : detail.memos.length === 0 ? (
-                        <Text fontSize="12px" color="text.muted" px={4} py={3}>
-                          この素材にハイライトは入っていません。
-                        </Text>
-                      ) : (
-                        <VStack spacing={2} align="stretch">
-                          {/* 🔴 返っていないハイライトがあることを黙って隠さない */}
-                          {detail.truncated && (
-                            <Flex
-                              align="center"
-                              gap={2}
-                              px={3}
-                              py={2}
-                              bg="#FBEFE4"
-                              border="1px solid"
-                              borderColor="#E0965A"
-                              borderRadius="sm"
-                              data-testid="memo-highlights-truncated"
-                            >
-                              <Icon as={FiAlertTriangle} color="#B4652A" boxSize="14px" />
-                              <Text fontSize="12px" color="#8A4A18">
-                                ハイライトが多いため、ここに出ているのは一部です
-                                （全 {source.highlightCount} 件）。
-                              </Text>
-                            </Flex>
-                          )}
-                          {detail.memos.map((memo) => (
-                            <MemoCard key={memo.id} memo={memo} />
-                          ))}
-                        </VStack>
-                      )}
-                    </Box>
-                  )}
-                </Box>
-              );
-            })}
-
-            {hasMore && (
-              <Flex justify="center" pt={2}>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => void loadMore()}
-                  isLoading={loadingMore}
-                  loadingText="読み込み中"
-                  data-testid="memos-load-more"
-                >
-                  もっと読む
-                </Button>
+            {/* 🔴 「探し終わって 0 件」だけをこう出す。⛔ 読み込み中に出さない */}
+            {searchFinished && search.matches.length === 0 && (
+              <Flex
+                direction="column"
+                align="center"
+                gap={2}
+                py={8}
+                data-testid="memos-search-empty"
+              >
+                <Text color="text.default" fontWeight={600}>
+                  {/* 🔴 探せなかった素材があるなら「無い」と言い切らない */}
+                  「{trimmedQuery}」に一致する読書メモは
+                  {search.unsearched.length > 0 ? '、探せた範囲にはありません' : 'ありません'}
+                </Text>
+                <Text color="text.muted" fontSize="sm" textAlign="center">
+                  探したのは、題名・リンク・ハイライトの本文・自分のメモです。
+                  <br />
+                  著者やタグは対象に入っていません。
+                </Text>
               </Flex>
             )}
-          </VStack>
+
+            <VStack spacing={3} align="stretch" data-testid="memos-list">
+              {/* 🔴 並べ替えをしない。F2A が返した順のまま描く
+                  （F2A 側が MAX(highlighted_at) → created_at → 件数 → id で解決済み）
+                  ⛔ 検索中も一致件数で並べ替えない */}
+              {search.matches.map((match) => {
+                const source = match.source;
+                const isExpanded = isSearching
+                  ? !searchCollapsedIds.has(source.id)
+                  : expandedIds.has(source.id);
+                const detail = detailMap[source.id];
+                const failed = detailErrorIds.has(source.id);
+                // ⭐ 本文・メモが当たった素材は、当たったハイライトだけ出す
+                //    （⛔ 何件隠したかは MemoMatchNote が書く）
+                const onlyMatched = isSearching && match.matchedMemos.length > 0;
+                const memosToShow = onlyMatched ? match.matchedMemos : (detail?.memos ?? []);
+
+                return (
+                  <Box key={source.id}>
+                    <MemoSourceHeader
+                      source={source}
+                      isExpanded={isExpanded}
+                      onToggle={() => void toggleExpand(source.id)}
+                    />
+
+                    {isSearching && <MemoMatchNote match={match} />}
+
+                    {isExpanded && (
+                      <Box mt={2} pl={{ base: 0, md: 6 }}>
+                        {failed ? (
+                          <Flex
+                            align="center"
+                            gap={2}
+                            px={4}
+                            py={3}
+                            bg="#FBEFE4"
+                            border="1px solid"
+                            borderColor="#E0965A"
+                            borderRadius="md"
+                            data-testid="memo-detail-error"
+                          >
+                            <Icon as={FiAlertTriangle} color="#B4652A" boxSize="14px" />
+                            <Text fontSize="12px" color="#8A4A18">
+                              ハイライトを読み込めませんでした（0 件なのではありません）
+                            </Text>
+                          </Flex>
+                        ) : !detail && source.highlightCount > 0 ? (
+                          // ⭐ これから取りに行く（⛔ ハイライト 0 件の素材で回し続けない。
+                          //    0 件の素材は検索のために取りに行かないため detail が来ない）
+                          <Flex justify="center" py={4}>
+                            <Spinner size="sm" color="brand.500" />
+                          </Flex>
+                        ) : memosToShow.length === 0 ? (
+                          <Text fontSize="12px" color="text.muted" px={4} py={3}>
+                            この素材にハイライトは入っていません。
+                          </Text>
+                        ) : (
+                          <VStack spacing={2} align="stretch">
+                            {/* 🔴 返っていないハイライトがあることを黙って隠さない */}
+                            {detail?.truncated && (
+                              <Flex
+                                align="center"
+                                gap={2}
+                                px={3}
+                                py={2}
+                                bg="#FBEFE4"
+                                border="1px solid"
+                                borderColor="#E0965A"
+                                borderRadius="sm"
+                                data-testid="memo-highlights-truncated"
+                              >
+                                <Icon as={FiAlertTriangle} color="#B4652A" boxSize="14px" />
+                                <Text fontSize="12px" color="#8A4A18">
+                                  ハイライトが多いため、ここに出ているのは一部です
+                                  （全 {source.highlightCount} 件）。
+                                </Text>
+                              </Flex>
+                            )}
+                            {memosToShow.map((memo) => (
+                              <MemoCard key={memo.id} memo={memo} />
+                            ))}
+                          </VStack>
+                        )}
+                      </Box>
+                    )}
+                  </Box>
+                );
+              })}
+
+              {hasMore && (
+                <Flex justify="center" pt={2}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => void loadMore()}
+                    isLoading={loadingMore}
+                    loadingText="読み込み中"
+                    data-testid="memos-load-more"
+                  >
+                    もっと読む
+                  </Button>
+                </Flex>
+              )}
+            </VStack>
+          </>
         )}
       </Box>
     </MainLayout>
