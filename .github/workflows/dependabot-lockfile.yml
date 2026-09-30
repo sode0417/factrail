@@ -1,0 +1,222 @@
+name: Dependabot Lockfile Fix
+
+# Dependabot が作った PR の pnpm-lock.yaml を、package.json の pnpm.overrides に
+# 合わせて作り直し、その PR ブランチへ commit し返す。
+#
+# 【なぜ要るか】
+#   📏 package.json には pnpm.overrides が 25 件ある（2026-09-28 実測）。
+#   ⚠️ Dependabot は PR を作るとき lockfile から overrides の記述を落とす。
+#   ⇒ package.json と lockfile が食い違い、`--frozen-lockfile` が
+#      ERR_PNPM_LOCKFILE_CONFIG_MISMATCH で落ちる。
+#      📏 2026-09-05 / 09-12 / 09-19 の3週 連続で発生した。
+#
+#   既存の ci-*.yml / test-*.yml は「その実行の中だけで」解決し直して先へ進んでいる。
+#   ⚠️ つまりテストは通るが、**PR に残る lockfile は食い違ったまま**で、
+#      そのままマージすると main が壊れた lockfile を持つ。ここを塞ぐのが本ファイル。
+#
+# 【本人の決定】2026-09-25 08:56「自動で直してから確認する形にする」
+#   （選択肢の説明: 壊れた分を CI が直してからテストする）。2026-09-18 / 09-23 にも同趣旨。
+
+on:
+  # 🔴 `pull_request` ではなく `pull_request_target` を使う。
+  #    ⚠️ Dependabot が起動した `push` / `pull_request` / `pull_request_review` /
+  #       `pull_request_review_comment` の run は、GITHUB_TOKEN が read のみになり
+  #       secrets も渡らない（GitHub の仕様）。
+  #       📏 2026-09-28 実測: PR #217 の Web CI の run は `Contents: read / Metadata: read`。
+  #    ⇒ その権限では PR ブランチへ push できない。`pull_request_target` はこの制限を
+  #       受けないため、`permissions:` で contents: write を付けられる。
+  #
+  # 🔴 `pull_request_target` は base（main）側の定義で、base のコンテキストで走る。
+  #    ⚠️ PR のコードを checkout して**実行**すると、書き込み権限を持った状態で
+  #       信頼できないコードを動かすことになる（いわゆる pwn request）。
+  #    ⇒ 本ファイルでは次の 3 つで抑えている:
+  #       1. 動かすのは `pnpm install --lockfile-only --ignore-scripts` だけ。
+  #          ⛔ postinstall 等のスクリプトを実行しない。node_modules も作らない
+  #       2. secrets を一切使わない（GITHUB_TOKEN のみ）
+  #       3. 権限は contents: write だけ。⛔ pull-requests / issues は付けない
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+    # ⭐ 依存の更新 PR だけを対象にする。
+    #    github-actions エコシステムの PR（.github/workflows/* の更新）には lockfile が
+    #    関係しないので、ここで外れる。
+    paths:
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'apps/**/package.json'
+      # ⭐ いまは catalog を使っていないので変更されないが、使い始めたときに
+      #    「ここだけ変わった PR」を取りこぼさないよう先に入れておく。
+      - 'pnpm-workspace.yaml'
+
+# 【回り続けないこと】ここで push したあと、どうなるか。
+#   1. GitHub の仕様で「`GITHUB_TOKEN` が起こした出来事は新しい run を作らない」
+#      （`workflow_dispatch` / `repository_dispatch` を除く）。
+#      ⇒ この push では ci-*.yml / test-*.yml も、このファイル自身も起動しない。
+#   2. ⚠️ 仮に起動した場合でも回り続けない。2 周目は lockfile が既に直っているので
+#      「壊れているかどうかを先に記録する」が broken=false になり、何もせず終わる。
+#   3. さらに `github.actor != 'github-actions[bot]'` でも止めている（三重）。
+#
+#   🔴 ただし 1. の裏返しとして、**push した後のコミットに対して CI は走り直さない**。
+#      PR のチェック欄に出ている結果は「直す前のコミット」のもの。
+#      ⭐ 一方 ci-*.yml / test-*.yml は Dependabot の PR に限り、実行の中で lockfile を
+#         解決し直してからテストしているので、テスト自体は直した依存と同じ状態で通っている。
+#      ⇒ この食い違いを読み手が取り違えないよう、Job Summary に明記する。
+
+# ⭐ 同じ PR に対して2つ走ると、同じブランチへ同時に push して競合する。
+#    後から来たほうを正として、前のものは止める。
+concurrency:
+  group: dependabot-lockfile-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  fix-lockfile:
+    # 🔴 Dependabot が作った PR に限る。
+    #    ⭐ `github.actor != 'github-actions[bot]'` は、このジョブ自身の push で
+    #       もう一度 起動することを防ぐ保険（下の「回り続けないこと」も参照）。
+    if: >-
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      startsWith(github.head_ref, 'dependabot/') &&
+      github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+
+    # ⭐ 書き込み権限を持ったまま張り付かせない。
+    #    実測では lockfile の解決は数秒で終わる（2026-09-28 手元で 1.3 秒）。
+    timeout-minutes: 10
+
+    # ⛔ これ以上の権限を付けないこと（上の pwn request の項を参照）
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v7
+        with:
+          # ⚠️ pull_request_target の既定の checkout は base(main)。
+          #    直したいのは PR ブランチなので明示する。
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - name: 壊れているかどうかを先に記録する
+        id: before
+        run: |
+          # ⭐ 直す前の状態を控える。あとで「元から壊れていなかった」のか
+          #    「直した」のかを、結果だけ見て取り違えないため。
+          #
+          # ⚠️ 失敗したときの出力を握りつぶさないこと。
+          #    「lockfile が食い違っている」のか「レジストリに繋がらなかった」のかは、
+          #    どちらも同じ非ゼロ終了になる。⛔ 理由が判らないまま「壊れていた」と
+          #    片付けると、インフラの不調を lockfile のせいにしたまま気づけない。
+          if pnpm install --frozen-lockfile --lockfile-only > "$RUNNER_TEMP/before.log" 2>&1; then
+            echo "broken=false" >> "$GITHUB_OUTPUT"
+            echo "この PR の lockfile は package.json と食い違っていませんでした。"
+          else
+            echo "broken=true" >> "$GITHUB_OUTPUT"
+            echo "--frozen-lockfile が通りませんでした。pnpm の出力は次のとおり:"
+            cat "$RUNNER_TEMP/before.log"
+            echo
+            echo "作り直します。"
+            # ⭐ 想定している理由は ERR_PNPM_LOCKFILE_CONFIG_MISMATCH（overrides の食い違い）。
+            #    ⛔ 違う理由なら、直ったように見えても原因が別にある。印を残す。
+            if ! grep -q 'ERR_PNPM_LOCKFILE_CONFIG_MISMATCH' "$RUNNER_TEMP/before.log"; then
+              echo "::warning::想定している ERR_PNPM_LOCKFILE_CONFIG_MISMATCH ではない理由で落ちています。上の出力を確認してください。"
+            fi
+          fi
+          rm -f "$RUNNER_TEMP/before.log"
+
+      - name: lockfile を作り直す
+        # 🔴 壊れているときだけ触る。
+        #    ⛔ 壊れていない PR の lockfile を作り直さない —— pnpm の版が違うだけで
+        #       中身が並び替わることがあり、用の無い差分を PR に足すことになる。
+        if: steps.before.outputs.broken == 'true'
+        run: |
+          # 🔴 --lockfile-only: 依存の解決だけを行い node_modules を作らない
+          # 🔴 --ignore-scripts: パッケージの postinstall 等を実行しない
+          #    ⛔ どちらも外さないこと。外すと「信頼できないコードを書き込み権限つきで
+          #       実行する」形になる。
+          pnpm install --no-frozen-lockfile --lockfile-only --ignore-scripts
+
+      - name: 直った lockfile で --frozen-lockfile が通ることを確かめる
+        if: steps.before.outputs.broken == 'true'
+        run: |
+          # ⭐ 「直した」と言い切れる根拠をこの run の中に残す。
+          #    ⛔ 直したつもりで直っていないまま push しない。
+          pnpm install --frozen-lockfile --lockfile-only
+
+      - name: 変更を PR に commit する
+        id: commit
+        if: steps.before.outputs.broken == 'true'
+        # ⚠️ ブランチ名を `${{ }}` でシェルへ直接 埋めない。env 経由で渡す
+        #    （枝名に仕込まれた文字列がコマンドとして動く形を作らないため）
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          # ⚠️ 変えてよいのは lockfile だけ。package.json は Dependabot の成果物なので触らない。
+          if ! git diff --quiet -- pnpm-lock.yaml; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add pnpm-lock.yaml
+            git commit -m 'chore(deps): lockfile を package.json の overrides に合わせて作り直す
+
+          Dependabot は PR を作るとき lockfile から overrides の記述を落とすため、
+          package.json と食い違い --frozen-lockfile が落ちる。ここで作り直して揃える。
+
+          自動生成: .github/workflows/dependabot-lockfile.yml'
+            git push origin HEAD:"$HEAD_REF"
+            echo "pushed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          # ⚠️ lockfile 以外に差分が出ていたら、黙って捨てずに落とす
+          #    （想定していないことが起きている合図）
+          if ! git diff --quiet; then
+            echo '::error::pnpm-lock.yaml 以外にも差分が出ました。想定外なので止めます。'
+            git --no-pager diff --stat
+            exit 1
+          fi
+
+      - name: この run で何をしたかを残す
+        if: always()
+        env:
+          BROKEN: ${{ steps.before.outputs.broken }}
+          PUSHED: ${{ steps.commit.outputs.pushed }}
+        run: |
+          {
+            echo '## Dependabot の lockfile 修正'
+            echo
+            if [ "$BROKEN" = 'true' ]; then
+              echo '- 直す前: :x: `--frozen-lockfile` が通らなかった（package.json の overrides と食い違い）'
+            else
+              echo '- 直す前: :white_check_mark: 食い違いは無かった'
+            fi
+            if [ "$BROKEN" != 'true' ]; then
+              echo '- 結果: 何もしていません（壊れていないので触っていません）'
+            elif [ "$PUSHED" = 'true' ]; then
+              echo '- 結果: :white_check_mark: lockfile を作り直して、この PR に commit しました'
+              echo
+              echo '> [!IMPORTANT]'
+              echo '> **このページの他のチェック結果は、直す前の commit に対するものです。**'
+              echo '> GitHub の仕様で、`GITHUB_TOKEN` による push は新しい CI を起動しません'
+              echo '> （`workflow_dispatch` / `repository_dispatch` を除く）。'
+              echo '>'
+              echo '> ⭐ ただし `ci-*.yml` / `test-*.yml` は Dependabot の PR に限り、'
+              echo '> 実行の中で lockfile を解決し直してからテストしています。'
+              echo '> つまり **テスト自体は直した依存関係と同じ状態で走っています**。'
+              echo '> 直した commit に対する結果を改めて見たい場合は、チェックを再実行してください。'
+            else
+              # ⚠️ 壊れていたのに差分が出なかった＝想定していない状態。黙って通さない
+              echo '- 結果: :warning: 壊れていたのに、作り直しても差分が出ませんでした。'
+              echo '  この workflow では直せていません。手で確かめてください。'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
