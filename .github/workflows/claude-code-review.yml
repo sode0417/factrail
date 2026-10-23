@@ -16,7 +16,11 @@ jobs:
     # secrets.CLAUDE_CODE_OAUTH_TOKEN が空になり claude-code-action が必ず失敗する。
     # 依存更新の安全性は Trivy / Snyk / pnpm audit が担保しているので、ここではスキップする。
     # (Issue #158)
-    if: github.actor != 'dependabot[bot]'
+    # 人が Dependabot PR を再実行・push・reopen すると actor が dependabot[bot] 以外になり
+    # (例: PR #230 の再実行は actor=github-actions[bot] で失敗)、すり抜けるので PR の作成者でも判定する。
+    if: >-
+      github.actor != 'dependabot[bot]' &&
+      github.event.pull_request.user.login != 'dependabot[bot]'
 
     runs-on: ubuntu-latest
     permissions:
