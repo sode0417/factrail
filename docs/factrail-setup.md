@@ -45,7 +45,7 @@ related: [[Factrail（Fact Trail）]]
 
 | 項目 | バージョン | 確認方法 |
 |---|---|---|
-| Node.js | **24.22.1** | `.node-version` に固定・`node --version` と一致 |
+| Node.js | **24.22.1** | `.node-version` に固定・`node --version` と一致。Mac mini の api・web・runner は `~/Library/LaunchAgents` の plist に Node の実体パスが直書きなので、版を上げたら plist も直して再起動する |
 | pnpm | **10.33.0** | `pnpm --version` |
 | PostgreSQL | ローカル稼働 | `pg_isready` |
 | Redis | ローカル稼働 | `redis-cli ping` |
