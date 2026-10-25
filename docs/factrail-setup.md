@@ -45,7 +45,7 @@ related: [[Factrail（Fact Trail）]]
 
 | 項目 | バージョン | 確認方法 |
 |---|---|---|
-| Node.js | **24.18.1** | `.node-version` に固定・`node --version` と一致 |
+| Node.js | **24.22.1** | `.node-version` に固定・`node --version` と一致 |
 | pnpm | **10.33.0** | `pnpm --version` |
 | PostgreSQL | ローカル稼働 | `pg_isready` |
 | Redis | ローカル稼働 | `redis-cli ping` |
