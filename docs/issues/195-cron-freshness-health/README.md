@@ -12,7 +12,7 @@ better-sqlite3 の ABI 不一致で `ChromeHistoryService` が 7 日間失敗し
 
 判断メモ（2026-08-11・Issue コメント）で決まったこと:
 
-1. `deploy.json` の `health_expect_jq` を `.status != "unhealthy"` に緩める（実装では `status` キーが無い応答を通さないよう `.status == "ok" or .status == "degraded"` と書いた。意味は同じ）。あわせて `unhealthy` レベルを定義する（定義しないと常に真になり、ゲートが無くなる）
+1. `deploy.json` の `health_expect_jq` を `.status != "unhealthy"` に緩める（実装では `status` キーが無い応答を通さないよう `.status == "ok" or .status == "degraded"` と書いた。`!= "unhealthy"` より厳しく、未知の値も通さない）。あわせて `unhealthy` レベルを定義する（定義しないと常に真になり、ゲートが無くなる）
 2. 対象は cron 3 本すべて（browser / slack / backup）
 3. 案 A（起動時 ABI 検査）・案 B（deploy.sh での ABI 突合）は見送る。ABI 不一致の再発を観測したら着手する
 4. テストは補助案の分だけ書く
