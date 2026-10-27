@@ -4,6 +4,11 @@ import { ConfigService } from '@nestjs/config';
 import { WebClient } from '@slack/web-api';
 import { PrismaService } from '../prisma.service';
 import { Prisma } from '@prisma/client';
+import { CronHealthService } from '../health/cron-health.service';
+
+const CRON_NAME = 'slack-collector';
+/** 毎日 1 回なので、1 日分の余裕を持たせる */
+const STALE_AFTER_MS = 26 * 60 * 60 * 1000;
 
 @Injectable()
 export class SlackCollectorService {
@@ -12,12 +17,19 @@ export class SlackCollectorService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
-  ) {}
+    private readonly cronHealth: CronHealthService,
+  ) {
+    // トークン未設定のときは cron が即 return し Fact も増えないので、鮮度の判定から外す
+    const enabled =
+      !!this.configService.get<string>('SLACK_BOT_TOKEN_WORK') &&
+      !!this.configService.get<string>('SLACK_USER_ID_WORK');
+    this.cronHealth.register(CRON_NAME, { staleAfterMs: STALE_AFTER_MS, enabled });
+  }
 
   /**
    * 毎日 JST 21:00 (UTC 12:00) に Slack DM メッセージを収集
    */
-  @Cron('0 12 * * *', { name: 'slack-collector' })
+  @Cron('0 12 * * *', { name: CRON_NAME })
   async collectSlackMessages(): Promise<void> {
     const token = this.configService.get<string>('SLACK_BOT_TOKEN_WORK');
     const slackUserId = this.configService.get<string>('SLACK_USER_ID_WORK');
@@ -42,6 +54,7 @@ export class SlackCollectorService {
 
       if (!teamId) {
         this.logger.error('Slack team_id を取得できませんでした');
+        this.cronHealth.recordFailure(CRON_NAME);
         return;
       }
 
@@ -51,6 +64,7 @@ export class SlackCollectorService {
 
       if (!channelId) {
         this.logger.error('Slack DM チャンネルを開けませんでした');
+        this.cronHealth.recordFailure(CRON_NAME);
         return;
       }
 
@@ -73,6 +87,7 @@ export class SlackCollectorService {
       const userId = await this.resolveUserId();
       if (!userId) {
         this.logger.error('Fact を紐付けるユーザーが見つかりません');
+        this.cronHealth.recordFailure(CRON_NAME);
         return;
       }
 
@@ -143,8 +158,10 @@ export class SlackCollectorService {
       }
 
       this.logger.log('Slack DM メッセージ収集が完了しました');
+      this.cronHealth.recordSuccess(CRON_NAME);
     } catch (error) {
       this.logger.error('Slack DM メッセージ収集に失敗しました', error);
+      this.cronHealth.recordFailure(CRON_NAME);
     }
   }
 

@@ -193,7 +193,7 @@ launchctl kickstart -k gui/$(id -u)/com.sode.factrail-web
 
 | メソッド | エンドポイント | 説明 |
 |---------|---------------|------|
-| GET | `/health` | ヘルスチェック |
+| GET | `/health` | ヘルスチェック（`status` は `ok` / `degraded` / `unhealthy`。`crons` に cron 3 本の鮮度） |
 
 ## トラブルシューティング
 
@@ -258,6 +258,55 @@ redis-cli ping
 # 新しい暗号化キー生成
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
+
+### `/health` が degraded（cron が成功していない）
+
+**症状:** `/health` の `status` が `degraded`。`crons.<名前>.status` が `stale`
+
+`stale` は「最後の成功（成功が無ければプロセス起動）から閾値を超えた」か「起動後に失敗だけが記録されている」の意味。原因は問わない（#195）。
+閾値は browser-collector 2 時間 15 分 / slack-collector・scheduled-backup 26 時間。
+記録はメモリだけなので API を再起動すると消える。手動トリガーの成功でも `healthy` に戻る（スケジューラが動いているかの確認にはならない）。
+`degraded` ではデプロイは止まらない（`deploy.json` のゲートは `ok` か `degraded` なら通す = 止まるのは DB 断の `unhealthy` のときだけ）。
+
+```bash
+# どの cron が止まっているか
+curl -s http://localhost:3001/health | jq '.status, .crons'
+
+# 失敗の中身（ABI 不一致なら NODE_MODULE_VERSION / ERR_DLOPEN_FAILED が出る）
+grep -E "失敗|NODE_MODULE_VERSION" ~/Library/Logs/factrail-api{,.error}.log | tail -20
+```
+
+### ネイティブモジュールの ABI 不一致（better-sqlite3 など）
+
+**症状:** `was compiled against a different Node.js version using NODE_MODULE_VERSION 141. This version of Node.js requires NODE_MODULE_VERSION 137` / `ERR_DLOPEN_FAILED`
+
+⚠️ **`pnpm rebuild better-sqlite3` では直らない**（2026-08-09 実測。ビルド済みと判断されてスキップされ、バイナリの mtime もサイズも変わらない）。
+⚠️ **`require('better-sqlite3')` が通っても直ったとは言えない**。遅延ロードなので `new Database(':memory:')` まで実行して確かめる。
+
+**解決策（Mac mini 上・2026-08-09 に実際に効いた手順）:**
+
+```bash
+cd ~/Projects/factrail
+NODE_BIN="$HOME/.local/share/fnm/node-versions/v$(cat .node-version)/installation/bin"
+
+# 1. 実行に使う Node で ABI を確かめる（launchd の plist が指す Node と同じか）
+"$NODE_BIN/node" -p process.versions.modules
+plutil -p ~/Library/LaunchAgents/com.sode.factrail-api.plist | grep -i node
+
+# 2. 現行 ABI 向けのビルド済みバイナリを取得し直す
+ls -d node_modules/.pnpm/better-sqlite3@*   # 複数あれば実際に使っている版を選ぶ
+cd node_modules/.pnpm/better-sqlite3@*/node_modules/better-sqlite3
+PATH="$NODE_BIN:$PATH" node ../prebuild-install/bin.js
+
+# 3. 直ったかを、実行に使う Node で new Database() まで確かめる
+PATH="$NODE_BIN:$PATH" node -e "new (require('./'))(':memory:').close(); console.log('ok')"
+
+# 4. API を再起動して /health の crons を見る
+launchctl kickstart -k gui/$(id -u)/com.sode.factrail-api
+```
+
+`node_modules` の中の変更なのでコミットされない。pnpm のストアに古い ABI の成果物が残っていると、将来の `pnpm install` で再発しうる。
+再発したら #195 の案 A（起動時の ABI 検査）・案 B（deploy.sh での突き合わせ）に着手する判断になっている。
 
 ## デバッグ手順
 
