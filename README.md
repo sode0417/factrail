@@ -44,7 +44,7 @@ Factrailは、GitHub、Slack、Googleなど外部サービスで発生するイ�
 
 ### 前提条件
 
-- Node.js 24 系（リポジトリルートの `.node-version` で 24.18.1 に固定。CI・Mac mini とも同じ系列を使う）
+- Node.js 24 系（リポジトリルートの `.node-version` で 24.22.1 に固定。CI・Mac mini とも同じ系列を使う）
 - pnpm 10+
 - PostgreSQL（ローカル :5432）
 - Redis (ローカル開発: Homebrew または Docker)
