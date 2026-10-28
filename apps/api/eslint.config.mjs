@@ -5,17 +5,15 @@ import globals from 'globals';
 
 export default tseslint.config(
   {
-    ignores: [
-      'eslint.config.mjs',
-      'prisma.config.ts',
-      'prisma/**',
-      'dist/**',
-      'node_modules/**',
-    ],
+    ignores: ['eslint.config.mjs', 'prisma.config.ts', 'prisma/**', 'dist/**', 'node_modules/**'],
   },
   ...tseslint.configs.recommended,
   eslintPluginPrettierRecommended,
   {
+    // ESLint 8 と同じく、使われていない eslint-disable は知らせない（9 の既定は warn）
+    linterOptions: {
+      reportUnusedDisableDirectives: 'off',
+    },
     languageOptions: {
       globals: {
         ...globals.node,
