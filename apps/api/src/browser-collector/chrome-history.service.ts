@@ -3,8 +3,23 @@ import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+// ⭐ Node 組み込みの SQLite（ネイティブの依存を持たない）。2026-08 に better-sqlite3 の
+//    ネイティブ部品が Node の版と合わず、browser 収集が 7 日止まった（#195）ため置き換えた。
+//    @types/node が 20 系で node:sqlite の型を持たないので、使う分だけ型を書いて require する。
+interface SqliteStatement {
+  all(...params: unknown[]): unknown[];
+}
+interface SqliteDatabase {
+  prepare(sql: string): SqliteStatement;
+  close(): void;
+}
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const BetterSqlite3 = require('better-sqlite3');
+const { DatabaseSync } = require('node:sqlite') as {
+  DatabaseSync: new (
+    path: string,
+    options: { readOnly: boolean; readBigInts: boolean },
+  ) => SqliteDatabase;
+};
 
 export interface ChromeVisit {
   url: string;
@@ -73,9 +88,10 @@ export class ChromeHistoryService {
     this.logger.log(`履歴を取得します（前回: ${lastRunTime.toISOString()}）`);
 
     // 読取の失敗はそのまま投げ、呼び出し元の BrowserCollectorService がログと失敗の記録を行う
-    let db: any = null;
+    let db: SqliteDatabase | null = null;
     try {
-      db = new BetterSqlite3(COPY_DB_PATH, { readonly: true });
+      // ⭐ visit_time は 2^53 を超える（WebKit 時刻のマイクロ秒）ので BigInt のまま読む
+      db = new DatabaseSync(COPY_DB_PATH, { readOnly: true, readBigInts: true });
 
       const rows = db
         .prepare(
@@ -87,19 +103,19 @@ export class ChromeHistoryService {
           ORDER BY v.visit_time ASC
         `,
         )
-        .all(lastRunWebkit.toString()) as Array<{
+        .all(lastRunWebkit) as Array<{
         url: string;
-        title: string;
-        visit_time: string;
-        transition: number;
+        title: string | null;
+        visit_time: bigint;
+        transition: bigint;
       }>;
 
       const visits: ChromeVisit[] = rows
         .map((row) => ({
           url: row.url,
           title: row.title || '',
-          visitTime: this.webkitTimestampToDate(BigInt(row.visit_time)),
-          transitionType: row.transition & 0xff, // 下位8ビットがコアタイプ
+          visitTime: this.webkitTimestampToDate(row.visit_time),
+          transitionType: Number(row.transition & 0xffn), // 下位8ビットがコアタイプ
         }))
         .filter((v) => !this.isInternalUrl(v.url));
 

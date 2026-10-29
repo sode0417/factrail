@@ -53,6 +53,8 @@ related: [[Factrail（Fact Trail）]]
 - パッケージマネージャは **pnpm**（2026-04-05 に npm から移行）。`npm ci` / `npm install` を新規に書かない
 - Node は `.node-version` で固定されている。バージョンを上げる時は **ネイティブモジュールの ABI に注意**
   （`better-sqlite3` が Node 25 系でビルドされたまま Node 24 で実行され、`browser` 収集が7日間止まった事故がある。CLAUDE.md「既知のデータ欠損」参照）
+  Chrome 履歴の読み取りは、その後 Node 組み込みの `node:sqlite` に替えた（ネイティブの依存は持たない）。
+  `node:sqlite` は Node 22.13 / 23.4 より前ではフラグが要るので、`.node-version` を下げない
 
 その他に必要なもの: GitHub アカウント / Slack ワークスペースの管理権限 / Cloudflare Tunnel の設定権限。
 
