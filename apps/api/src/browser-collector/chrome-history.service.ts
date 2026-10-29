@@ -13,13 +13,19 @@ interface SqliteDatabase {
   prepare(sql: string): SqliteStatement;
   close(): void;
 }
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { DatabaseSync } = require('node:sqlite') as {
-  DatabaseSync: new (
-    path: string,
-    options: { readOnly: boolean; readBigInts: boolean },
-  ) => SqliteDatabase;
-};
+type DatabaseSyncCtor = new (
+  path: string,
+  options: { readOnly: boolean; readBigInts: boolean },
+) => SqliteDatabase;
+
+/**
+ * node:sqlite は使う直前に読み込む。⭐ 読み込めない Node で起動しても api 全体は落とさず、
+ * browser 収集だけが失敗として記録される（#195 の経路に乗せる）
+ */
+function loadDatabaseSync(): DatabaseSyncCtor {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return (require('node:sqlite') as { DatabaseSync: DatabaseSyncCtor }).DatabaseSync;
+}
 
 export interface ChromeVisit {
   url: string;
@@ -91,6 +97,7 @@ export class ChromeHistoryService {
     let db: SqliteDatabase | null = null;
     try {
       // ⭐ visit_time は 2^53 を超える（WebKit 時刻のマイクロ秒）ので BigInt のまま読む
+      const DatabaseSync = loadDatabaseSync();
       db = new DatabaseSync(COPY_DB_PATH, { readOnly: true, readBigInts: true });
 
       const rows = db
