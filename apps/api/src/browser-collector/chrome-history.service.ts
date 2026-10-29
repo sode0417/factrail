@@ -53,11 +53,15 @@ export class ChromeHistoryService {
   private readonly logger = new Logger(ChromeHistoryService.name);
   private readonly chromeProfilePath: string;
   private readonly stateDir: string;
-  private readonly usesDefaultStateDir: boolean;
+  /** 以前の置き場（移した直後に読む）。置き場を設定で変えたときは読まない */
+  private readonly legacyLastRunFile: string | null;
 
   constructor(private readonly configService: ConfigService) {
     const stateDir = this.configService.get<string>('BROWSER_COLLECTOR_STATE_DIR');
-    this.usesDefaultStateDir = !stateDir;
+    // テストは BROWSER_COLLECTOR_LEGACY_LAST_RUN_FILE で一時ファイルを渡す（本番の /tmp を読まない）
+    this.legacyLastRunFile =
+      this.configService.get<string>('BROWSER_COLLECTOR_LEGACY_LAST_RUN_FILE') ??
+      (stateDir ? null : LEGACY_LAST_RUN_FILE);
     this.stateDir = stateDir
       ? stateDir.startsWith('~')
         ? path.join(os.homedir(), stateDir.slice(1))
@@ -105,7 +109,7 @@ export class ChromeHistoryService {
       lastRunTime = new Date(Date.now() - 60 * 60 * 1000);
       // 黙って 1 時間前に落とすと、それより前の履歴が失われたことに誰も気づけない（#195）
       this.logger.warn(
-        `前回取得時刻（${this.lastRunFile}）が見つからないため、直近 1 時間分だけ取得します。それより前の履歴は取得されません`,
+        `前回取得時刻（${this.lastRunFile}${this.legacyLastRunFile ? ` と ${this.legacyLastRunFile}` : ''}）が見つからないため、直近 1 時間分だけ取得します。それより前の履歴は取得されません`,
       );
     }
     const lastRunWebkit = this.dateToWebkitTimestamp(lastRunTime);
@@ -190,20 +194,22 @@ export class ChromeHistoryService {
   }
 
   private getLastRunTime(): Date | null {
-    const candidates = [this.lastRunFile];
-    // 置き場を設定で変えていないときだけ、以前の /tmp も見る（テストが本番のファイルを読まないように）
-    if (this.usesDefaultStateDir) candidates.push(LEGACY_LAST_RUN_FILE);
-    for (const file of candidates) {
-      try {
-        if (!fs.existsSync(file)) continue;
-        const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
-        const time = new Date(data.lastRunTime);
-        if (!Number.isNaN(time.getTime())) return time;
-      } catch {
-        // 壊れていれば次の候補へ
-      }
+    // ⭐ 以前の置き場を読むのは、今の置き場にファイルが「無い」ときだけ（移した直後）。
+    //    壊れているときに古い値へ戻ると、何日分も読み直して Fact と LLM の呼び出しが増えるので読まない
+    const file =
+      !fs.existsSync(this.lastRunFile) &&
+      this.legacyLastRunFile &&
+      fs.existsSync(this.legacyLastRunFile)
+        ? this.legacyLastRunFile
+        : this.lastRunFile;
+    try {
+      if (!fs.existsSync(file)) return null;
+      const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
+      const time = new Date(data.lastRunTime);
+      return Number.isNaN(time.getTime()) ? null : time;
+    } catch {
+      return null;
     }
-    return null;
   }
 
   private saveLastRunTime(time: Date): void {

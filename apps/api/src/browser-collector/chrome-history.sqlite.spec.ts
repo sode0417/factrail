@@ -37,14 +37,24 @@ describe('ChromeHistoryService（本物の SQLite で読む）', () => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
+  // ⭐ 置き場のキーはすべて一時ディレクトリを指す（書き忘れると本番の置き場に触るので、キーごとに書く）
   const build = () =>
-    new ChromeHistoryService({ get: jest.fn().mockReturnValue(dir) } as unknown as ConfigService);
+    new ChromeHistoryService({
+      get: (key: string) =>
+        ({
+          CHROME_PROFILE_PATH: dir,
+          BROWSER_COLLECTOR_STATE_DIR: path.join(dir, 'state'),
+          BROWSER_COLLECTOR_LEGACY_LAST_RUN_FILE: path.join(dir, 'legacy-last-run.json'),
+        })[key],
+    } as unknown as ConfigService);
+  const lastRunFile = () => path.join(dir, 'state', 'browser-collector-last-run.json');
+  const writeLastRun = (file: string, iso: string) => {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify({ lastRunTime: iso }));
+  };
 
   it('前回取得時刻より後の訪問だけを、NULL の題と下位 8 ビットを整えて返すこと', () => {
-    fs.writeFileSync(
-      path.join(dir, 'browser-collector-last-run.json'),
-      JSON.stringify({ lastRunTime: '2026-10-29T02:00:00.000Z' }),
-    );
+    writeLastRun(lastRunFile(), '2026-10-29T02:00:00.000Z');
 
     const visits = build().fetchNewVisits();
 
@@ -57,23 +67,42 @@ describe('ChromeHistoryService（本物の SQLite で読む）', () => {
       },
     ]);
     // コピーは読み終えたら消える
-    expect(fs.existsSync(path.join(dir, 'chrome-history-copy.db'))).toBe(false);
+    expect(fs.existsSync(path.join(dir, 'state', 'chrome-history-copy.db'))).toBe(false);
   });
 
   it('成功したら前回取得時刻を置き場に残し、次のインスタンス（再起動後）がそこから続けること', () => {
-    fs.writeFileSync(
-      path.join(dir, 'browser-collector-last-run.json'),
-      JSON.stringify({ lastRunTime: '2026-10-29T00:00:00.000Z' }),
-    );
+    writeLastRun(lastRunFile(), '2026-10-29T00:00:00.000Z');
     expect(build().fetchNewVisits()).toHaveLength(2);
 
-    const saved = JSON.parse(
-      fs.readFileSync(path.join(dir, 'browser-collector-last-run.json'), 'utf-8'),
-    );
+    const saved = JSON.parse(fs.readFileSync(lastRunFile(), 'utf-8'));
     expect(new Date(saved.lastRunTime).getTime()).toBeGreaterThan(
       Date.parse('2026-10-29T00:00:00Z'),
     );
     // 再起動を真似て作り直しても、保存した時刻より前の訪問は読み直さない
     expect(build().fetchNewVisits()).toEqual([]);
+  });
+
+  it('今の置き場に無ければ、以前の置き場の時刻から続けること（移した直後）', () => {
+    writeLastRun(path.join(dir, 'legacy-last-run.json'), '2026-10-29T02:00:00.000Z');
+
+    expect(
+      build()
+        .fetchNewVisits()
+        .map((v) => v.url),
+    ).toEqual(['https://example.com/new']);
+    // 次からは今の置き場に残る
+    expect(fs.existsSync(lastRunFile())).toBe(true);
+  });
+
+  it('今の置き場が壊れていても、以前の置き場の古い値には戻らないこと', () => {
+    writeLastRun(path.join(dir, 'legacy-last-run.json'), '2026-10-01T00:00:00.000Z');
+    fs.mkdirSync(path.join(dir, 'state'), { recursive: true });
+    fs.writeFileSync(lastRunFile(), '{壊れた');
+
+    // 古い値（10/01）に戻ると 01:00 の訪問まで読み直す。戻らなければ直近 1 時間に落ちるので読まない
+    const urls = build()
+      .fetchNewVisits()
+      .map((v) => v.url);
+    expect(urls).not.toContain('https://example.com/old');
   });
 });

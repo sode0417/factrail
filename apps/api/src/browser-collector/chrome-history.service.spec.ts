@@ -26,7 +26,12 @@ describe('ChromeHistoryService（失敗を握りつぶさない）', () => {
 
   const build = () =>
     new ChromeHistoryService({
-      get: jest.fn().mockReturnValue(profileDir),
+      get: (key: string) =>
+        ({
+          CHROME_PROFILE_PATH: profileDir,
+          BROWSER_COLLECTOR_STATE_DIR: profileDir,
+          BROWSER_COLLECTOR_LEGACY_LAST_RUN_FILE: path.join(profileDir, 'legacy-last-run.json'),
+        })[key],
     } as unknown as ConfigService);
 
   it('DB が開けなければ例外を投げること（空配列で握りつぶさない）', () => {
