@@ -37,15 +37,33 @@ export interface ChromeVisit {
 /** WebKit epoch (1601-01-01) と Unix epoch (1970-01-01) の差分（マイクロ秒） */
 const WEBKIT_EPOCH_OFFSET = 11644473600000000n;
 
-const LAST_RUN_FILE = '/tmp/browser-collector-last-run.json';
-const COPY_DB_PATH = '/tmp/chrome-history-copy.db';
+/**
+ * 前回取得時刻とコピーした DB を置く場所。⭐ /tmp は再起動や macOS の掃除で消え、消えると
+ * 直近 1 時間分しか取れずにそれより前の履歴を落とすので、消えない場所に置く（#195 の残り）。
+ * BROWSER_COLLECTOR_STATE_DIR で変えられる（テストは一時ディレクトリを渡す）
+ */
+const DEFAULT_STATE_DIR = path.join(os.homedir(), '.local', 'state', 'factrail');
+const LAST_RUN_FILE_NAME = 'browser-collector-last-run.json';
+const COPY_DB_FILE_NAME = 'chrome-history-copy.db';
+/** 以前の置き場。移した直後の 1 回だけ読み、そこから続ける（移したせいで 1 時間に落とさない） */
+const LEGACY_LAST_RUN_FILE = '/tmp/browser-collector-last-run.json';
 
 @Injectable()
 export class ChromeHistoryService {
   private readonly logger = new Logger(ChromeHistoryService.name);
   private readonly chromeProfilePath: string;
+  private readonly stateDir: string;
+  private readonly usesDefaultStateDir: boolean;
 
   constructor(private readonly configService: ConfigService) {
+    const stateDir = this.configService.get<string>('BROWSER_COLLECTOR_STATE_DIR');
+    this.usesDefaultStateDir = !stateDir;
+    this.stateDir = stateDir
+      ? stateDir.startsWith('~')
+        ? path.join(os.homedir(), stateDir.slice(1))
+        : stateDir
+      : DEFAULT_STATE_DIR;
+
     const configPath = this.configService.get<string>('CHROME_PROFILE_PATH');
     if (configPath) {
       // ~ をホームディレクトリに展開
@@ -78,7 +96,8 @@ export class ChromeHistoryService {
     }
 
     // Chrome がロック中のため、コピーしてから読取
-    fs.copyFileSync(historyDbPath, COPY_DB_PATH);
+    fs.mkdirSync(this.stateDir, { recursive: true });
+    fs.copyFileSync(historyDbPath, this.copyDbPath);
 
     // 前回取得時刻がなければ直近1時間分のみ取得
     let lastRunTime = this.getLastRunTime();
@@ -86,7 +105,7 @@ export class ChromeHistoryService {
       lastRunTime = new Date(Date.now() - 60 * 60 * 1000);
       // 黙って 1 時間前に落とすと、それより前の履歴が失われたことに誰も気づけない（#195）
       this.logger.warn(
-        `前回取得時刻（${LAST_RUN_FILE}）が見つからないため、直近 1 時間分だけ取得します。それより前の履歴は取得されません`,
+        `前回取得時刻（${this.lastRunFile}）が見つからないため、直近 1 時間分だけ取得します。それより前の履歴は取得されません`,
       );
     }
     const lastRunWebkit = this.dateToWebkitTimestamp(lastRunTime);
@@ -98,7 +117,7 @@ export class ChromeHistoryService {
     try {
       // ⭐ visit_time は 2^53 を超える（WebKit 時刻のマイクロ秒）ので BigInt のまま読む
       const DatabaseSync = loadDatabaseSync();
-      db = new DatabaseSync(COPY_DB_PATH, { readOnly: true, readBigInts: true });
+      db = new DatabaseSync(this.copyDbPath, { readOnly: true, readBigInts: true });
 
       const rows = db
         .prepare(
@@ -136,7 +155,7 @@ export class ChromeHistoryService {
       db?.close();
       // コピーファイルを削除
       try {
-        fs.unlinkSync(COPY_DB_PATH);
+        fs.unlinkSync(this.copyDbPath);
       } catch {
         // 削除失敗は無視
       }
@@ -162,17 +181,33 @@ export class ChromeHistoryService {
     );
   }
 
+  private get lastRunFile(): string {
+    return path.join(this.stateDir, LAST_RUN_FILE_NAME);
+  }
+
+  private get copyDbPath(): string {
+    return path.join(this.stateDir, COPY_DB_FILE_NAME);
+  }
+
   private getLastRunTime(): Date | null {
-    try {
-      if (!fs.existsSync(LAST_RUN_FILE)) return null;
-      const data = JSON.parse(fs.readFileSync(LAST_RUN_FILE, 'utf-8'));
-      return new Date(data.lastRunTime);
-    } catch {
-      return null;
+    const candidates = [this.lastRunFile];
+    // 置き場を設定で変えていないときだけ、以前の /tmp も見る（テストが本番のファイルを読まないように）
+    if (this.usesDefaultStateDir) candidates.push(LEGACY_LAST_RUN_FILE);
+    for (const file of candidates) {
+      try {
+        if (!fs.existsSync(file)) continue;
+        const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
+        const time = new Date(data.lastRunTime);
+        if (!Number.isNaN(time.getTime())) return time;
+      } catch {
+        // 壊れていれば次の候補へ
+      }
     }
+    return null;
   }
 
   private saveLastRunTime(time: Date): void {
-    fs.writeFileSync(LAST_RUN_FILE, JSON.stringify({ lastRunTime: time.toISOString() }));
+    fs.mkdirSync(this.stateDir, { recursive: true });
+    fs.writeFileSync(this.lastRunFile, JSON.stringify({ lastRunTime: time.toISOString() }));
   }
 }

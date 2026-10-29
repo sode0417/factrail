@@ -31,6 +31,8 @@ better-sqlite3 の ABI 不一致で `ChromeHistoryService` が 7 日間失敗し
 - 案 A・案 B（判断メモ 3。記述は Issue に残す）
 - N 回連続失敗での通知（Slack DM 等）。外へ送る経路が増えるので別途判断。連続失敗回数は `/health` の `consecutiveFailures` で見える
 - ウォーターマーク（`/tmp/browser-collector-last-run.json`）を永続領域へ移すこと。今回は「見つからないときに黙って 1 時間へ落とさず警告ログを出す」までにした
+  - → 後の PR で `~/.local/state/factrail/`（`BROWSER_COLLECTOR_STATE_DIR` で変更可）へ移した。移した直後の 1 回だけ、以前の `/tmp` の値を読んで続ける
+  - DB の browser Fact の最大の `occurredAt` から取る案は採らなかった。Fact はセッションの開始時刻で保存され、短いセッションは捨てられるので、読み直しや取りこぼしが起きる
 
 - `scheduled-backup` は件数を数えてログに出すだけで、実際の退避先への保存はしていない（既存の動作）。今回の鮮度チェックで分かるのは「この cron が動いて DB に問い合わせられたか」まで。本当のバックアップの仕組みは別の課題
 - browser のウォーターマークは LLM の要約・保存より前に進む（既存の動作）。LLM が全滅した回は失敗として記録されるが、その回の訪問は取り直されない。次の回で 1 件でも保存できれば `healthy` に戻るので、欠けた分は `/health` には残らない
