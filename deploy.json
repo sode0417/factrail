@@ -8,7 +8,7 @@
       "build_cmd": "pnpm run build",
       "launchd_label": "com.sode.factrail-api",
       "health_path": "/health",
-      "health_expect_jq": ".status == \"ok\"",
+      "health_expect_jq": ".status == \"ok\" or .status == \"degraded\"",
       "health_timeout": 90,
       "error_log": "~/Library/Logs/factrail-api.error.log"
     },

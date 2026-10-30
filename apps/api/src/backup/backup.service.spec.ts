@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BackupService } from './backup.service';
 import { PrismaService } from '../prisma.service';
+import { CronHealthService } from '../health/cron-health.service';
 
 describe('BackupService', () => {
   let service: BackupService;
@@ -12,9 +13,19 @@ describe('BackupService', () => {
     user: { count: jest.fn() },
   };
 
+  const mockCronHealth = {
+    register: jest.fn(),
+    recordSuccess: jest.fn(),
+    recordFailure: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [BackupService, { provide: PrismaService, useValue: mockPrismaService }],
+      providers: [
+        BackupService,
+        { provide: PrismaService, useValue: mockPrismaService },
+        { provide: CronHealthService, useValue: mockCronHealth },
+      ],
     }).compile();
 
     service = module.get<BackupService>(BackupService);
@@ -56,12 +67,23 @@ describe('BackupService', () => {
 
       expect(mockPrismaService.fact.count).toHaveBeenCalled();
       expect(mockPrismaService.user.count).toHaveBeenCalled();
+      expect(mockCronHealth.recordSuccess).toHaveBeenCalledWith('scheduled-backup');
+      expect(mockCronHealth.recordFailure).not.toHaveBeenCalled();
     });
 
     it('エラー時にログ出力すること', async () => {
       mockPrismaService.fact.count.mockRejectedValue(new Error('DB error'));
 
       await expect(service.scheduledBackup()).resolves.not.toThrow();
+      expect(mockCronHealth.recordFailure).toHaveBeenCalledWith('scheduled-backup');
+      expect(mockCronHealth.recordSuccess).not.toHaveBeenCalled();
+    });
+
+    it('鮮度チェックの対象として常に登録されること', () => {
+      expect(mockCronHealth.register).toHaveBeenCalledWith('scheduled-backup', {
+        staleAfterMs: 26 * 60 * 60 * 1000,
+        enabled: true,
+      });
     });
   });
 });
