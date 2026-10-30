@@ -209,7 +209,7 @@ restart_service() {
           log "[$name] 起動成功: PID=$job_pid port=$port HTTP=$code  (kickstart から $((waited + elapsed))s)"
           return 0
         fi
-        # /health は DB 断でも HTTP 200 を返し body だけ "degraded" になる
+        # /health は DB 断でも HTTP 200 を返し body だけ "unhealthy" になる（cron 停止の "degraded" は通す・#195）
         last_reason="HTTP $code だが期待条件 '$expect_jq' を満たさない: $(printf '%s' "$body" | head -c 200)"
         ;;
       429)

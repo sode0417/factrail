@@ -3,9 +3,14 @@ import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma.service';
+import { CronHealthService } from '../health/cron-health.service';
 import { ChromeHistoryService } from './chrome-history.service';
 import { SessionSplitterService } from './session-splitter.service';
 import { LlmService } from './llm.service';
+
+const CRON_NAME = 'browser-collector';
+/** 毎時実行なので、2 回続けて成功しなければ stale（一時的な 1 回の失敗では騒がない） */
+const STALE_AFTER_MS = 2 * 60 * 60 * 1000 + 15 * 60 * 1000;
 
 @Injectable()
 export class BrowserCollectorService {
@@ -18,14 +23,16 @@ export class BrowserCollectorService {
     private readonly chromeHistory: ChromeHistoryService,
     private readonly sessionSplitter: SessionSplitterService,
     private readonly llm: LlmService,
+    private readonly cronHealth: CronHealthService,
   ) {
     this.enabled = this.configService.get<string>('BROWSER_COLLECTOR_ENABLED') === 'true';
+    this.cronHealth.register(CRON_NAME, { staleAfterMs: STALE_AFTER_MS, enabled: this.enabled });
   }
 
   /**
    * 1時間ごとにブラウザ履歴を収集し、Fact として保存する
    */
-  @Cron('0 */1 * * *', { name: 'browser-collector' })
+  @Cron('0 */1 * * *', { name: CRON_NAME })
   async collectBrowserHistory(): Promise<void> {
     if (!this.enabled) {
       this.logger.debug('ブラウザ履歴収集は無効化されています');
@@ -38,6 +45,7 @@ export class BrowserCollectorService {
       const userId = await this.resolveUserId();
       if (!userId) {
         this.logger.warn('ユーザーが見つかりません。収集をスキップします');
+        this.cronHealth.recordFailure(CRON_NAME);
         return;
       }
 
@@ -45,6 +53,7 @@ export class BrowserCollectorService {
       const visits = this.chromeHistory.fetchNewVisits();
       if (visits.length === 0) {
         this.logger.log('新しい訪問履歴はありません');
+        this.cronHealth.recordSuccess(CRON_NAME);
         return;
       }
 
@@ -52,6 +61,7 @@ export class BrowserCollectorService {
       const allSessions = this.sessionSplitter.splitIntoSessions(visits);
       if (allSessions.length === 0) {
         this.logger.log('有効なセッションがありません（訪問数が少なすぎます）');
+        this.cronHealth.recordSuccess(CRON_NAME);
         return;
       }
 
@@ -106,8 +116,16 @@ export class BrowserCollectorService {
       this.logger.log(
         `ブラウザ履歴収集完了: ${savedCount}/${sessions.length} セッションを保存しました`,
       );
+
+      // 1 件も保存できなければ LLM や DB が全滅している。セッション単位の catch で握られるので、ここで失敗扱いにする
+      if (savedCount === 0) {
+        this.cronHealth.recordFailure(CRON_NAME);
+      } else {
+        this.cronHealth.recordSuccess(CRON_NAME);
+      }
     } catch (error) {
       this.logger.error('ブラウザ履歴収集に失敗しました', error);
+      this.cronHealth.recordFailure(CRON_NAME);
     }
   }
 
