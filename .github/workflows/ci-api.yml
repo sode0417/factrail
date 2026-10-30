@@ -8,7 +8,10 @@ on:
     #    切り替えても CI が1度も走らない**（Draft 中の push は skip され、
     #    Ready 切替は trigger にならないため）。
     #    2026-09-27 の PR #222 で実際に起き、空コミットを push して初めて走った。
-    types: [opened, synchronize, reopened, ready_for_review]
+    # ⭐ edited も入れること。積み重ねた PR の向き先を main に替えたとき（edited）、
+    #    これが無いと CI が1度も走らないまま main に入りうる（2026-10-30 の #245・#246）。
+    #    題や本文だけの書き換え（edited）では、下の job の if で走らせない。
+    types: [opened, synchronize, reopened, ready_for_review, edited]
     branches: [main]
     paths:
       - 'apps/api/**'
@@ -36,7 +39,11 @@ on:
 jobs:
   api-ci:
     # ドラフト PR では skip (push / schedule では走る)
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    # edited は向き先（base）が変わったときだけ走らせる
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.draft == false &&
+       (github.event.action != 'edited' || github.event.changes.base != null))
     runs-on: ubuntu-latest
 
     defaults:
