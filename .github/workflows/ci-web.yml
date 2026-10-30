@@ -10,7 +10,9 @@ on:
     #    2026-09-27 の PR #222 で実際に起き、空コミットを push して初めて走った。
     # ⭐ edited も入れること。積み重ねた PR の向き先を main に替えたとき（edited）、
     #    これが無いと CI が1度も走らないまま main に入りうる（2026-10-30 の #245・#246）。
-    #    題や本文だけの書き換え（edited）では、下の job の if で走らせない。
+    # ⛔ 題・本文だけの書き換え（これも edited）を job の if で skip にしないこと。
+    #    skip した run が同じ名前の前の結果を上書きし、失敗が「skipping」に隠れる
+    #    （#248 で確かめた）。書き換えのたびに走り直すのは、公開 repo で無料なので許す。
     types: [opened, synchronize, reopened, ready_for_review, edited]
     branches: [main]
     paths:
@@ -39,11 +41,7 @@ on:
 jobs:
   web-ci:
     # ドラフト PR では skip (push / schedule では走る)
-    # edited は向き先（base）が変わったときだけ走らせる
-    if: >-
-      github.event_name != 'pull_request' ||
-      (github.event.pull_request.draft == false &&
-       (github.event.action != 'edited' || github.event.changes.base != null))
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
 
     defaults:
