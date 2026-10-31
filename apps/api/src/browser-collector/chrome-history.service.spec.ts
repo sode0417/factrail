@@ -15,9 +15,8 @@ describe('ChromeHistoryService（失敗を握りつぶさない）', () => {
 
   beforeEach(() => {
     profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chrome-profile-'));
-    // 本番と同じ /tmp/chrome-history-copy.db を触らないよう、コピーと削除は止める
-    jest.spyOn(fs, 'copyFileSync').mockImplementation(() => undefined);
-    jest.spyOn(fs, 'unlinkSync').mockImplementation(() => undefined);
+    // ⭐ CHROME_PROFILE_PATH も BROWSER_COLLECTOR_STATE_DIR も profileDir を返すので、
+    //    コピーと前回取得時刻はこの一時ディレクトリの中だけで起きる（本番の置き場に触らない）
   });
 
   afterEach(() => {
@@ -27,7 +26,12 @@ describe('ChromeHistoryService（失敗を握りつぶさない）', () => {
 
   const build = () =>
     new ChromeHistoryService({
-      get: jest.fn().mockReturnValue(profileDir),
+      get: (key: string) =>
+        ({
+          CHROME_PROFILE_PATH: profileDir,
+          BROWSER_COLLECTOR_STATE_DIR: profileDir,
+          BROWSER_COLLECTOR_LEGACY_LAST_RUN_FILE: path.join(profileDir, 'legacy-last-run.json'),
+        })[key],
     } as unknown as ConfigService);
 
   it('DB が開けなければ例外を投げること（空配列で握りつぶさない）', () => {
@@ -41,7 +45,6 @@ describe('ChromeHistoryService（失敗を握りつぶさない）', () => {
 
   it('読取専用・BigInt で開き、visit_time を精度を落とさずに日時へ変換すること', () => {
     fs.writeFileSync(path.join(profileDir, 'History'), '');
-    jest.spyOn(fs, 'writeFileSync').mockImplementation(() => undefined); // 前回取得時刻の保存を止める
     // 2026-10-29T03:00:00.123456Z の WebKit 時刻（マイクロ秒。2^53 を超える）
     const visitTime =
       BigInt(Date.UTC(2026, 9, 29, 3, 0, 0, 123)) * 1000n + 456n + 11644473600000000n;
@@ -54,7 +57,7 @@ describe('ChromeHistoryService（失敗を握りつぶさない）', () => {
 
     const visits = build().fetchNewVisits();
 
-    expect(mockOpen).toHaveBeenCalledWith('/tmp/chrome-history-copy.db', {
+    expect(mockOpen).toHaveBeenCalledWith(path.join(profileDir, 'chrome-history-copy.db'), {
       readOnly: true,
       readBigInts: true,
     });
