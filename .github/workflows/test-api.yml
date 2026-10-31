@@ -8,7 +8,12 @@ on:
     #    切り替えても CI が1度も走らない**（Draft 中の push は skip され、
     #    Ready 切替は trigger にならないため）。
     #    2026-09-27 の PR #222 で実際に起き、空コミットを push して初めて走った。
-    types: [opened, synchronize, reopened, ready_for_review]
+    # ⭐ edited も入れること。積み重ねた PR の向き先を main に替えたとき（edited）、
+    #    これが無いと CI が1度も走らないまま main に入りうる（2026-10-30 の #245・#246）。
+    # ⛔ 題・本文だけの書き換え（これも edited）を job の if で skip にしないこと。
+    #    skip した run が同じ名前の前の結果を上書きし、失敗が「skipping」に隠れる
+    #    （#248 で確かめた）。書き換えのたびに走り直すのは、公開 repo で無料なので許す。
+    types: [opened, synchronize, reopened, ready_for_review, edited]
     branches: [main]
     paths:
       - 'apps/api/**'
@@ -32,6 +37,12 @@ on:
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - '.npmrc'
+
+# 同じ PR で続けて走らせたとき（push・題や本文の書き換え）は古い run を打ち切り、最新の1本だけ残す。
+# main への push は commit ごとの結果を残す。
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   api-tests:
@@ -168,7 +179,10 @@ jobs:
               ? `Coverage meets ${threshold}% threshold`
               : `Coverage is below ${threshold}% threshold`;
 
-            const comment = `## 📊 Test Coverage Report
+            // ⭐ 目印のコメントがあれば上書きする（push や題・本文の書き換えのたびに増やさない）
+            const marker = '<!-- coverage-report -->';
+            const comment = `${marker}
+            ## 📊 Test Coverage Report
 
             | Metric | Coverage |
             |--------|----------|
@@ -180,12 +194,15 @@ jobs:
             ${statusIcon} ${statusText}
             `;
 
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: comment
-            });
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const existing = comments.find((c) => c.user?.type === 'Bot' && c.body?.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body: comment });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body: comment });
+            }
 
       - name: Check coverage threshold
         run: |
