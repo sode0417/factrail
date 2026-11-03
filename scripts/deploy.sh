@@ -425,6 +425,9 @@ main() {
   # 2) 依存
   #   ⚠️ pnpm の版は package.json の packageManager に合わせる。pnpm 11 は package.json の
   #      "pnpm" 欄や onlyBuiltDependencies を読まず、overrides（CVE の下限）が黙って外れうる
+  #   ℹ️ pnpm 10 は packageManager の版に切り替えてから動く（--version も切り替えた版を出す。
+  #      10.32.0 で打って 10.33.0 と出るのを確かめた）。なのでここで止まるのは、切り替えが
+  #      起きない pnpm（packageManager を読まないもの・切り替えを切ったもの）のときだけ
   local want_pnpm have_pnpm
   want_pnpm=$(jq -r '.packageManager // empty' "$REPO_ROOT/package.json" | sed -e 's/^pnpm@//' -e 's/+.*//')
   have_pnpm=$(cd "$REPO_ROOT" && pnpm --version 2>/dev/null || true)

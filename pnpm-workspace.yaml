@@ -2,7 +2,9 @@ packages:
   - 'apps/*'
 
 # 出てから 1 日（1440 分）たっていない版は入れない（pnpm 11 では既定値）。
-# Dependabot は cooldown 7 日なので、これより先に PR を作ることはない。
+# ⚠️ Dependabot の cooldown（7 日）が効くのは version updates だけ。security updates や、
+#    overrides の下限を上げる CVE の直しは、直った版が出て 1 日たつまで解決できないことがある。
+#    待てないときは、その部品だけ minimumReleaseAgeExclude に一時的に足し、入れたら外す。
 minimumReleaseAge: 1440
 
 # ⚠️ ここに置く（package.json の "pnpm" 欄ではなく）。pnpm 11 は package.json の "pnpm" 欄を読まない。

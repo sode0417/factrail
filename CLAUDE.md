@@ -108,7 +108,7 @@ Fact を分析する際、以下の期間・ソースはデータが存在しな
 
 - ワークフロー: `deploy.yml`, `ci-api.yml`, `ci-web.yml`, `test-api.yml`, `test-web.yml`, `security.yml`, `claude-code-review.yml`, `claude.yml`, `claude-task.yml`, `auto-fix.yml`, `auto-label-issues.yml`, `ci-summary.yml`, `ci-failure-issue.yml`, `docs-update-on-merge.yml`, `dependabot-lockfile.yml`
 - **`dependabot-lockfile.yml` は Dependabot の PR の `pnpm-lock.yaml` を作り直して、その PR に commit し返す**（Dependabot が `pnpm-workspace.yaml` の overrides の記述を lockfile から落とすため `--frozen-lockfile` が壊れる）
-- **pnpm の設定（overrides・onlyBuiltDependencies・minimumReleaseAge）は `pnpm-workspace.yaml` に置く**。package.json の `"pnpm"` 欄は pnpm 11 で読まれない。pnpm の版は package.json の `packageManager` で固定し、CI の `pnpm/action-setup` に `version` を書かない（2か所に書くと食い違う）。`scripts/deploy.sh` は版が違うと止まる
+- **pnpm の設定（overrides・onlyBuiltDependencies・minimumReleaseAge）は `pnpm-workspace.yaml` に置く**。package.json の `"pnpm"` 欄は pnpm 11 で読まれない。pnpm の版は package.json の `packageManager` で固定し、CI の `pnpm/action-setup` に `version` を書かない（2か所に書くと食い違う）。`scripts/deploy.sh` は動く pnpm の版が違うと止まる。`minimumReleaseAge: 1440` で出て1日たたない版は入らない（CVE の直しで待てないときは、その部品だけ `minimumReleaseAgeExclude` に一時的に足す）
   - 🔴 `pull_request_target` で動かす。**Dependabot 起動の `pull_request` では `GITHUB_TOKEN` が read のみになり push できない**（2026-09-28 実測: PR #217 の run は `Contents: read / Metadata: read`）
   - ⛔ 権限は `contents: write` だけ。実行するのは `pnpm install --lockfile-only --ignore-scripts` のみ（書き込み権限を持った状態で信頼できないコードを動かさないため）
   - ⚠️ 直した commit（`GITHUB_TOKEN` の push）にも CI の run は作られるが、**承認待ち（action_required）でジョブ 0 のまま止まる**。PR のチェック欄の「Approve and run」で走る。承認するまでの緑・赤は「直す前のコミット」のもの。承認せずに PR を閉じるとジョブ 0 の failure が残る（テストが落ちたのではない。#237）
