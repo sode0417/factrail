@@ -18,7 +18,7 @@
 #   AVD-GH-0001    exp:2026-12-31
 #
 # 【運用ルール】
-#   1. まず依存の更新 (pnpm.overrides の下限引き上げ等) での解消を試みる。
+#   1. まず依存の更新 (pnpm-workspace.yaml の overrides の下限引き上げ等) での解消を試みる。
 #      除外は「上流に修正版が存在しない」場合の一時退避に限る。
 #   2. exp: は必須。失効日は追加日から最長 90 日。
 #      期限が切れると Trivy が自動的に除外を無効化し、スキャンが再び fail する。
@@ -30,7 +30,7 @@
 #
 # 【記入例】
 #   # lodash 4.18.1 / 上流に修正版なし (https://github.com/lodash/lodash/issues/XXXX)
-#   # 解除条件: 4.18.2 リリース後、pnpm.overrides の下限を上げて本行を削除
+#   # 解除条件: 4.18.2 リリース後、pnpm-workspace.yaml の overrides の下限を上げて本行を削除
 #   CVE-2026-XXXXX exp:2026-10-24
 #
 # --- 以下に実エントリを追加する (現在 0 件) ---

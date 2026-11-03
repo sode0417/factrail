@@ -423,7 +423,16 @@ main() {
   log "HEAD: $(cd "$REPO_ROOT" && git log -1 --pretty='%h %s')"
 
   # 2) 依存
-  log "依存パッケージをインストール"
+  #   ⚠️ pnpm の版は package.json の packageManager に合わせる。pnpm 11 は package.json の
+  #      "pnpm" 欄や onlyBuiltDependencies を読まず、overrides（CVE の下限）が黙って外れうる
+  local want_pnpm have_pnpm
+  want_pnpm=$(jq -r '.packageManager // empty' "$REPO_ROOT/package.json" | sed -e 's/^pnpm@//' -e 's/+.*//')
+  have_pnpm=$(cd "$REPO_ROOT" && pnpm --version 2>/dev/null || true)
+  if [[ -n "$want_pnpm" && "$have_pnpm" != "$want_pnpm" ]]; then
+    err "pnpm の版が違う（packageManager: $want_pnpm・動くもの: ${have_pnpm:-（無い）}）。止めます"
+    exit 1
+  fi
+  log "依存パッケージをインストール（pnpm $have_pnpm）"
   if ! (cd "$REPO_ROOT" && pnpm install --frozen-lockfile); then err "pnpm install 失敗"; exit 1; fi
 
   # 3) サービスループ（1 つ失敗しても後続を続ける）
