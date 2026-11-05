@@ -45,24 +45,34 @@ export class ChromeHistoryService {
 
   /**
    * 前回取得時刻以降の Chrome 訪問履歴を取得する
+   *
+   * 読取に失敗したら例外を投げる。以前は空配列を返していたため「新しい訪問が無い」と区別できず、
+   * better-sqlite3 の ABI 不一致で 7 日間止まっていたのに気づけなかった（#195）
    */
   fetchNewVisits(): ChromeVisit[] {
     const historyDbPath = path.join(this.chromeProfilePath, 'History');
 
     if (!fs.existsSync(historyDbPath)) {
-      this.logger.warn(`Chrome History DB が見つかりません: ${historyDbPath}`);
-      return [];
+      throw new Error(`Chrome History DB が見つかりません: ${historyDbPath}`);
     }
 
     // Chrome がロック中のため、コピーしてから読取
     fs.copyFileSync(historyDbPath, COPY_DB_PATH);
 
     // 前回取得時刻がなければ直近1時間分のみ取得
-    const lastRunTime = this.getLastRunTime() ?? new Date(Date.now() - 60 * 60 * 1000);
+    let lastRunTime = this.getLastRunTime();
+    if (!lastRunTime) {
+      lastRunTime = new Date(Date.now() - 60 * 60 * 1000);
+      // 黙って 1 時間前に落とすと、それより前の履歴が失われたことに誰も気づけない（#195）
+      this.logger.warn(
+        `前回取得時刻（${LAST_RUN_FILE}）が見つからないため、直近 1 時間分だけ取得します。それより前の履歴は取得されません`,
+      );
+    }
     const lastRunWebkit = this.dateToWebkitTimestamp(lastRunTime);
 
     this.logger.log(`履歴を取得します（前回: ${lastRunTime.toISOString()}）`);
 
+    // 読取の失敗はそのまま投げ、呼び出し元の BrowserCollectorService がログと失敗の記録を行う
     let db: any = null;
     try {
       db = new BetterSqlite3(COPY_DB_PATH, { readonly: true });
@@ -99,9 +109,6 @@ export class ChromeHistoryService {
       this.saveLastRunTime(new Date());
 
       return visits;
-    } catch (error) {
-      this.logger.error('Chrome History DB の読取に失敗しました', error);
-      return [];
     } finally {
       db?.close();
       // コピーファイルを削除

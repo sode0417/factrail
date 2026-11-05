@@ -8,7 +8,8 @@ on:
     #    切り替えても CI が1度も走らない**（Draft 中の push は skip され、
     #    Ready 切替は trigger にならないため）。
     #    2026-09-27 の PR #222 で実際に起き、空コミットを push して初めて走った。
-    types: [opened, synchronize, reopened, ready_for_review]
+    # ⭐ edited も入れること（向き先を main に替えた PR でも走らせる。ci-api.yml の説明を見る）。
+    types: [opened, synchronize, reopened, ready_for_review, edited]
     branches: [main]
   push:
     branches: [main]

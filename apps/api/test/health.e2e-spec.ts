@@ -33,10 +33,20 @@ describe('Health (E2E)', () => {
       expect(response.body).toHaveProperty('services');
     });
 
-    it('statusフィールドに "ok" または "degraded" が含まれること', async () => {
+    it('statusフィールドが "ok" / "degraded" / "unhealthy" のいずれかであること', async () => {
       const response = await request(app.getHttpServer()).get('/health').expect(200);
 
-      expect(['ok', 'degraded']).toContain(response.body.status);
+      expect(['ok', 'degraded', 'unhealthy']).toContain(response.body.status);
+    });
+
+    it('cronsオブジェクトに 3 本の cron の鮮度が含まれること', async () => {
+      const response = await request(app.getHttpServer()).get('/health').expect(200);
+
+      expect(Object.keys(response.body.crons).sort()).toEqual([
+        'browser-collector',
+        'scheduled-backup',
+        'slack-collector',
+      ]);
     });
 
     it('servicesオブジェクトにdatabaseの状態が含まれること', async () => {

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.sode.factrail-api</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/naoto/.local/share/fnm/node-versions/v24.22.1/installation/bin/node</string>
+        <string>dist/src/main.js</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/naoto/Projects/factrail/apps/api</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/naoto/.local/share/fnm/node-versions/v24.22.1/installation/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>NODE_ENV</key>
+        <string>production</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+    <key>StandardOutPath</key>
+    <string>/Users/naoto/Library/Logs/factrail-api.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/naoto/Library/Logs/factrail-api.error.log</string>
+</dict>
+</plist>

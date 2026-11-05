@@ -49,17 +49,22 @@ on:
       - 'pnpm-workspace.yaml'
 
 # 【回り続けないこと】ここで push したあと、どうなるか。
-#   1. GitHub の仕様で「`GITHUB_TOKEN` が起こした出来事は新しい run を作らない」
-#      （`workflow_dispatch` / `repository_dispatch` を除く）。
-#      ⇒ この push では ci-*.yml / test-*.yml も、このファイル自身も起動しない。
+#   1. このファイル自身は起動しなかった（📏 #235・#237 で、直した commit に
+#      Dependabot Lockfile Fix の run は無かった）。下の `pull_request` の run は作られるのに
+#      こちらが作られない理由は未確認。⇒ これには頼らず、実際に止めているのは 2. と 3.
 #   2. ⚠️ 仮に起動した場合でも回り続けない。2 周目は lockfile が既に直っているので
 #      「壊れているかどうかを先に記録する」が broken=false になり、何もせず終わる。
 #   3. さらに `github.actor != 'github-actions[bot]'` でも止めている（三重）。
 #
-#   🔴 ただし 1. の裏返しとして、**push した後のコミットに対して CI は走り直さない**。
-#      PR のチェック欄に出ている結果は「直す前のコミット」のもの。
-#      ⭐ 一方 ci-*.yml / test-*.yml は Dependabot の PR に限り、実行の中で lockfile を
-#         解決し直してからテストしているので、テスト自体は直した依存と同じ状態で通っている。
+#   🔴 直した commit に対しても、ci-*.yml / test-*.yml などの `pull_request` の run は作られる
+#      （actor は github-actions[bot]）。ただし **承認待ち（action_required）で止まり、
+#      ジョブは 1 つも動かない**。PR のチェック欄の「Approve and run」で承認すると走る。
+#      📏 2026-10-29 #235 の 0bdd2d756: 6 本とも action_required・ジョブ 0。
+#      📏 #237 の d8352c32a: 承認されないまま PR を閉じたら、6 本とも failure（ジョブ 0）になった。
+#      ⇒ 承認するまで、チェック欄の緑・赤は「直す前のコミット」のもの。
+#         直した commit の failure がジョブ 0 なら、テストが落ちたのではなく動いていない。
+#      ⭐ ci-*.yml / test-*.yml は Dependabot の PR に限り、実行の中で lockfile を
+#         解決し直してからテストしているので、直す前の commit のテストも直した依存と同じ状態で通っている。
 #      ⇒ この食い違いを読み手が取り違えないよう、Job Summary に明記する。
 
 # ⭐ 同じ PR に対して2つ走ると、同じブランチへ同時に push して競合する。
@@ -206,14 +211,15 @@ jobs:
               echo '- 結果: :white_check_mark: lockfile を作り直して、この PR に commit しました'
               echo
               echo '> [!IMPORTANT]'
-              echo '> **このページの他のチェック結果は、直す前の commit に対するものです。**'
-              echo '> GitHub の仕様で、`GITHUB_TOKEN` による push は新しい CI を起動しません'
-              echo '> （`workflow_dispatch` / `repository_dispatch` を除く）。'
+              echo '> **直した commit の CI は、承認待ち（action_required）で止まります**（2026-10 の実測 #235・#237）。'
+              echo '> `GITHUB_TOKEN` で push した commit の run は作られますが、ジョブは承認するまで動きません。'
+              echo '> 承認するまで、PR のチェック欄の緑・赤は直す前の commit に対するものです。'
+              echo '> 直した commit の結果を見るには、PR のチェック欄で「Approve and run」を押してください。'
+              echo '> （承認しないまま PR を閉じると、ジョブ 0 の failure として残ります。テストが落ちたのではありません）'
               echo '>'
-              echo '> ⭐ ただし `ci-*.yml` / `test-*.yml` は Dependabot の PR に限り、'
+              echo '> ⭐ `ci-*.yml` / `test-*.yml` は Dependabot の PR に限り、'
               echo '> 実行の中で lockfile を解決し直してからテストしています。'
-              echo '> つまり **テスト自体は直した依存関係と同じ状態で走っています**。'
-              echo '> 直した commit に対する結果を改めて見たい場合は、チェックを再実行してください。'
+              echo '> つまり **直す前の commit のテストも、直した依存関係と同じ状態で走っています**。'
             else
               # ⚠️ 壊れていたのに差分が出なかった＝想定していない状態。黙って通さない
               echo '- 結果: :warning: 壊れていたのに、作り直しても差分が出ませんでした。'

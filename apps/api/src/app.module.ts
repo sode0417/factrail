@@ -10,6 +10,7 @@ import { AuthModule } from './auth/auth.module';
 import { BackupModule } from './backup/backup.module';
 import { FactsModule } from './facts/facts.module';
 import { HealthModule } from './health/health.module';
+import { CronHealthModule } from './health/cron-health.module';
 import { CryptoModule } from './common/crypto';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { SettingsModule } from './settings/settings.module';
@@ -45,6 +46,7 @@ import { BrowserCollectorModule } from './browser-collector/browser-collector.mo
     ScheduleModule.forRoot(),
     AuthModule,
     BackupModule,
+    CronHealthModule,
     CryptoModule,
     FactsModule,
     HealthModule,

@@ -283,7 +283,7 @@ DEPLOY_SKIP_PULL=1 ./scripts/deploy.sh web   # git pull を省略（リハーサ
 
 | service | dir | port | health_path | 判定 |
 |---|---|---|---|---|
-| `api` | `apps/api` | 3001 | `/health` | `.status == "ok"` |
+| `api` | `apps/api` | 3001 | `/health` | `.status == "ok" or .status == "degraded"` |
 | `web` | `apps/web` | 3000 | `/` | HTTP 応答 |
 
 ### ⚠️ 落とし穴
@@ -291,7 +291,7 @@ DEPLOY_SKIP_PULL=1 ./scripts/deploy.sh web   # git pull を省略（リハーサ
 - **Mac mini の作業ツリーは main に置いておくこと。** `git pull --ff-only` するため、feature ブランチのままだとデプロイが落ちる
 - **`deploy.sh` 自身を変更した push では「旧スクリプト」が走る**（runner は `actions/checkout` を使わず、ディスク上の `deploy.sh` をそのまま実行するため。新スクリプトはその中の `git pull` で配置されるだけ）。新しい `deploy.sh` を制御下で初実行するために `workflow_dispatch` の口がある
 - **同時デプロイは `concurrency: deploy-factrail` で直列化**されている
-- **`/health` が `degraded` を返すと deploy が失敗扱いになる**（`health_expect_jq` が `.status == "ok"` のため）。ヘルスチェックに新しい判定項目を足す時は、デプロイを人質に取らないか検討すること
+- **deploy が失敗扱いにするのは `/health` の `unhealthy`（DB に繋がらない）だけ**。cron が止まったときの `degraded` は通す（#195）。ヘルスチェックに新しい判定項目を足す時は、`unhealthy` に入れてデプロイを人質に取らないか検討すること
 
 ### workflow 変更時
 
