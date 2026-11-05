@@ -76,7 +76,9 @@ updates:
       # もう片方が必ず lockfile で衝突し (#235 → #249)、rebase-strategy: disabled の
       # もとでは手動 rebase と CI のやり直しで毎週 1 本が翌週以降に回っていた。
       # 1 PR に寄せても CI (API / Web / E2E / Security) は同じ一式が回るので、
-      # 壊れたときの検出は変わらない。切り分けが要るときは PR 内の commit 単位で見る。
+      # 壊れたときの検出は変わらない。グループの PR は 1 commit にまとまるので、
+      # 切り分けが要るときは PR 本文の更新一覧を見て、怪しいものを
+      # `@dependabot ignore <pkg>` で外すか、手で個別に戻して確かめる。
       minor-patch:
         applies-to: version-updates
         update-types:
