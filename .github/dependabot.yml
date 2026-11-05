@@ -70,18 +70,15 @@ updates:
       include: 'scope'
 
     groups:
-      # patch / minor は本番・開発それぞれ 1 PR にまとめる (= 週あたり最大 2 PR)。
-      # 「壊れたら本番が落ちる側」と「壊れても CI で止まる側」に分けるのが
-      # レビュー単位として意味のある粒度。
-      production-minor-patch:
+      # patch / minor は本番・開発をまとめて 1 PR にする (= 週あたり最大 1 PR)。
+      # ⚠️ 2026-11-06 変更: 以前は production / development の 2 グループに分けていたが、
+      # どちらもルートの pnpm-lock.yaml を書き換えるため、片方をマージすると
+      # もう片方が必ず lockfile で衝突し (#235 → #249)、rebase-strategy: disabled の
+      # もとでは手動 rebase と CI のやり直しで毎週 1 本が翌週以降に回っていた。
+      # 1 PR に寄せても CI (API / Web / E2E / Security) は同じ一式が回るので、
+      # 壊れたときの検出は変わらない。切り分けが要るときは PR 内の commit 単位で見る。
+      minor-patch:
         applies-to: version-updates
-        dependency-type: production
-        update-types:
-          - 'minor'
-          - 'patch'
-      development-minor-patch:
-        applies-to: version-updates
-        dependency-type: development
         update-types:
           - 'minor'
           - 'patch'
