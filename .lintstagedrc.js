@@ -6,7 +6,7 @@ module.exports = {
     const commands = [];
 
     // ESLint (apps/api のローカルESLintを使用)
-    commands.push(`pnpm -C apps/api exec eslint --config .eslintrc.js ${filePaths} --fix`);
+    commands.push(`pnpm -C apps/api exec eslint --config eslint.config.mjs ${filePaths} --fix`);
 
     // Prettier (apps/api の prettier を使用)
     commands.push(`pnpm -C apps/api exec prettier --config .prettierrc --write ${filePaths}`);
