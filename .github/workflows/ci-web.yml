@@ -60,8 +60,6 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
-        with:
-          version: 10
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -70,7 +68,7 @@ jobs:
           cache: 'pnpm'
 
       - name: Install dependencies
-        # Dependabot の PR は「main へマージした結果」で package.json の pnpm.overrides と
+        # Dependabot の PR は「main へマージした結果」で pnpm-workspace.yaml の overrides と
         # lockfile の overrides が食い違い、--frozen-lockfile が
         # ERR_PNPM_LOCKFILE_CONFIG_MISMATCH で落ちる。
         # そのため Dependabot の PR に限り、この実行の中だけで lockfile を解決し直す。
@@ -84,7 +82,7 @@ jobs:
             cp "$GITHUB_WORKSPACE/pnpm-lock.yaml" "$RUNNER_TEMP/pnpm-lock.before.yaml"
             pnpm install --no-frozen-lockfile
             if ! cmp -s "$GITHUB_WORKSPACE/pnpm-lock.yaml" "$RUNNER_TEMP/pnpm-lock.before.yaml"; then
-              echo "::warning::この PR の pnpm-lock.yaml は package.json の pnpm.overrides と食い違っています。CI はこの実行の中で解決し直して通していますが、PR の lockfile 自体は直っていません。マージ前に @dependabot rebase を実行してください。"
+              echo "::warning::この PR の pnpm-lock.yaml は pnpm-workspace.yaml の overrides と食い違っています。CI はこの実行の中で解決し直して通していますが、PR の lockfile 自体は直っていません。マージ前に @dependabot rebase を実行してください。"
             fi
           else
             pnpm install --frozen-lockfile

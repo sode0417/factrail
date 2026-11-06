@@ -1,2 +1,52 @@
 packages:
   - 'apps/*'
+
+# 出てから 1 日（1440 分）たっていない版は入れない（pnpm 11 では既定値）。
+# ⚠️ Dependabot の cooldown（7 日）が効くのは version updates だけ。security updates や、
+#    overrides の下限を上げる CVE の直しは、直った版が出て 1 日たつまで解決できないことがある。
+#    待てないときは、その部品だけ minimumReleaseAgeExclude に一時的に足し、入れたら外す。
+minimumReleaseAge: 1440
+
+# ⚠️ ここに置く（package.json の "pnpm" 欄ではなく）。pnpm 11 は package.json の "pnpm" 欄を読まない。
+# CVE を直すための下限。消すと lockfile を作り直したときに直した版が外れる。
+overrides:
+  "axios": ">=1.18.1 <2"
+  "qs": ">=6.15.2 <7"
+  "body-parser": ">=1.20.9 <2"
+  "handlebars": ">=4.7.10 <5"
+  "multer": ">=2.3.0 <3"
+  "form-data": ">=4.0.6 <5"
+  "uuid": ">=11.1.1 <15"
+  "@babel/core": ">=7.29.6 <8"
+  "effect": ">=3.20.0 <4"
+  "defu": ">=6.1.5 <7"
+  "lodash": ">=4.18.0 <5"
+  "ws": ">=8.20.1 <9"
+  "postcss": ">=8.5.23 <9"
+  "sharp": ">=0.35.5 <0.36"
+  "source-map-js": ">=1.2.2 <2"
+  "follow-redirects": ">=1.16.2 <2"
+  "deepmerge-ts": ">=8.0.2 <9"
+  "browserslist": ">=4.28.7 <5"
+  "brace-expansion@1": ">=1.1.16 <2"
+  "brace-expansion@2": ">=2.1.2 <3"
+  "brace-expansion@5": ">=5.0.8 <6"
+  "fast-uri@3": ">=3.1.4 <4"
+  "js-yaml@3": ">=3.15.0 <4"
+  "js-yaml@4": ">=4.3.0 <5"
+  "nanoid@3": ">=3.3.17 <4"
+  "glob@10": ">=10.5.0 <11"
+  "picomatch@4": ">=4.0.4 <5"
+  "tmp": ">=0.2.7 <0.3"
+  "express>path-to-regexp": "0.1.13"
+
+# install のときにビルドの script を動かしてよい部品（pnpm 11 では allowBuilds に変わる）
+onlyBuiltDependencies:
+  - "@nestjs/core"
+  - "@prisma/client"
+  - "@prisma/engines"
+  - "bcrypt"
+  - "msgpackr-extract"
+  - "prisma"
+  - "sharp"
+  - "unrs-resolver"
