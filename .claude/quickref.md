@@ -278,6 +278,9 @@ grep -E "失敗|NODE_MODULE_VERSION" ~/Library/Logs/factrail-api{,.error}.log | 
 
 ### ネイティブモジュールの ABI 不一致（better-sqlite3 など）
 
+> 📌 Chrome 履歴の読み取りは node:sqlite に替えたので、better-sqlite3 はもう依存に無い。
+> 下は過去の事故の記録と、ほかのネイティブモジュール（bcrypt・sharp など）で同じことが起きたときの直し方。
+
 **症状:** `was compiled against a different Node.js version using NODE_MODULE_VERSION 141. This version of Node.js requires NODE_MODULE_VERSION 137` / `ERR_DLOPEN_FAILED`
 
 ⚠️ **`pnpm rebuild better-sqlite3` では直らない**（2026-08-09 実測。ビルド済みと判断されてスキップされ、バイナリの mtime もサイズも変わらない）。

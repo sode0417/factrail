@@ -46,7 +46,6 @@ onlyBuiltDependencies:
   - "@prisma/client"
   - "@prisma/engines"
   - "bcrypt"
-  - "better-sqlite3"
   - "msgpackr-extract"
   - "prisma"
   - "sharp"
