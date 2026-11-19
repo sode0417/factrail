@@ -3,6 +3,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { ConfigService } from '@nestjs/config';
 import { ChromeHistoryService } from './chrome-history.service';
+import { SessionSplitterService } from './session-splitter.service';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { DatabaseSync } = require('node:sqlite');
@@ -68,6 +69,40 @@ describe('ChromeHistoryService（本物の SQLite で読む）', () => {
     ]);
     // コピーは読み終えたら消える
     expect(fs.existsSync(path.join(dir, 'state', 'chrome-history-copy.db'))).toBe(false);
+  });
+
+  it('認証の URL を除き、クエリを落とした URL だけを後の処理へ渡すこと（#178）', () => {
+    const db = new DatabaseSync(path.join(dir, 'History'));
+    const insertUrl = db.prepare('INSERT INTO urls VALUES (?, ?, ?)');
+    const insertVisit = db.prepare('INSERT INTO visits VALUES (?, ?, ?, ?)');
+    [
+      'http://localhost:58673/callback?code=secret-code&state=secret-state',
+      'https://accounts.google.com/signin/oauth/consent?part=secret-part',
+      'https://example.com/page?token=secret-token#access_token=secret-hash',
+      'https://www.google.com/search?q=nestjs&sca_esv=secret-esv',
+    ].forEach((url, i) => {
+      insertUrl.run(10 + i, url, 'title');
+      insertVisit.run(
+        10 + i,
+        10 + i,
+        webkit(new Date(Date.parse('2026-10-29T04:00:00Z') + i * 60_000)),
+        1,
+      );
+    });
+    db.close();
+    writeLastRun(lastRunFile(), '2026-10-29T03:30:00.000Z');
+
+    const visits = build().fetchNewVisits();
+
+    expect(visits.map((v) => v.url)).toEqual([
+      'https://example.com/page',
+      'https://www.google.com/search?q=nestjs',
+    ]);
+    expect(JSON.stringify(visits)).not.toContain('secret');
+    // セッション分割が読む検索語は残る
+    expect(new SessionSplitterService().splitIntoSessions(visits)[0].searchQueries).toEqual([
+      'nestjs',
+    ]);
   });
 
   it('成功したら前回取得時刻を置き場に残し、次のインスタンス（再起動後）がそこから続けること', () => {
