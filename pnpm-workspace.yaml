@@ -10,6 +10,10 @@ packages:
 # どうしても急ぐ版（出たばかりのセキュリティ修正など）は minimumReleaseAgeExclude に
 # 名前（"name" か "name@version"）を足して通し、入れたら外す。
 # ⚠️ Dependabot のセキュリティの PR は cooldown を待たないので、直った版が 1 日未満だと
-#    lockfile を作り直すところで落ちる。そのときは上の除外を使う。
-# ⚠️ pnpm install --frozen-lockfile（CI・scripts/deploy.sh）は lockfile をそのまま使う。
+#    依存を解決し直すところがすべて落ちる: dependabot-lockfile.yml の作り直しと、
+#    Dependabot の PR だけ --no-frozen-lockfile で入れる CI（ci-api・ci-web・test-api・
+#    test-web・security）。そのときは上の除外を使うか、1 日待って CI を流し直す。
+# ⚠️ --frozen-lockfile（scripts/deploy.sh・auto-fix.yml・Dependabot 以外の PR の CI）は
+#    解決し直さないので、ここでは落ちない。その代わり lockfile にすでに入った版は調べ直さない。
+# ⚠️ pnpm 10.16 より古いと、この設定は黙って無視される。
 minimumReleaseAge: 1440
