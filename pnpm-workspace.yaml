@@ -1,2 +1,15 @@
 packages:
   - 'apps/*'
+
+# 依存の乗っ取り（出たばかりの版に悪いコードを混ぜる攻撃。2025年の Shai-Hulud など）への守り。
+# https://pnpm.io/supply-chain-security
+#
+# 公開から 1 日（1440 分）たっていない版は入れない。手で足した依存や、下にぶら下がる依存
+# （推移的な依存）にも効く。Dependabot の cooldown は PR を出す時期を遅らせるだけなので、
+# これとは別に要る。
+# どうしても急ぐ版（出たばかりのセキュリティ修正など）は minimumReleaseAgeExclude に
+# 名前（"name" か "name@version"）を足して通し、入れたら外す。
+# ⚠️ Dependabot のセキュリティの PR は cooldown を待たないので、直った版が 1 日未満だと
+#    lockfile を作り直すところで落ちる。そのときは上の除外を使う。
+# ⚠️ pnpm install --frozen-lockfile（CI・scripts/deploy.sh）は lockfile をそのまま使う。
+minimumReleaseAge: 1440
