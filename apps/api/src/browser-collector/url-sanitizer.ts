@@ -54,7 +54,7 @@ const YOUTUBE_ID = /^[\w-]{1,64}$/;
 const NUMERIC_ID = /^\d+$/;
 
 /** 検索語に貼り付けられた URL・JWT・長いトークンは、検索語として残さない */
-function isSafeSearchQuery(query: string): boolean {
+export function isSafeSearchQuery(query: string): boolean {
   if (query.length > MAX_SEARCH_QUERY_LENGTH) return false;
   if (HAS_URL.test(query) || HAS_JWT.test(query) || HAS_QUERY_PAIR.test(query)) return false;
   return !(query.match(LONG_RUN) ?? []).some((run) =>
