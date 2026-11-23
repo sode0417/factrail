@@ -15,6 +15,9 @@
  *    書き換えたあと画面で確かめ、問題が無ければ 7 日以内に --drop-backup で消す（消すと戻せない）。
  *    この表は schema.prisma に無いので、本番で prisma db push を流すと黙って消える。
  * ⚠️ 変えるのは source_url・題名・要約・metadata（urls・search_queries・domains）だけ。訪問の数・時刻は変えない。
+ * ⚠️ ブラウザの収集（毎時 0 分）と重ならないよう、毎時 15〜45 分の間に流す。
+ *    重なると、収集が同じ Fact を書き換えるのを待たせるか、古い値で上書きしうる。
+ * ⚠️ --restore は控えにある Fact をすべて元に戻す（書き換えのあとに収集が入れた値も戻る）。
  * ⭐ 長いトランザクションになるので、DIRECT_URL（プールを通らない接続）があればそちらを使う。
  */
 import 'dotenv/config';
@@ -33,9 +36,8 @@ const FLAGS: Record<string, Mode> = {
 };
 
 function parseMode(argv: string[]): Mode {
-  const flags = argv.filter((a) => a.startsWith('--'));
-  if (flags.length === 0) return 'dry-run';
-  if (flags.length === 1 && FLAGS[flags[0]]) return FLAGS[flags[0]];
+  if (argv.length === 0) return 'dry-run';
+  if (argv.length === 1 && FLAGS[argv[0]]) return FLAGS[argv[0]];
   throw new Error(`分からない引数です（--apply・--restore・--drop-backup のどれか 1 つ）`);
 }
 
@@ -110,7 +112,7 @@ function printTotals(label: string, t: Totals): void {
     `  主要 URL を変える: ${t.sourceUrlChanged} 件（うち残る URL が無く空にする: ${t.sourceUrlNulled} 件）`,
   );
   console.log(
-    `  題名か要約の検索語・鍵を伏せる: ${t.textRedacted} 件・訪問の題名を伏せる: ${t.visitTitlesRedacted} 本`,
+    `  題名か要約の鍵を伏せる: ${t.textRedacted} 件・訪問の題名を伏せる: ${t.visitTitlesRedacted} 本`,
   );
 }
 

@@ -109,19 +109,80 @@ describe('scrubBrowserFact', () => {
     expect(result.stats.visitTitlesRedacted).toBe(1);
   });
 
-  it('検索の結果の画面以外の q（地図の住所など）は検索語から落とし、題名からも伏せる', () => {
+  it('検索の結果の画面以外の q（地図の住所など）は検索語から外すが、題名は壊さない', () => {
     const result = scrubBrowserFact(
       fact({
         title: '東京都千代田区1-1 を調査',
         metadata: {
-          search_queries: ['東京都千代田区1-1'],
-          urls: [{ url: 'https://maps.google.com/?q=東京都千代田区1-1', title: '地図' }],
+          search_queries: ['東京都千代田区1-1', 'the'],
+          urls: [
+            { url: 'https://maps.google.com/?q=東京都千代田区1-1', title: '地図' },
+            { url: 'https://maps.google.com/?q=the', title: 'theory of react' },
+          ],
         },
       }),
     );
 
     expect((result.metadata as { search_queries: string[] }).search_queries).toEqual([]);
+    expect(result.title).toBe('東京都千代田区1-1 を調査');
+    expect((result.metadata as { urls: Array<{ title: string }> }).urls[1].title).toBe(
+      'theory of react',
+    );
+    expect(result.stats.textRedacted).toBe(false);
+  });
+
+  it('大文字小文字や前後の空白が違っても、鍵の形の検索語を伏せる', () => {
+    const key = 'sk-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+    const result = scrubBrowserFact(
+      fact({
+        title: `${key.toLowerCase()} を調査`,
+        summary: `検索クエリ: ${key}`,
+        metadata: {
+          search_queries: [` ${key} `],
+          urls: [
+            { url: `https://www.google.com/search?q=${key}`, title: `${key} - Google 検索` },
+            {
+              url: `https://www.google.com/search?q=${key.toLowerCase()}`,
+              title: `${key.toLowerCase()} - Google 検索`,
+            },
+          ],
+        },
+      }),
+    );
+
+    const metadata = result.metadata as { urls: Array<{ title: string }> };
     expect(result.title).toBe(`${REDACTED} を調査`);
+    expect(result.summary).toBe(`検索クエリ: ${REDACTED}`);
+    expect(metadata.urls.map((u) => u.title)).toEqual([
+      `${REDACTED} - Google 検索`,
+      `${REDACTED} - Google 検索`,
+    ]);
+  });
+
+  it('途中で切れた鍵や、google.com/url の q に入った鍵も伏せる', () => {
+    const result = scrubBrowserFact(
+      fact({
+        title: '題名',
+        summary: '鍵の一部 ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ012 が見えた',
+        metadata: {
+          urls: [
+            {
+              url: 'https://www.google.com/url?q=https://example.com/cb?code=secret12345',
+              title: 'https://example.com/cb?code=secret12345',
+            },
+          ],
+        },
+      }),
+    );
+
+    expect(result.summary).toBe(`鍵の一部 ${REDACTED} が見えた`);
+    expect((result.metadata as { urls: Array<{ title: string }> }).urls[0].title).toBe(REDACTED);
+  });
+
+  it('ふつうの長い技術用語は伏せない', () => {
+    const title = 'spring-boot-starter-data-jpa の設定と github.com/sode0417/factrail/pull/262';
+    const result = scrubBrowserFact(fact({ title }));
+    expect(result.title).toBe(title);
   });
 
   it('URL の一覧が無い古い形でも、鍵の形の検索語は落とす', () => {
@@ -129,21 +190,6 @@ describe('scrubBrowserFact', () => {
 
     expect((result.metadata as { search_queries: unknown[] }).search_queries).toEqual(['ok']);
     expect(result.stats.searchQueriesRemoved).toBe(2);
-  });
-
-  it('短い検索語は題名と要約では置き換えない', () => {
-    const result = scrubBrowserFact(
-      fact({
-        title: 'ab を調査',
-        metadata: {
-          search_queries: ['ab'],
-          urls: [{ url: 'https://maps.google.com/?q=ab', title: '' }],
-        },
-      }),
-    );
-
-    expect(result.title).toBe('ab を調査');
-    expect((result.metadata as { search_queries: string[] }).search_queries).toEqual([]);
   });
 
   it('主要 URL がログインの画面なら、残った URL から取り込みと同じ選び方で選び直す', () => {
