@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { sanitizeVisitUrl } from './url-sanitizer';
 // ⭐ Node 組み込みの SQLite（ネイティブの依存を持たない）。2026-08 に better-sqlite3 の
 //    ネイティブ部品が Node の版と合わず、browser 収集が 7 日止まった（#195）ため置き換えた。
 //    @types/node が 20 系で node:sqlite の型を持たないので、使う分だけ型を書いて require する。
@@ -140,14 +141,20 @@ export class ChromeHistoryService {
         transition: bigint;
       }>;
 
-      const visits: ChromeVisit[] = rows
-        .map((row) => ({
-          url: row.url,
-          title: row.title || '',
-          visitTime: this.webkitTimestampToDate(row.visit_time),
-          transitionType: Number(row.transition & 0xffn), // 下位8ビットがコアタイプ
-        }))
-        .filter((v) => !this.isInternalUrl(v.url));
+      // ⭐ 認証の情報はここで落とす。後のセッション分割・LLM・Fact の保存は、この結果だけを見る（#178）
+      const visits: ChromeVisit[] = rows.flatMap((row) => {
+        if (this.isInternalUrl(row.url)) return [];
+        const url = sanitizeVisitUrl(row.url);
+        if (url === null) return [];
+        return [
+          {
+            url,
+            title: row.title || '',
+            visitTime: this.webkitTimestampToDate(row.visit_time),
+            transitionType: Number(row.transition & 0xffn), // 下位8ビットがコアタイプ
+          },
+        ];
+      });
 
       this.logger.log(`${visits.length} 件の新しい訪問履歴を取得しました`);
 
