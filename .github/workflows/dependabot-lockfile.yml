@@ -1,12 +1,12 @@
 name: Dependabot Lockfile Fix
 
-# Dependabot が作った PR の pnpm-lock.yaml を、package.json の pnpm.overrides に
+# Dependabot が作った PR の pnpm-lock.yaml を、pnpm-workspace.yaml の overrides に
 # 合わせて作り直し、その PR ブランチへ commit し返す。
 #
 # 【なぜ要るか】
-#   📏 package.json には pnpm.overrides が 25 件ある（2026-09-28 実測）。
+#   📏 pnpm-workspace.yaml に overrides が 29 件ある（2026-11-03 実測。前は package.json の pnpm 欄）。
 #   ⚠️ Dependabot は PR を作るとき lockfile から overrides の記述を落とす。
-#   ⇒ package.json と lockfile が食い違い、`--frozen-lockfile` が
+#   ⇒ overrides と lockfile が食い違い、`--frozen-lockfile` が
 #      ERR_PNPM_LOCKFILE_CONFIG_MISMATCH で落ちる。
 #      📏 2026-09-05 / 09-12 / 09-19 の3週 連続で発生した。
 #
@@ -101,7 +101,23 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup pnpm
+      - name: pnpm の版の決め方を調べる
+        id: pm
+        # ⚠️ package.json に packageManager が入る前に作られた PR ブランチには、版の指定が無い。
+        #    pnpm/action-setup は版が無いと止まり、version と packageManager の両方があっても止まる
+        run: |
+          if jq -e '.packageManager' package.json > /dev/null; then
+            echo "has=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup pnpm（packageManager に従う）
+        if: steps.pm.outputs.has == 'true'
+        uses: pnpm/action-setup@v6
+
+      - name: Setup pnpm（packageManager が無い古い PR ブランチ）
+        if: steps.pm.outputs.has != 'true'
         uses: pnpm/action-setup@v6
         with:
           version: 10
@@ -124,7 +140,7 @@ jobs:
           #    片付けると、インフラの不調を lockfile のせいにしたまま気づけない。
           if pnpm install --frozen-lockfile --lockfile-only > "$RUNNER_TEMP/before.log" 2>&1; then
             echo "broken=false" >> "$GITHUB_OUTPUT"
-            echo "この PR の lockfile は package.json と食い違っていませんでした。"
+            echo "この PR の lockfile は overrides と食い違っていませんでした。"
           else
             echo "broken=true" >> "$GITHUB_OUTPUT"
             echo "--frozen-lockfile が通りませんでした。pnpm の出力は次のとおり:"
@@ -171,10 +187,10 @@ jobs:
             git config user.name 'github-actions[bot]'
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
             git add pnpm-lock.yaml
-            git commit -m 'chore(deps): lockfile を package.json の overrides に合わせて作り直す
+            git commit -m 'chore(deps): lockfile を overrides に合わせて作り直す
 
           Dependabot は PR を作るとき lockfile から overrides の記述を落とすため、
-          package.json と食い違い --frozen-lockfile が落ちる。ここで作り直して揃える。
+          overrides と食い違い --frozen-lockfile が落ちる。ここで作り直して揃える。
 
           自動生成: .github/workflows/dependabot-lockfile.yml'
             git push origin HEAD:"$HEAD_REF"
@@ -201,7 +217,7 @@ jobs:
             echo '## Dependabot の lockfile 修正'
             echo
             if [ "$BROKEN" = 'true' ]; then
-              echo '- 直す前: :x: `--frozen-lockfile` が通らなかった（package.json の overrides と食い違い）'
+              echo '- 直す前: :x: `--frozen-lockfile` が通らなかった（overrides と食い違い）'
             else
               echo '- 直す前: :white_check_mark: 食い違いは無かった'
             fi

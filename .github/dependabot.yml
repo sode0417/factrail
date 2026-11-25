@@ -38,7 +38,7 @@ updates:
       semver-major-days: 30
 
     # package.json のレンジ自体を引き上げる。
-    # 本リポジトリは pnpm.overrides で「必要な下限」を package.json に明記する運用のため、
+    # 本リポジトリは overrides で「必要な下限」を pnpm-workspace.yaml に明記する運用のため、
     # 依存のレンジも同じ場所に記録される方が一貫する。
     # 差分ノイズを抑えたい場合は increase-if-necessary にすると lockfile のみの更新になる。
     versioning-strategy: 'increase'
