@@ -38,6 +38,7 @@ overrides:
   "glob@10": ">=10.5.0 <11"
   "picomatch@4": ">=4.0.4 <5"
   "tmp": ">=0.2.7 <0.3"
+  "zod": ">=4.6.6 <5"
   "express>path-to-regexp": "0.1.13"
 
 # install のときにビルドの script を動かしてよい部品（pnpm 11 では allowBuilds に変わる）
