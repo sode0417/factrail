@@ -24,7 +24,9 @@ better-sqlite3 の ABI 不一致で `ChromeHistoryService` が 7 日間失敗し
 - [x] 正常時・デプロイ直後・無効化中は誤検知しない（`pending` / `disabled` は `ok` 扱い）
 - [x] DB 断は `unhealthy`、deploy.sh はそれだけを失敗とみなす
 - [x] `pnpm rebuild` が効かない件を踏まえた復旧手順を `.claude/quickref.md` に記載
+- [x] 読込の失敗が、読取 → 収集の cron → 鮮度の記録 → `/health` の判定（`HealthController.check()` が返す `degraded`）まで届く（本物の部品をつないだ結合テスト `cron-health.integration.spec.ts`。HTTP の層（ルーティング・ステータスコード）は通さず、メソッドを直接呼ぶ。読み込みの例外は使う時点で投げる形なので、`node:sqlite` をファイルの頭で import する形に戻して起動時に落ちる退行は、このテストでは見つからない。差し替えるのは node:sqlite の読み込み・DB・LLM・設定・セッションの分割だけ。再現しているのは「読み込みが例外を投げる」一般の場合で、node:sqlite は Node 組み込みなので 2026-08 と同じ ABI 不一致は今の構成では起きない）
 - [ ] Mac mini で ABI 不一致を意図的に作って実測する — **本番 API が動いている機械を壊すため、実施前に本人の確認を取る**（判断メモ 4-3）。未実施
+  - 2026-11-17 時点: browser の読取は #245 で better-sqlite3 から node:sqlite（Node 組み込み・ネイティブの部品なし）に替わり、2026-08 に壊れた部品はもう無い。上の結合テストで検知の道筋は通しで確かめたので、本番機で壊す実測は要らないと考える（やるかどうかは本人が決める）
 
 ## スコープ外
 
