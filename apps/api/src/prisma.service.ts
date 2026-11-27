@@ -5,8 +5,15 @@ import { PrismaPg } from '@prisma/adapter-pg';
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   constructor() {
-    // Prisma 7 はドライバの adapter が要る。表の場所はスキーマの @@schema で決まる
-    super({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }) });
+    // Prisma 7 はドライバの adapter が要る
+    // pg の既定は接続の待ち時間が無制限なので、v6 と同じ 5 秒にする
+    // URL の ?schema= は pg が読まない。表の場所はどのモデルも @@schema で決まる
+    super({
+      adapter: new PrismaPg({
+        connectionString: process.env.DATABASE_URL,
+        connectionTimeoutMillis: 5000,
+      }),
+    });
     console.log('🔗 Initializing Prisma...');
   }
 
