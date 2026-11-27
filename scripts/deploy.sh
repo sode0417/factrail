@@ -401,9 +401,10 @@ preflight() {
 # .node-version だけ上げても本番は古い版のまま動くので、ずれていたら止める。
 # 見るもの: launchd に読み込まれている program（本番の実際）と、repo の launchd/<label>.plist（写し）。
 # git pull の後（新しい .node-version を読む）・ビルドと再起動の前に呼ぶ。
-node_version_of_path() {
-  # "/.../node-versions/v24.22.3/installation/bin/node" → "24.22.3"（見つからなければ空）
-  echo "$1" | sed -n 's|.*/node-versions/v\([0-9][0-9.]*\)/.*|\1|p' | head -n 1
+node_versions_in() {
+  # 標準入力の中の ".../node-versions/vX.Y.Z/..." の版をすべて拾い、重複を除いて空白区切りで出す
+  # （1つにそろっていれば "24.22.3"、ずれていれば "24.22.1 24.22.3"、無ければ空）
+  grep -o 'node-versions/v[0-9][0-9.]*/' | sed -e 's|node-versions/v||' -e 's|/$||' | sort -u | tr '\n' ' ' | sed 's/ $//'
 }
 
 check_node_version() {
@@ -425,12 +426,16 @@ check_node_version() {
     label=$(jq -r ".services[$i].launchd_label // empty" "$DEPLOY_CONFIG")
     if [[ -z "$label" ]]; then continue; fi
 
+    # 読み込み中のジョブ: program だけでなく PATH（npx は PATH の先頭の node で動く）も見る
     program=$(launchd_field "$label" program)
-    have=$(node_version_of_path "$program")
+    have=$(launchctl print "$GUI_DOMAIN/$label" 2>/dev/null | node_versions_in || true)
     if [[ -z "$have" ]]; then
-      warn "  ??  [$name] 読み込み中の program から版を読めません（${program:-（空）}）。突き合わせを省略"
+      warn "  ??  [$name] 読み込み中のジョブから fnm の版を読めません（program: ${program:-（空）}）。突き合わせを省略"
     elif [[ "$have" != "$want" ]]; then
-      err "  NG  [$name] 本番の launchd は v${have}、.node-version は ${want}"
+      err "  NG  [$name] 本番の launchd は v$(echo $have | sed 's/ /・v/g')、.node-version は ${want}"
+      bad=1
+    elif [[ "$program" == */node-versions/* && ! -x "$program" ]]; then
+      err "  NG  [$name] 本番の launchd の program がありません: $program（fnm install ${want} が要る）"
       bad=1
     else
       log "  OK  [$name] 本番の launchd も v${have}"
@@ -438,9 +443,9 @@ check_node_version() {
 
     repo_plist="$REPO_ROOT/launchd/${label}.plist"
     if [[ -f "$repo_plist" ]]; then
-      repo_have=$(node_version_of_path "$(grep -m 1 'node-versions/v' "$repo_plist" || true)")
+      repo_have=$(node_versions_in < "$repo_plist" || true)
       if [[ -n "$repo_have" && "$repo_have" != "$want" ]]; then
-        err "  NG  [$name] repo の launchd/${label}.plist は v${repo_have}、.node-version は ${want}"
+        err "  NG  [$name] repo の launchd/${label}.plist は v$(echo $repo_have | sed 's/ /・v/g')、.node-version は ${want}"
         bad=1
       fi
     fi
