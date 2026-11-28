@@ -46,15 +46,15 @@ const MAX_SEARCH_QUERY_LENGTH = 256;
 const HAS_URL = /[a-z][a-z0-9+.-]*:\/\//i;
 const HAS_JWT = /\beyJ[A-Za-z0-9_-]{8,}/;
 const HAS_QUERY_PAIR = /[?&][^=\s]+=/;
-const LONG_RUN = /[A-Za-z0-9_\-.+/=]{32,}/g;
+export const LONG_RUN = /[A-Za-z0-9_\-.+/=]{32,}/g;
 /** 長い技術用語（spring-boot-starter-... など）と区別するため、切れ目のない長さで見る */
-const TOKEN_PART_LENGTH = 24;
+export const TOKEN_PART_LENGTH = 24;
 
 const YOUTUBE_ID = /^[\w-]{1,64}$/;
 const NUMERIC_ID = /^\d+$/;
 
 /** 検索語に貼り付けられた URL・JWT・長いトークンは、検索語として残さない */
-function isSafeSearchQuery(query: string): boolean {
+export function isSafeSearchQuery(query: string): boolean {
   if (query.length > MAX_SEARCH_QUERY_LENGTH) return false;
   if (HAS_URL.test(query) || HAS_JWT.test(query) || HAS_QUERY_PAIR.test(query)) return false;
   return !(query.match(LONG_RUN) ?? []).some((run) =>
