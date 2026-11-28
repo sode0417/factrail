@@ -1,13 +1,11 @@
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["multiSchema"]
+  provider = "prisma-client-js"
 }
 
+// 接続先は prisma.config.ts（CLI）と src/prisma.service.ts（アプリ）で渡す（Prisma 7）
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
-  schemas   = ["factrail", "public"]
+  provider = "postgresql"
+  schemas  = ["factrail", "public"]
 }
 
 model Fact {

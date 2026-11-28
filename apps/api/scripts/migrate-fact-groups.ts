@@ -5,9 +5,14 @@
  *   cd apps/api
  *   npx ts-node scripts/migrate-fact-groups.ts
  */
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 
-const prisma = new PrismaClient();
+// Prisma 7 は adapter が要り、.env も自分で読む
+const prisma = new PrismaClient({
+  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
+});
 
 function buildGroupId(
   repo: string,
