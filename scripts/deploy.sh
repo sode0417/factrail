@@ -396,6 +396,70 @@ preflight() {
   return 0
 }
 
+# ------------------------------------------------------- Node の版の突き合わせ
+# 本番の Node は launchd の plist に fnm のパス（.../node-versions/vX.Y.Z/...）で直に書かれている。
+# .node-version だけ上げても本番は古い版のまま動くので、ずれていたら止める。
+# 見るもの: launchd に読み込まれている program（本番の実際）と、repo の launchd/<label>.plist（写し）。
+# git pull の後（新しい .node-version を読む）・ビルドと再起動の前に呼ぶ。
+node_versions_in() {
+  # 標準入力の中の ".../node-versions/vX.Y.Z/..." の版をすべて拾い、重複を除いて空白区切りで出す
+  # （1つにそろっていれば "24.22.3"、ずれていれば "24.22.1 24.22.3"、無ければ空）
+  grep -o 'node-versions/v[0-9][0-9.]*/' | sed -e 's|node-versions/v||' -e 's|/$||' | sort -u | tr '\n' ' ' | sed 's/ $//'
+}
+
+check_node_version() {
+  local want count i name type label program have repo_plist repo_have bad=0
+  if [[ ! -f "$REPO_ROOT/.node-version" ]]; then
+    log "Node の版の突き合わせ: .node-version が無いので省略"
+    return 0
+  fi
+  want=$(tr -d '[:space:]' < "$REPO_ROOT/.node-version")
+  want="${want#v}"
+  log "Node の版の突き合わせ（.node-version: ${want}）"
+
+  count=$(jq '.services | length' "$DEPLOY_CONFIG")
+  for i in $(seq 0 $((count - 1))); do
+    name=$(jq -r ".services[$i].name" "$DEPLOY_CONFIG")
+    type=$(jq -r ".services[$i].type" "$DEPLOY_CONFIG")
+    if [[ -n "$TARGET_SERVICE" && "$name" != "$TARGET_SERVICE" ]]; then continue; fi
+    case "$type" in node|nextjs) : ;; *) continue ;; esac
+    label=$(jq -r ".services[$i].launchd_label // empty" "$DEPLOY_CONFIG")
+    if [[ -z "$label" ]]; then continue; fi
+
+    # 読み込み中のジョブ: program だけでなく PATH（npx は PATH の先頭の node で動く）も見る
+    program=$(launchd_field "$label" program)
+    have=$(launchctl print "$GUI_DOMAIN/$label" 2>/dev/null | node_versions_in || true)
+    if [[ -z "$have" ]]; then
+      warn "  ??  [$name] 読み込み中のジョブから fnm の版を読めません（program: ${program:-（空）}）。突き合わせを省略"
+    elif [[ "$have" != "$want" ]]; then
+      err "  NG  [$name] 本番の launchd は v$(echo $have | sed 's/ /・v/g')、.node-version は ${want}"
+      bad=1
+    elif [[ "$program" == */node-versions/* && ! -x "$program" ]]; then
+      err "  NG  [$name] 本番の launchd の program がありません: $program（fnm install ${want} が要る）"
+      bad=1
+    else
+      log "  OK  [$name] 本番の launchd も v${have}"
+    fi
+
+    repo_plist="$REPO_ROOT/launchd/${label}.plist"
+    if [[ -f "$repo_plist" ]]; then
+      repo_have=$(node_versions_in < "$repo_plist" || true)
+      if [[ -n "$repo_have" && "$repo_have" != "$want" ]]; then
+        err "  NG  [$name] repo の launchd/${label}.plist は v$(echo $repo_have | sed 's/ /・v/g')、.node-version は ${want}"
+        bad=1
+      fi
+    fi
+  done
+
+  if [[ "$bad" -ne 0 ]]; then
+    err "Node の版が .node-version と plist でずれています。ビルドも再起動もせずに止めます（サービスは今の版で稼働継続）。"
+    err "  → 直し方: fnm install ${want} → repo の launchd/*.plist と ~/Library/LaunchAgents の plist を v${want} に直す"
+    err "            → launchctl bootout ${GUI_DOMAIN}/<label> → launchctl bootstrap ${GUI_DOMAIN} ~/Library/LaunchAgents/<label>.plist"
+    return 1
+  fi
+  return 0
+}
+
 # ------------------------------------------------------------------------ main
 main() {
   local c service_count i name matched=0
@@ -421,6 +485,9 @@ main() {
     if ! (cd "$REPO_ROOT" && git pull origin main --ff-only); then err "git pull 失敗"; exit 1; fi
   fi
   log "HEAD: $(cd "$REPO_ROOT" && git log -1 --pretty='%h %s')"
+
+  # 1.5) Node の版の突き合わせ（.node-version と launchd の plist）
+  if ! check_node_version; then exit 1; fi
 
   # 2) 依存
   #   ⚠️ pnpm の版は package.json の packageManager に合わせる。pnpm 11 は package.json の
