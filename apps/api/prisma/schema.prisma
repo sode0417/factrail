@@ -1,13 +1,10 @@
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["multiSchema"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
-  schemas   = ["factrail", "public"]
+  provider = "postgresql"
+  schemas  = ["factrail", "public"]
 }
 
 model Fact {
@@ -127,10 +124,10 @@ model Settings {
 }
 
 model User {
-  id       String @id @default(uuid())
-  email    String @unique
-  name     String?
-  avatar   String?
+  id     String  @id @default(uuid())
+  email  String  @unique
+  name   String?
+  avatar String?
 
   // パスワード認証（bcryptハッシュ）
   password String? // OAuthのみの場合はnull

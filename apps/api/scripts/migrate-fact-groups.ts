@@ -5,9 +5,12 @@
  *   cd apps/api
  *   npx ts-node scripts/migrate-fact-groups.ts
  */
+// Prisma 7 は .env を自動で読まないので、ここで読む
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
+import { createPgAdapter } from '../src/prisma-adapter';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ adapter: createPgAdapter() });
 
 function buildGroupId(
   repo: string,

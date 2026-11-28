@@ -9,7 +9,7 @@ export default defineConfig({
     path: 'prisma/migrations',
   },
   datasource: {
-    url: process.env.DATABASE_URL,
-    directUrl: process.env.DIRECT_URL,
+    // Prisma 7: Migrate はここの URL を使う（以前の schema の directUrl にあたる）
+    url: process.env.DIRECT_URL || process.env.DATABASE_URL,
   },
 });

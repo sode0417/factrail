@@ -78,7 +78,8 @@ cp apps/api/.env.example apps/api/.env
 
 主な環境変数：
 ```env
-DATABASE_URL=postgresql://factrail:PASSWORD@localhost:5432/factrail?schema=factrail
+DATABASE_URL=postgresql://factrail:PASSWORD@localhost:5432/factrail
+# Prisma 7 (driver adapter) では ?schema= は効きません。スキーマは schema.prisma の @@schema で指定しています
 ENCRYPTION_KEY=... # 32文字のランダム文字列
 REDIS_URL=redis://localhost:6379
 ```
